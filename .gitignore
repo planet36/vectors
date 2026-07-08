@@ -1,0 +1,7 @@
+# Build artifacts (tests are compiled ad hoc; see CLAUDE.md)
+a.out
+a.san
+*.o
+*.obj
+*.gch
+*.pch
