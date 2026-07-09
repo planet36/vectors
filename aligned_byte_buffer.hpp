@@ -192,7 +192,7 @@ public:
     }
 
     constexpr aligned_byte_buffer(const std::initializer_list<std::byte> il)
-        : aligned_byte_buffer(std::data(il), std::size(il))
+        : aligned_byte_buffer(std::span<const std::byte>{std::data(il), std::size(il)})
     {}
 
     /// Capacity is the size of \a rg (forward range required).
