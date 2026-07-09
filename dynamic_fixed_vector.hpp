@@ -351,7 +351,7 @@ public:
 
     constexpr void append_range(const std::initializer_list<T> il)
     {
-        append_range(std::begin(il), std::end(il));
+        append_range(std::span<const T>{std::data(il), std::size(il)});
     }
 
     template <std::ranges::input_range R>
@@ -404,7 +404,7 @@ public:
 
     [[nodiscard]] constexpr bool try_append_range(const std::initializer_list<T> il)
     {
-        return try_append_range(std::begin(il), std::end(il));
+        return try_append_range(std::span<const T>{std::data(il), std::size(il)});
     }
 
     template <std::ranges::input_range R>
