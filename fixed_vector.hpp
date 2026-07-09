@@ -36,6 +36,12 @@
 *   - \c clear(), \c pop_back(), and \c resize() only change the size -- they do not destroy
 *     any removed elements.
 *   - Array elements are never explicitly destroyed.
+*   - \c operator[] is unchecked and \b capacity-based: an index in [\c size(), \c capacity())
+*     legitimately reads a live element.  \c at() is the only bounds-checked accessor.
+*
+* Like \c std::inplace_vector, capacity overflow throws \c std::bad_alloc and the \c try_* /
+* \c unchecked_* families are provided -- though the \c try_* members return \c bool here
+* rather than \c std::inplace_vector's pointer/iterator.
 *
 * \warning This container is only suitable for trivially destructible types.
 *
