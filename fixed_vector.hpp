@@ -220,6 +220,10 @@ public:
 
     /**
     * \pre \c !is_full()
+    * \note "Emplace" cannot construct in place here: the slot already holds a live element
+    * (elements are never destroyed), so a temporary \c T is constructed from \a args and
+    * move-assigned into the slot -- equivalent to \c push_back(T(args...)).  Kept for API
+    * parity with \c std::inplace_vector.
     * \sa https://cppreference.com/w/cpp/container/inplace_vector/unchecked_emplace_back.html
     */
     template <class... Args>

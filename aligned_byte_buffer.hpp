@@ -302,6 +302,8 @@ public:
     /// argument, converted as by \c static_cast (out-of-range integers truncate mod 256).
     /// Floating-point and other enumeration arguments are rejected; cast explicitly if
     /// intended.
+    /// \note "Emplace" is assignment here: the slot already holds a live byte (elements are
+    /// never destroyed), so this is equivalent to \c push_back(std::byte(args...)).
     template <class... Args>
     requires (sizeof...(Args) <= 1) &&
              ((std::same_as<std::remove_cvref_t<Args>, std::byte> ||

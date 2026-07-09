@@ -27,6 +27,9 @@ These are deliberate and hold across all three types:
   construction; every slot holds a live element from the moment the container exists.
 - **Elements are never individually destroyed.** `clear()`, `pop_back()`, and `resize()` only adjust
   the size counter. This is why the element type is constrained to be trivially destructible.
+  A consequence: `emplace_back` cannot construct in place — the target slot already holds a live
+  element — so it constructs a temporary from its arguments and assigns it into the slot,
+  equivalent to `push_back(T(args...))` (kept for API parity with `std::inplace_vector`).
 - **`operator[]` is unchecked and capacity-based.** It may legitimately access a slot at an index
   `>= size()` (within capacity). `at()` is the only bounds-checked accessor and throws
   `std::out_of_range`.
