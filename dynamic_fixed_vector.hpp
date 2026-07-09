@@ -45,8 +45,10 @@
 *     allocation is not usable in constant evaluation, only empty (non-allocating) instances
 *     are usable in constant expressions.
 *
-* Like \c fixed_vector: all \c capacity() elements are value-initialized when the block is
-* allocated, elements are never explicitly destroyed, \c operator[] is unchecked and
+* Like \c fixed_vector: all \c capacity() elements are alive from construction onward
+* (value-initialized by the reserve constructor; constructed directly from the source by
+* the copy/fill/range constructors), elements are never explicitly destroyed, \c operator[]
+* is unchecked and
 * capacity-based, \c at() is bounds-checked, capacity overflow throws \c std::bad_alloc, and
 * the \c try_* family returns \c bool.
 *
@@ -77,12 +79,14 @@ private:
     std::size_t capacity_{};
     storage_ptr data_{};
 
-    /// Allocate an over-aligned block of \a cap value-initialized elements.
+    /// Allocate an over-aligned block for \a cap elements without beginning any lifetimes.
     /**
-    * The elements are never individually destroyed; the whole block is freed by
-    * \c aligned_deleter.  A capacity of 0 allocates nothing.
+    * The caller must begin the lifetime of every element (e.g. with the
+    * \c std::uninitialized_* algorithms or \c std::construct_at) before the container is
+    * used.  The whole block is freed by \c aligned_deleter.  A capacity of 0 allocates
+    * nothing.
     */
-    [[nodiscard]] static constexpr storage_ptr allocate_(const std::size_t cap)
+    [[nodiscard]] static constexpr storage_ptr allocate_raw_(const std::size_t cap)
     {
         if (cap == 0)
             return nullptr;
@@ -92,12 +96,36 @@ private:
         if (cap > std::numeric_limits<std::size_t>::max() / sizeof(T))
             throw std::bad_alloc{};
 
-        T* const raw = static_cast<T*>(::operator new(cap * sizeof(T), std::align_val_t{Align}));
-        // Own the raw block first so a throwing value-init frees it.
-        storage_ptr up{raw};
-        std::uninitialized_value_construct_n(raw, cap);
+        return storage_ptr{
+            static_cast<T*>(::operator new(cap * sizeof(T), std::align_val_t{Align}))};
+    }
+
+    /// Allocate an over-aligned block of \a cap value-initialized elements.
+    /**
+    * The elements are never individually destroyed; the whole block is freed by
+    * \c aligned_deleter.  A capacity of 0 allocates nothing.
+    */
+    [[nodiscard]] static constexpr storage_ptr allocate_(const std::size_t cap)
+    {
+        // Own the raw block first so a throwing value-init still frees it.
+        storage_ptr up = allocate_raw_(cap);
+        if (cap != 0)
+            std::uninitialized_value_construct_n(up.get(), cap);
         return up;
     }
+
+    /// Tag for the constructor that allocates without beginning element lifetimes.
+    struct raw_alloc_t {};
+
+    /// Allocate \a capacity slots with \c size()==capacity but no lifetimes begun.
+    /**
+    * The delegating constructor's body must begin the lifetime of every element.  A throwing
+    * element constructor still frees the block (owned by \c data_); the already-constructed
+    * elements need no destruction (\c T is trivially destructible).
+    */
+    constexpr dynamic_fixed_vector(raw_alloc_t, const std::size_t capacity)
+        : size_{capacity}, capacity_{capacity}, data_{allocate_raw_(capacity)}
+    {}
 
     /// Check the index \a i against \c size()
     constexpr void check_idx_(const std::size_t i) const
@@ -126,10 +154,12 @@ public:
     constexpr dynamic_fixed_vector() noexcept = default;
 
     constexpr dynamic_fixed_vector(const dynamic_fixed_vector& other)
-        : size_{other.size_}, capacity_{other.capacity_}, data_{allocate_(other.capacity_)}
+        : size_{other.size_}, capacity_{other.capacity_}, data_{allocate_raw_(other.capacity_)}
     {
-        // Copy the entire capacity buffer (faithful to beyond-size operator[] reads).
-        std::copy_n(other.data(), capacity_, data());
+        // Copy the entire capacity buffer (faithful to beyond-size operator[] reads),
+        // beginning each element's lifetime directly -- no value-init-then-overwrite.
+        if (capacity_ != 0)
+            std::uninitialized_copy_n(other.data(), capacity_, data());
     }
 
     constexpr dynamic_fixed_vector(dynamic_fixed_vector&& other) noexcept
@@ -160,33 +190,44 @@ public:
 
     /// Reserve capacity \a capacity and fill it with \a value (\c size()==capacity).
     constexpr explicit dynamic_fixed_vector(const std::size_t capacity, const T& value)
-        : size_{capacity}, capacity_{capacity}, data_{allocate_(capacity)}
+        : dynamic_fixed_vector(raw_alloc_t{}, capacity)
     {
-        (void)std::ranges::fill(span(), value);
+        if (capacity_ != 0)
+            std::uninitialized_fill_n(data(), capacity_, value);
     }
 
     /// Capacity is the size of \a spn.
     constexpr explicit dynamic_fixed_vector(const std::span<const T> spn)
-        : dynamic_fixed_vector(std::size(spn))
+        : dynamic_fixed_vector(raw_alloc_t{}, std::size(spn))
     {
-        common_append_range_(spn);
+        if (capacity_ != 0)
+            std::uninitialized_copy_n(std::data(spn), capacity_, data());
     }
 
     /// Capacity is the distance between \a first and \a last (forward iterators required).
     template <std::forward_iterator It, std::sentinel_for<It> S>
     constexpr explicit dynamic_fixed_vector(It first, S last)
-        : dynamic_fixed_vector(static_cast<std::size_t>(std::ranges::distance(first, last)))
+        : dynamic_fixed_vector(raw_alloc_t{},
+                               static_cast<std::size_t>(std::ranges::distance(first, last)))
     {
+        std::size_t i = 0;
         for (; first != last; ++first)
-            unchecked_emplace_back(*first);
+        {
+            std::construct_at(data() + i, *first);
+            ++i;
+        }
     }
 
     /// Capacity is \a count.
     template <std::input_iterator It>
     constexpr explicit dynamic_fixed_vector(It first, const std::size_t count)
-        : dynamic_fixed_vector(count)
+        : dynamic_fixed_vector(raw_alloc_t{}, count)
     {
-        common_append_range_(first, count);
+        for (std::size_t i = 0; i < count; ++i)
+        {
+            std::construct_at(data() + i, *first);
+            ++first;
+        }
     }
 
     constexpr dynamic_fixed_vector(const std::initializer_list<T> il)
@@ -196,10 +237,14 @@ public:
     /// Capacity is the size of \a rg (forward range required).
     template <std::ranges::forward_range R>
     constexpr explicit dynamic_fixed_vector(std::from_range_t, R&& rg)
-        : dynamic_fixed_vector(static_cast<std::size_t>(std::ranges::distance(rg)))
+        : dynamic_fixed_vector(raw_alloc_t{}, static_cast<std::size_t>(std::ranges::distance(rg)))
     {
+        std::size_t i = 0;
         for (auto&& e : std::forward<R>(rg))
-            unchecked_emplace_back(std::forward<decltype(e)>(e));
+        {
+            std::construct_at(data() + i, std::forward<decltype(e)>(e));
+            ++i;
+        }
     }
 
     constexpr dynamic_fixed_vector& operator=(const std::initializer_list<T> il)

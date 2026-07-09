@@ -53,9 +53,14 @@ over-alignable heap block.
 
 - **Allocation.** Storage comes from the aligned allocation function
   `::operator new(bytes, std::align_val_t{Align})`, owned by a `std::unique_ptr<T, Deleter>` whose
-  stateless deleter calls the matching `::operator delete(p, std::align_val_t{Align})`. All capacity
-  elements are value-initialized once via `std::uninitialized_value_construct_n`, with the block
-  adopted by the `unique_ptr` *before* construction so a throwing value-init still frees it.
+  stateless deleter calls the matching `::operator delete(p, std::align_val_t{Align})`. Every
+  capacity element's lifetime is begun exactly once at construction: the reserve constructor
+  value-initializes them (`std::uninitialized_value_construct_n`), while the copy/fill/range
+  constructors construct them directly from the source (`std::uninitialized_copy_n` /
+  `std::uninitialized_fill_n` / `std::construct_at`), avoiding a value-initialize-then-overwrite
+  double write. The block is adopted by the `unique_ptr` *before* element construction so a
+  throwing element constructor still frees it (the constructed elements need no destruction —
+  `T` is trivially destructible).
 
 - **Why not an array `new` expression** (`new (std::align_val_t{Align}) T[n]`). The over-alignment
   is supplied by the `Align` *template parameter*, not by the type `T`. A `delete[]` expression (and

@@ -65,8 +65,10 @@ The header's class docstring lists the intended differences from `std::inplace_v
 
 ### `dynamic_fixed_vector` differences from `fixed_vector`
 
-Same invariants (value-initialize all capacity elements up front, never destroy, trivially
-destructible only, unchecked `operator[]`), but adapted for runtime capacity + heap storage:
+Same invariants (all capacity elements alive up front — value-initialized by the reserve
+constructor, constructed directly from the source by the copy/fill/range constructors — never
+destroyed, trivially destructible only, unchecked `operator[]`), but adapted for runtime
+capacity + heap storage:
 
 - **Storage** is `std::unique_ptr<T, aligned_deleter>` over a block from
   `::operator new(bytes, std::align_val_t{Align})`, freed by the matching aligned
