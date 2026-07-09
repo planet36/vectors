@@ -119,6 +119,9 @@ the fixed element type:
   `try_append_range`) returns `bool` instead of throwing and is marked `[[nodiscard]]`.
 - `unchecked_*` variants skip the capacity check and assume `!is_full()` — the checked
   `emplace_back`/`push_back`/`append_range` delegate to them after validating.
+- Append overloads that can know the source size up front (span, iterator+count,
+  `initializer_list`, sized ranges/sentinels) are all-or-nothing; truly unsized sources append
+  element-wise and may partially append before throwing / returning `false`.
 - Nearly the entire interface is `constexpr`. `operator==` / `operator<=>` are gated on
   `std::equality_comparable` / `std::three_way_comparable`.
 - `append_range` / `assign_range` are overloaded for span, iterator+sentinel, iterator+count,

@@ -39,6 +39,10 @@ These are deliberate and hold across all three types:
   passed to the constructor — intentionally *not* a `SIZE_MAX`-style theoretical maximum.
 - **`append_range` / `assign_range`** are overloaded for span, iterator+sentinel, iterator+count,
   `initializer_list`, and input ranges; `assign_range` is `clear()` followed by `append_range`.
+  Overloads that can know the source size up front (span, iterator+count, `initializer_list`,
+  sized ranges, sized sentinels) validate before writing and are all-or-nothing; truly unsized
+  sources append element-wise, so an overflowing append may add the elements that fit before
+  throwing (or returning `false` from `try_*`).
 
 ## `fixed_vector<T, N, Align>`
 

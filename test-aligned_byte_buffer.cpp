@@ -367,6 +367,8 @@ int main()
         assert(v.try_append_range({3_b, 4_b}));
         assert(!v.try_append_range({5_b, 6_b}));   // would overflow -> false
         assert(!v.try_append_range(std::views::iota(0, 3) | std::views::transform(to_byte)));
+        const std::vector vsrc{5_b, 6_b};
+        assert(!v.try_append_range(vsrc.begin(), vsrc.end())); // sized sentinel: checked up front
         print_abb(v);
         assert(to_ivec(v) == std::vector({1, 2, 3, 4}));
     }

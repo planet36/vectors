@@ -339,12 +339,18 @@ public:
         common_append_range_(spn);
     }
 
-    /// \note Appends element-wise: if the source does not fit, the bytes that fit are
-    /// appended before \c std::bad_alloc is thrown.  (The span, iterator+count, and
-    /// initializer_list overloads are all-or-nothing.)
+    /// \note If the source size is computable up front (\c std::sized_sentinel_for), it is
+    /// checked before writing (all-or-nothing).  Otherwise appends byte-wise: the bytes
+    /// that fit are appended before \c std::bad_alloc is thrown.
     template <std::input_iterator It, std::sentinel_for<It> S>
     constexpr void append_range(It first, S last)
     {
+        if constexpr (std::sized_sentinel_for<S, It>)
+        {
+            if (static_cast<std::size_t>(last - first) > remaining_space())
+                throw std::bad_alloc{};
+        }
+
         for (; first != last; ++first)
             emplace_back(*first);
     }
@@ -392,12 +398,19 @@ public:
         return true;
     }
 
-    /// \note Appends element-wise: on \c false, the bytes that fit have already been
-    /// appended (observe \c size()).  (The span, iterator+count, and initializer_list
-    /// overloads append nothing on failure.)
+    /// \note If the source size is computable up front (\c std::sized_sentinel_for), it is
+    /// checked before writing (nothing appended on \c false).  Otherwise appends
+    /// byte-wise: on \c false, the bytes that fit have already been appended
+    /// (observe \c size()).
     template <std::input_iterator It, std::sentinel_for<It> S>
     [[nodiscard]] constexpr bool try_append_range(It first, S last)
     {
+        if constexpr (std::sized_sentinel_for<S, It>)
+        {
+            if (static_cast<std::size_t>(last - first) > remaining_space())
+                return false;
+        }
+
         for (; first != last; ++first)
         {
             if (!try_emplace_back(*first))
