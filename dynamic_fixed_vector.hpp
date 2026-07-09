@@ -138,6 +138,7 @@ private:
             throw std::out_of_range("dynamic_fixed_vector: index >= size");
     }
 
+    /// \pre \a spn does not overlap this vector's storage.
     constexpr void common_append_range_(const std::span<const T> spn)
     {
         (void)std::ranges::copy(spn, end());
@@ -387,6 +388,7 @@ public:
 
     constexpr void fill_size(const T& value) { (void)std::ranges::fill(span(), value); }
 
+    /// \pre \a spn does not overlap this vector's storage.
     constexpr void append_range(const std::span<const T> spn)
     {
         if (std::size(spn) > remaining_space())
@@ -435,6 +437,7 @@ public:
     }
 
     /**
+    * \pre \a spn does not overlap this vector's storage.
     * \retval false if failure
     * \retval true if success
     */
@@ -499,6 +502,7 @@ public:
     }
 
     /// \note Does not destroy elements.  Throws if the source exceeds \c capacity().
+    /// \pre \a spn does not overlap this vector's storage.
     constexpr void assign_range(const std::span<const T> spn)
     {
         clear();

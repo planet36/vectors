@@ -323,6 +323,7 @@ public:
             std::memset(data(), std::to_integer<int>(value), size_);
     }
 
+    /// \pre \a spn does not overlap this buffer's storage.
     constexpr void append_range(const std::span<const std::byte> spn)
     {
         if (std::size(spn) > remaining_space())
@@ -371,6 +372,7 @@ public:
     }
 
     /**
+    * \pre \a spn does not overlap this buffer's storage.
     * \retval false if failure
     * \retval true if success
     */
@@ -435,6 +437,7 @@ public:
     }
 
     /// Throws if the source exceeds \c capacity().
+    /// \pre \a spn does not overlap this buffer's storage.
     constexpr void assign_range(const std::span<const std::byte> spn)
     {
         clear();
