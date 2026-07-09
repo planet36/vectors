@@ -380,12 +380,14 @@ public:
         return try_emplace_back(std::move(value));
     }
 
+    /// Fill all \c capacity() elements with \a value and set \c size() to \c capacity().
     constexpr void fill_capacity(const T& value)
     {
         (void)std::ranges::fill(std::span<T>{data(), capacity_}, value);
         size_ = capacity_;
     }
 
+    /// Fill the live elements [0, \c size()) with \a value; \c size() is unchanged.
     constexpr void fill_size(const T& value) { (void)std::ranges::fill(span(), value); }
 
     /// \pre \a spn does not overlap this vector's storage.
