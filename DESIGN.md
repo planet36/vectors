@@ -62,7 +62,8 @@ These are deliberate and hold across all three types:
 ## `fixed_vector<T, N, Align>`
 
 The baseline. Storage is a value-initialized `std::array<T, N>`; the object is self-contained (no
-heap), copy/move are trivial, and essentially the entire interface is `constexpr`. Moving does
+heap), copy/move are member-wise — and trivial for trivially copyable `T`, the intended case —
+and essentially the entire interface is `constexpr`. Moving does
 *not* empty the source: the defaulted move is member-wise, so for trivially copyable `T` a
 moved-from `fixed_vector` is left unchanged — unlike the heap-backed siblings, where move
 construction empties the source. Constraints:
