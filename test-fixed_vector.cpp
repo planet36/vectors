@@ -27,6 +27,17 @@ print_fixed_vector(const fixed_vector<T, N>& vec)
             sizeof(vec));
 }
 
+// Compile-time check: zeroize_remaining_space() is usable in constant expressions (the
+// runtime explicit-zeroing path is replaced by value-assignment during constant evaluation).
+static_assert([] {
+    fixed_vector<int, 5> v;
+    v.fill_capacity(9);
+    v.resize(2); // the tail slots [2, 5) still hold 9
+    v.zeroize_remaining_space();
+    // operator[] is capacity-based: the tail is now zero
+    return v.size() == 2 && v[0] == 9 && v[1] == 9 && v[2] == 0 && v[3] == 0 && v[4] == 0;
+}());
+
 int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
 {
     using namespace std::literals;
@@ -181,6 +192,20 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
         print_fixed_vector(vec);
         assert(std::vector(std::from_range, vec.span()) == std::vector({42, 42, 42}));
         assert(!vec.is_full());
+    }
+
+    {
+        fmt::println("\n# Test zeroize_remaining_space() function");
+        fixed_vector<int, 5> vec{1, 2, 3};
+        vec.fill_capacity(9);
+        vec.resize(2); // the tail slots [2, 5) still hold 9
+        print_fixed_vector(vec);
+        vec.zeroize_remaining_space();
+        print_fixed_vector(vec);
+        assert(std::vector(std::from_range, vec.span()) == std::vector({9, 9}));
+        // operator[] is capacity-based: the tail is now zero
+        for (std::size_t i = vec.size(); i < vec.max_size(); ++i)
+            assert(vec[i] == 0);
     }
 
     {
@@ -385,6 +410,10 @@ fixed_vector: span=[42, 42, 42, 42, 42]  size=5  remaining_space=0  max_size/cap
 # Test fill_size() function
 fixed_vector: span=[1, 2, 3]  size=3  remaining_space=2  max_size/capacity=5  is_empty=false  is_full=false  sizeof=32
 fixed_vector: span=[42, 42, 42]  size=3  remaining_space=2  max_size/capacity=5  is_empty=false  is_full=false  sizeof=32
+
+# Test zeroize_remaining_space() function
+fixed_vector: span=[9, 9]  size=2  remaining_space=3  max_size/capacity=5  is_empty=false  is_full=false  sizeof=32
+fixed_vector: span=[9, 9]  size=2  remaining_space=3  max_size/capacity=5  is_empty=false  is_full=false  sizeof=32
 
 # Test append_range(std::span<T>) function
 fixed_vector: span=[1, 2, 3]  size=3  remaining_space=2  max_size/capacity=5  is_empty=false  is_full=false  sizeof=32

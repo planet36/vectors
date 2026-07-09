@@ -43,6 +43,18 @@ These are deliberate and hold across all three types:
   sized ranges, sized sentinels) validate before writing and are all-or-nothing; truly unsized
   sources append element-wise, so an overflowing append may add the elements that fit before
   throwing (or returning `false` from `try_*`).
+- **`zeroize_remaining_space()`** (trivially copyable element types only) sets the object
+  representation of the reserved tail `[size(), capacity())` to all-zero bytes without changing
+  `size()`; `clear()` followed by it scrubs the whole container. The stores are guaranteed to
+  happen even when nothing reads the tail afterward — a plain fill before deallocation is a dead
+  store the optimizer may elide. The zeroing primitive is `memset_explicit` (C23 / C++26) or
+  `explicit_bzero` (glibc ≥ 2.25, BSDs) when the C library declares one, else a volatile-write
+  fallback; availability is detected with a requires-expression on a dependent call — neither
+  function has a feature-test macro, and a `__cplusplus` check is useless (GCC 16 reports
+  `202400L` even for `-std=c++26`, and it is the C library, not the language mode, that provides
+  these functions; glibc declares both even at `-std=c++23`). During constant evaluation
+  `fixed_vector` value-assigns the tail instead (there is no memory to scrub at compile time);
+  the heap types are only ever empty in constant evaluation.
 
 ## `fixed_vector<T, N, Align>`
 
@@ -131,17 +143,10 @@ types. The API and conventions are unchanged; the element type enables these dif
   `std::strong_ordering`). Note `memcpy`/`memset` are not `constexpr`; like the allocation they sit
   behind an emptiness guard, so the `constexpr` annotation still holds for the empty case.
 
-- **Explicit zeroization.** `zeroize_remaining_space()` zeros the reserved tail
-  `[size(), capacity())` without changing `size()` — for padding to an alignment boundary before
-  whole-lane SIMD reads past `size()`, or for keeping stale heap bytes from leaking through
-  beyond-size reads. The stores are guaranteed to happen even when nothing reads the tail
-  afterward, so `clear()` followed by `zeroize_remaining_space()` scrubs the whole buffer (a plain
-  `memset` before deallocation is a dead store the optimizer may elide). It calls `memset_explicit`
-  (C23 / C++26) or `explicit_bzero` (glibc ≥ 2.25, BSDs) when the C library declares one, falling
-  back to writes through a `volatile` pointer. Availability is detected with a requires-expression
-  on a dependent call — neither function has a feature-test macro, and a `__cplusplus` check is
-  useless (GCC 16 reports `202400L` even for `-std=c++26`, and it is the C library, not the
-  language mode, that provides these functions; glibc declares both even at `-std=c++23`).
+- **Explicit zeroization** (see shared invariants): for the byte buffer,
+  `zeroize_remaining_space()` also turns the otherwise *unspecified* reserved tail into
+  determinate zeros — pad to an alignment boundary before whole-lane SIMD reads past `size()`,
+  and stale heap bytes cannot leak through beyond-size reads.
 
 - **`constexpr` / `noexcept`** follow `dynamic_fixed_vector` (see above): empty instances are usable
   in constant expressions; capacity `> 0` requires a runtime allocation.

@@ -111,11 +111,8 @@ the fixed element type:
 - **Byte-grained bulk ops:** `std::memcpy` for the span append fast path (non-overlap assumed),
   `std::memset` for `fill_*` / `resize`-grow; the copy ctor copies only the live `[0,size)`
   bytes; `operator==` / `operator<=>` are unconditional (`std::byte` is always comparable).
-- **Explicit zeroization:** `zeroize_remaining_space()` zeros the reserved tail (`size()`
-  unchanged; e.g. lane padding — and after `clear()` it scrubs the whole buffer) using
-  `memset_explicit`/`explicit_bzero` when the libc declares one (detected by name lookup —
-  there is no feature-test macro), else a volatile-write fallback, so the stores cannot be
-  elided.
+- **Explicit zeroization:** `zeroize_remaining_space()` (see API conventions) additionally
+  turns the *unspecified* reserved tail into determinate zeros (lane padding).
 
 ## API / error-handling conventions
 
@@ -127,6 +124,11 @@ the fixed element type:
 - Append overloads that can know the source size up front (span, iterator+count,
   `initializer_list`, sized ranges/sentinels) are all-or-nothing; truly unsized sources append
   element-wise and may partially append before throwing / returning `false`.
+- `zeroize_remaining_space()` (all three; trivially copyable element types only) zeroizes the
+  reserved tail with non-elidable stores (`memset_explicit`/`explicit_bzero` when the libc
+  declares one — detected by name lookup, there is no feature-test macro — else a volatile-write
+  fallback); `clear()` + `zeroize_remaining_space()` scrubs the whole container. In
+  `fixed_vector` it also works in constant evaluation (value-assigns the tail).
 - Nearly the entire interface is `constexpr`. `operator==` / `operator<=>` are gated on
   `std::equality_comparable` / `std::three_way_comparable`.
 - `append_range` / `assign_range` are overloaded for span, iterator+sentinel, iterator+count,

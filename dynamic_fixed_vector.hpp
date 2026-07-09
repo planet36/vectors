@@ -16,6 +16,7 @@
 #include <compare>
 #include <concepts>
 #include <cstddef>
+#include <cstring>
 #include <initializer_list>
 #include <iterator>
 #include <limits>
@@ -152,6 +153,30 @@ private:
         {
             unchecked_emplace_back(*first);
             ++first;
+        }
+    }
+
+    /// Zero \a n bytes at \a p with stores the compiler must not optimize away.
+    /**
+    * Uses \c memset_explicit (C23 / C++26) or \c explicit_bzero (glibc, BSDs) when the C
+    * library declares one, and otherwise falls back to writes through a \c volatile
+    * pointer.  Availability is detected by name lookup on the dependent parameter \a P:
+    * neither function has a feature-test macro, and \c __cplusplus is useless here (GCC 16
+    * still reports 202400L for \c -std=c++26; the C library, not the language mode,
+    * determines availability).
+    */
+    template <typename P>
+    static void zero_explicit_(P const p, const std::size_t n) noexcept
+    {
+        if constexpr (requires { memset_explicit(p, 0, n); })
+            memset_explicit(p, 0, n);
+        else if constexpr (requires { explicit_bzero(p, n); })
+            explicit_bzero(p, n);
+        else
+        {
+            volatile unsigned char* const q = static_cast<volatile unsigned char*>(p);
+            for (std::size_t i = 0; i < n; ++i)
+                q[i] = 0;
         }
     }
 
@@ -390,6 +415,22 @@ public:
 
     /// Fill the live elements [0, \c size()) with \a value; \c size() is unchanged.
     constexpr void fill_size(const T& value) { (void)std::ranges::fill(span(), value); }
+
+    /// Zeroize the reserved tail elements [\c size(), \c capacity()); \c size() is unchanged.
+    /**
+    * Each tail element stays alive; its object representation is set to all-zero bytes
+    * (for scalar \c T this equals the value-initialized value, as after the reserve
+    * constructor).  The stores are guaranteed to happen even if nothing reads the tail
+    * afterward (\c memset_explicit / \c explicit_bzero / volatile fallback), so \c clear()
+    * followed by this zeroizes the whole buffer (e.g. scrubbing sensitive contents, where a
+    * plain fill is a dead store the optimizer may elide).
+    */
+    constexpr void zeroize_remaining_space() noexcept
+    requires std::is_trivially_copyable_v<T>
+    {
+        if (remaining_space() != 0)
+            zero_explicit_(static_cast<void*>(data() + size()), remaining_space() * sizeof(T));
+    }
 
     /// \pre \a spn does not overlap this vector's storage.
     constexpr void append_range(const std::span<const T> spn)

@@ -83,6 +83,7 @@ constexpr_empty_ok()
         return false;
     b.clear();
     b.pop_back();
+    b.zeroize_remaining_space(); // no reserved tail on a zero-capacity vector -> no-op
     dynamic_fixed_vector<int> c;
     swap(b, c);
     return b.size() == 0 && b == c;
@@ -347,6 +348,27 @@ int main()
         print_dfv(v);
         assert(to_ivec(v) == std::vector({4, 4, 4, 4, 4}));
         assert(v.is_full());
+    }
+
+    {
+        fmt::println("\n# zeroize_remaining_space() (zero the reserved tail)");
+        dynamic_fixed_vector<int> v(5);
+        v.fill_capacity(9);
+        v.resize(2); // the tail slots [2, 5) still hold 9
+        v.zeroize_remaining_space();
+        assert(v.size() == 2 && v.capacity() == 5);
+        assert(to_ivec(v) == std::vector({9, 9}));
+        // operator[] is capacity-based: the tail is now zero
+        for (std::size_t i = v.size(); i < v.capacity(); ++i)
+            assert(v[i] == 0);
+        print_dfv(v);
+        // Scrub the whole buffer: clear() + zeroize_remaining_space() (non-elidable stores).
+        v.clear();
+        v.zeroize_remaining_space();
+        assert(v.is_empty());
+        for (std::size_t i = 0; i < v.capacity(); ++i)
+            assert(v[i] == 0);
+        print_dfv(v);
     }
 
     // ---- append_range / try_append_range / assign_range ----
@@ -621,6 +643,10 @@ dfv: span=[1, 2]  size=2  cap=2  remaining=0  align=4  data%align=0  is_empty=fa
 # fill_capacity()/fill_size()
 dfv: span=[9, 9, 9]  size=3  cap=5  remaining=2  align=4  data%align=0  is_empty=false  is_full=false  sizeof=24
 dfv: span=[4, 4, 4, 4, 4]  size=5  cap=5  remaining=0  align=4  data%align=0  is_empty=false  is_full=true  sizeof=24
+
+# zeroize_remaining_space() (zero the reserved tail)
+dfv: span=[9, 9]  size=2  cap=5  remaining=3  align=4  data%align=0  is_empty=false  is_full=false  sizeof=24
+dfv: span=[]  size=0  cap=5  remaining=5  align=4  data%align=0  is_empty=true  is_full=false  sizeof=24
 
 # append_range() overloads
 dfv: span=[1, 2, 3, 4, 5, 6, 7, 6, 8, 9]  size=10  cap=12  remaining=2  align=4  data%align=0  is_empty=false  is_full=false  sizeof=24
