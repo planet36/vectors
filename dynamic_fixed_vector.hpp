@@ -364,6 +364,8 @@ public:
     template <class... Args>
     requires std::constructible_from<T, Args...> && std::assignable_from<T&, T>
     constexpr void unchecked_emplace_back(Args&&... args)
+        noexcept(std::is_nothrow_constructible_v<T, Args...> &&
+                 std::is_nothrow_assignable_v<T&, T>)
     {
         *end() = T(std::forward<Args>(args)...);
         ++size_;
@@ -395,9 +397,17 @@ public:
     }
 
     /// \pre \c !is_full()
-    constexpr void unchecked_push_back(const T& value) { unchecked_emplace_back(value); }
+    constexpr void unchecked_push_back(const T& value)
+        noexcept(noexcept(unchecked_emplace_back(value)))
+    {
+        unchecked_emplace_back(value);
+    }
 
-    constexpr void unchecked_push_back(T&& value) { unchecked_emplace_back(std::move(value)); }
+    constexpr void unchecked_push_back(T&& value)
+        noexcept(noexcept(unchecked_emplace_back(std::move(value))))
+    {
+        unchecked_emplace_back(std::move(value));
+    }
 
     constexpr void push_back(const T& value) { emplace_back(value); }
 
