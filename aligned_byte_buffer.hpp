@@ -481,9 +481,10 @@ public:
 
     [[nodiscard]] constexpr const std::byte& back() const noexcept { return *rbegin(); }
 
-    /// \pre \a i < \c size()
-    /// \note Does not check bounds.  Reading an index in [size(), capacity()) yields an
-    /// unspecified (but not indeterminate) byte value.
+    /// \pre \a i < \c capacity()
+    /// \note Does not check bounds.  Reading an index in [size(), capacity()) is valid but
+    /// yields an unspecified (not indeterminate) byte value; \c at() is the bounds-checked
+    /// accessor.
     [[nodiscard]] constexpr std::byte& operator[](const std::size_t i) noexcept
     {
         return data()[i];

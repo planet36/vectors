@@ -484,8 +484,9 @@ public:
 
     [[nodiscard]] constexpr const T& back() const noexcept { return *rbegin(); }
 
-    /// \pre \a i < \c size()
-    /// \note Does not check bounds.
+    /// \pre \a i < \c capacity()
+    /// \note Does not check bounds.  Indexes in [size(), capacity()) are valid reads (every
+    /// capacity slot holds a live element); \c at() is the bounds-checked accessor.
     [[nodiscard]] constexpr T& operator[](const std::size_t i) noexcept { return data()[i]; }
 
     [[nodiscard]] constexpr const T& operator[](const std::size_t i) const noexcept
