@@ -4,8 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A header-only C++ library of fixed-capacity vectors. There is no build system, package
-manifest, or git repository — just the headers and their standalone test programs.
+A header-only C++ library of fixed-capacity vectors. There is no build system or package
+manifest — just the headers and their standalone test programs.
 
 - `fixed_vector.hpp` — `fixed_vector<T, N, Align>`: capacity `N` is a **compile-time**
   template parameter, backed by in-place `std::array<T, N>` storage (no heap allocation).
