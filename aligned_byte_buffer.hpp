@@ -331,6 +331,9 @@ public:
         common_append_range_(spn);
     }
 
+    /// \note Appends element-wise: if the source does not fit, the bytes that fit are
+    /// appended before \c std::bad_alloc is thrown.  (The span, iterator+count, and
+    /// initializer_list overloads are all-or-nothing.)
     template <std::input_iterator It, std::sentinel_for<It> S>
     constexpr void append_range(It first, S last)
     {
@@ -352,6 +355,8 @@ public:
         append_range(std::span<const std::byte>{std::data(il), std::size(il)});
     }
 
+    /// \note Sized sources are checked up front (all-or-nothing); unsized sources append
+    /// element-wise and may partially append before throwing \c std::bad_alloc.
     template <std::ranges::input_range R>
     constexpr void append_range(R&& rg)
     {
@@ -378,6 +383,9 @@ public:
         return true;
     }
 
+    /// \note Appends element-wise: on \c false, the bytes that fit have already been
+    /// appended (observe \c size()).  (The span, iterator+count, and initializer_list
+    /// overloads append nothing on failure.)
     template <std::input_iterator It, std::sentinel_for<It> S>
     [[nodiscard]] constexpr bool try_append_range(It first, S last)
     {
@@ -405,6 +413,9 @@ public:
         return try_append_range(std::span<const std::byte>{std::data(il), std::size(il)});
     }
 
+    /// \note Sized sources are checked up front (nothing appended on \c false); unsized
+    /// sources append element-wise, so on \c false the bytes that fit have already been
+    /// appended (observe \c size()).
     template <std::ranges::input_range R>
     [[nodiscard]] constexpr bool try_append_range(R&& rg)
     {
