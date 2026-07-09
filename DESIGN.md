@@ -144,7 +144,10 @@ types. The API and conventions are unchanged; the element type enables these dif
   int>` is `false` — even though the *functional cast* `std::byte(42)` used by the `emplace_back` body
   is valid. `aligned_byte_buffer`'s `emplace_back` family is therefore constrained on the cast
   expression itself (`requires { std::byte(std::forward<Args>(args)...); }`), which admits both byte
-  and integer arguments while still rejecting nonsensical ones cleanly.
+  and integer arguments while rejecting non-convertible types. Note that the functional cast follows
+  `static_cast` rules, so the constraint filters *convertibility*, not value range: out-of-range
+  integers truncate silently (`emplace_back(256)` stores `byte{0}`) and floating-point arguments are
+  accepted (`emplace_back(3.99)` stores `byte{3}`).
 
 - **`append_range(span)` assumes the source does not alias the buffer** (it uses `memcpy` in the byte
   buffer). Appending a view over the buffer's own storage into itself is unsupported.
