@@ -182,6 +182,7 @@ public:
 
     /**
     * \note Does not destroy elements.
+    * \note No-op if empty (unlike \c std::inplace_vector::pop_back, where that is UB).
     * \sa https://cppreference.com/w/cpp/container/inplace_vector/pop_back.html
     */
     constexpr void pop_back() noexcept

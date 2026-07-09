@@ -322,6 +322,7 @@ public:
     constexpr void resize(const std::size_t count) { resize(count, T{}); }
 
     /// \note Does not destroy elements.
+    /// \note No-op if empty (unlike \c std::inplace_vector::pop_back, where that is UB).
     constexpr void pop_back() noexcept
     {
         if (is_empty())
