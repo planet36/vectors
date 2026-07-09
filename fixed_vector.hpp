@@ -195,10 +195,8 @@ public:
         if (count > max_size())
             throw std::bad_alloc{};
 
-        for (std::size_t i = size(); i < count; ++i)
-        {
-            data_[i] = value;
-        }
+        if (count > size())
+            (void)std::ranges::fill(data() + size(), data() + count, value);
 
         size_ = count;
     }
