@@ -162,6 +162,20 @@ public:
         return *this;
     }
 
+    /// Swap the sizes and all \c max_size() array slots (not just the live elements).
+    constexpr void swap(fixed_vector& other) noexcept(std::is_nothrow_swappable_v<T>)
+    {
+        using std::swap;
+        swap(size_, other.size_);
+        swap(data_, other.data_);
+    }
+
+    friend constexpr void swap(fixed_vector& a, fixed_vector& b)
+        noexcept(std::is_nothrow_swappable_v<T>)
+    {
+        a.swap(b);
+    }
+
     [[nodiscard]] static constexpr std::size_t capacity() noexcept { return N; }
 
     [[nodiscard]] static constexpr std::size_t max_size() noexcept { return N; }

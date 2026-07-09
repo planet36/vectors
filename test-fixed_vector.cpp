@@ -111,6 +111,20 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
     }
 
     {
+        fmt::println("\n# Test swap() function");
+        fixed_vector<int, 5> a{1, 2};
+        fixed_vector<int, 5> b{7, 8, 9};
+        swap(a, b); // hidden friend
+        print_fixed_vector(a);
+        print_fixed_vector(b);
+        assert(std::vector(std::from_range, a.span()) == std::vector({7, 8, 9}));
+        assert(std::vector(std::from_range, b.span()) == std::vector({1, 2}));
+        a.swap(b); // member
+        assert(std::vector(std::from_range, a.span()) == std::vector({1, 2}));
+        assert(std::vector(std::from_range, b.span()) == std::vector({7, 8, 9}));
+    }
+
+    {
         fmt::println("\n# Test static max_size() function");
         const fixed_vector<int, 5> vec;
         assert(vec.max_size() == 5);
@@ -375,6 +389,10 @@ fixed_vector: span=[1, 2, 3]  size=3  remaining_space=2  max_size/capacity=5  is
 
 # Test initializer list assignment operator
 fixed_vector: span=[1, 2, 3]  size=3  remaining_space=2  max_size/capacity=5  is_empty=false  is_full=false  sizeof=32
+
+# Test swap() function
+fixed_vector: span=[7, 8, 9]  size=3  remaining_space=2  max_size/capacity=5  is_empty=false  is_full=false  sizeof=32
+fixed_vector: span=[1, 2]  size=2  remaining_space=3  max_size/capacity=5  is_empty=false  is_full=false  sizeof=32
 
 # Test static max_size() function
 
