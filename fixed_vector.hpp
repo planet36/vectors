@@ -315,6 +315,7 @@ public:
     }
 
     /**
+    * Fill all \c max_size() elements with \a value and set \c size() to \c max_size().
     * \sa https://cppreference.com/w/cpp/container/array/fill.html
     */
     constexpr void fill_capacity(const T& value)
@@ -324,6 +325,7 @@ public:
     }
 
     /**
+    * Fill the live elements [0, \c size()) with \a value; \c size() is unchanged.
     * \sa https://cppreference.com/w/cpp/algorithm/ranges/fill
     */
     constexpr void fill_size(const T& value) { (void)std::ranges::fill(span(), value); }
