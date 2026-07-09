@@ -313,8 +313,8 @@ public:
         if (count > capacity_)
             throw std::bad_alloc{};
 
-        for (std::size_t i = size(); i < count; ++i)
-            data()[i] = value;
+        if (count > size())
+            (void)std::ranges::fill(data() + size(), data() + count, value);
 
         size_ = count;
     }
