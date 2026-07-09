@@ -151,6 +151,13 @@ types. The API and conventions are unchanged; the element type enables these dif
   determinate zeros — pad to an alignment boundary before whole-lane SIMD reads past `size()`,
   and stale heap bytes cannot leak through beyond-size reads.
 
+- **`constant_time_equal(span, span)`** — a namespace-scope helper, deliberately *not* used by the
+  container: it OR-accumulates the XORed byte pairs with no data-dependent branch or early exit,
+  so its timing depends only on the (normally public) lengths. Use it for secret-dependent
+  comparisons — e.g. MAC/tag verification — where `operator==`'s first-mismatch early exit leaks
+  the position of the first differing byte through timing; the container's own comparisons stay
+  variable-time, per ordinary container semantics.
+
 - **`constexpr` / `noexcept`** follow `dynamic_fixed_vector` (see above): empty instances are usable
   in constant expressions; capacity `> 0` requires a runtime allocation.
 

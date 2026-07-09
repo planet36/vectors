@@ -111,6 +111,16 @@ static_assert(can_emplace_back<>);          // appends byte{}
 static_assert(!can_emplace_back<double>);   // floating point rejected
 static_assert(!can_emplace_back<int, int>); // arity > 1 rejected
 
+// constant_time_equal() is usable in constant expressions (where timing is moot).
+static_assert([] {
+    constexpr std::array a{1_b, 2_b, 3_b};
+    constexpr std::array b{1_b, 2_b, 3_b};
+    constexpr std::array c{1_b, 2_b, 4_b};
+    return constant_time_equal(a, b) && !constant_time_equal(a, c) &&
+           !constant_time_equal(a, std::span<const std::byte>{}) &&
+           constant_time_equal(std::span<const std::byte>{}, {});
+}());
+
 int main()
 {
     // ---- Constructors ----
@@ -517,6 +527,18 @@ int main()
         fmt::println("a==b:{} a<c:{}", a == b, a < c);
     }
 
+    {
+        fmt::println("\n# constant_time_equal() (free function; operator== stays variable-time)");
+        const aligned_byte_buffer<16> a{1_b, 2_b, 3_b};
+        const aligned_byte_buffer<16> b{1_b, 2_b, 3_b};
+        const aligned_byte_buffer<16> c{1_b, 2_b, 4_b};
+        assert(constant_time_equal(a.span(), b.span()));
+        assert(!constant_time_equal(a.span(), c.span()));
+        assert(!constant_time_equal(a.span(), a.span().first(2))); // unequal sizes
+        fmt::println("ct_equal(a,b):{} ct_equal(a,c):{}",
+                constant_time_equal(a.span(), b.span()), constant_time_equal(a.span(), c.span()));
+    }
+
     // ---- Custom alignment / SIMD buffer (the motivating use case) ----
 
     {
@@ -691,6 +713,9 @@ Caught expected exception (at(3)): aligned_byte_buffer: index >= size
 
 # operator== / operator<=> (capacity is not part of equality)
 a==b:true a<c:true
+
+# constant_time_equal() (free function; operator== stays variable-time)
+ct_equal(a,b):true ct_equal(a,c):false
 
 # Over-alignment honored for several Align values
 Align= 16: data%Align=0

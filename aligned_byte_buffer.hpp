@@ -663,3 +663,30 @@ public:
         return std::lexicographical_compare_three_way(begin(), end(), rhs.begin(), rhs.end());
     }
 };
+
+/// Constant-time equality comparison of two byte spans.
+/**
+* Runs in time dependent only on the spans' sizes, never on their contents: every byte pair
+* is examined and the XORed differences are OR-accumulated, with no data-dependent branch or
+* early exit.  Use this instead of \c operator== / \c std::memcmp when comparing
+* secret-dependent data (e.g. verifying a MAC / authentication tag), where a first-mismatch
+* early exit leaks the position of the first differing byte through timing.
+*
+* \note Spans of unequal size compare unequal immediately; only the sizes (normally public,
+* e.g. a fixed tag length) influence the timing, not the contents.
+* \note \c aligned_byte_buffer itself does \b not use this: container \c operator== is
+* deliberately variable-time, per ordinary container semantics.
+*/
+[[nodiscard]] constexpr bool
+constant_time_equal(const std::span<const std::byte> a,
+                    const std::span<const std::byte> b) noexcept
+{
+    if (std::size(a) != std::size(b))
+        return false;
+
+    std::byte diff{};
+    for (std::size_t i = 0; i < std::size(a); ++i)
+        diff |= a[i] ^ b[i];
+
+    return diff == std::byte{0};
+}

@@ -111,9 +111,12 @@ the fixed element type:
 - **Byte-grained bulk ops:** `std::memcpy` for the span append fast path (non-overlap assumed),
   `std::memset` for `fill_*` / `resize`-grow; the copy ctor copies only the live `[0,size)`
   bytes; `operator==` / `operator<=>` are unconditional (`std::byte` is always comparable).
-- **Explicit zeroization:** `zeroize_remaining_space()` (see API conventions) additionally
-  turns the *unspecified* reserved tail into determinate zeros (lane padding). `emplace_back`
-  accepts at most one `std::byte`/integral argument (floats and other enums rejected).
+- **Zeroization, emplace constraint, constant-time compare:** `zeroize_remaining_space()` (see
+  API conventions) additionally turns the *unspecified* reserved tail into determinate zeros
+  (lane padding). `emplace_back` accepts at most one `std::byte`/integral argument (floats and
+  other enums rejected). The free function `constant_time_equal(span, span)` compares with no
+  data-dependent branches, for secret-dependent data (e.g. tag verification); the container's
+  `operator==` stays variable-time.
 
 ## API / error-handling conventions
 
