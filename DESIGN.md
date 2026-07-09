@@ -81,8 +81,10 @@ over-alignable heap block.
   (capacity = distance). Input-only sources are handled by constructing with an explicit capacity
   and then calling `append_range` (which still accepts input iterators).
 
-- **Value semantics.** Copy performs a deep copy (independent buffer). Move transfers the pointer and
-  leaves the source empty (capacity 0). Copy/move assignment replace the capacity too; `assign_range`
+- **Value semantics.** Copy performs a deep copy (independent buffer). Move *construction* transfers
+  the pointer and leaves the source empty (capacity 0); move *assignment* swaps, so the source is
+  left holding the target's former buffer until it is destroyed. Copy/move assignment replace the
+  capacity too; `assign_range`
   keeps the current capacity and throws if the source does not fit. Copy-and-swap gives assignment a
   strong guarantee.
 

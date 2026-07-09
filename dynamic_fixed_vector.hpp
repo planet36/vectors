@@ -40,8 +40,10 @@
 *   - Range / iterator-sentinel constructors require \b forward iterators (the capacity must
 *     be computed up front); input-only sources use `dynamic_fixed_vector(capacity)` followed
 *     by \c append_range.
-*   - Copy makes a deep copy; move transfers ownership and leaves the source empty
-*     (capacity 0).  The interface is annotated \c constexpr, but because over-aligned
+*   - Copy makes a deep copy.  Move construction transfers ownership and leaves the source
+*     empty (capacity 0); move \e assignment swaps, so the source is left holding this
+*     vector's former buffer (freed when the source is destroyed).  The interface is
+*     annotated \c constexpr, but because over-aligned
 *     allocation is not usable in constant evaluation, only empty (non-allocating) instances
 *     are usable in constant expressions.
 *
@@ -175,6 +177,7 @@ public:
         return *this;
     }
 
+    /// Swap-based: \a other is left holding this vector's former buffer, not emptied.
     constexpr dynamic_fixed_vector& operator=(dynamic_fixed_vector&& other) noexcept
     {
         swap(other);

@@ -134,6 +134,7 @@ public:
         return *this;
     }
 
+    /// Swap-based: \a other is left holding this buffer's former contents, not emptied.
     constexpr aligned_byte_buffer& operator=(aligned_byte_buffer&& other) noexcept
     {
         swap(other);

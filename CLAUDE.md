@@ -83,8 +83,9 @@ capacity + heap storage:
   where `X(count)` created `count` elements. Range / iterator-sentinel **constructors require
   forward** iterators (capacity must be computed up front); input-only sources use `X(capacity)`
   then `append_range`. (`append_range` itself still accepts input iterators.)
-- **Copy is a deep copy; move transfers the pointer** and leaves the source empty
-  (capacity 0). Copy/move assignment replace capacity too; `assign_range` keeps the current
+- **Copy is a deep copy; move construction transfers the pointer** and leaves the source empty
+  (capacity 0). Move assignment swaps, so the source keeps the target's former buffer until it
+  is destroyed. Copy/move assignment replace capacity too; `assign_range` keeps the current
   capacity and throws `std::bad_alloc` if the source doesn't fit.
 - **`constexpr`/`noexcept` annotated like `fixed_vector`,** but over-aligned allocation is not
   usable in constant evaluation, so only empty/zero-capacity instances (and the non-allocating
