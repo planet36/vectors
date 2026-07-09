@@ -112,7 +112,8 @@ the fixed element type:
   `std::memset` for `fill_*` / `resize`-grow; the copy ctor copies only the live `[0,size)`
   bytes; `operator==` / `operator<=>` are unconditional (`std::byte` is always comparable).
 - **Explicit zeroization:** `zeroize_remaining_space()` (see API conventions) additionally
-  turns the *unspecified* reserved tail into determinate zeros (lane padding).
+  turns the *unspecified* reserved tail into determinate zeros (lane padding). `emplace_back`
+  accepts at most one `std::byte`/integral argument (floats and other enums rejected).
 
 ## API / error-handling conventions
 

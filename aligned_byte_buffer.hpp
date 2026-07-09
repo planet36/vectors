@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <bit>
 #include <compare>
+#include <concepts>
 #include <cstddef>
 #include <cstring>
 #include <initializer_list>
@@ -23,6 +24,7 @@
 #include <ranges>
 #include <span>
 #include <stdexcept>
+#include <type_traits>
 #include <utility>
 
 /// A resizable, fixed-capacity buffer of \c std::byte with over-alignable storage.
@@ -40,6 +42,8 @@
 *     \c std::start_lifetime_as_array (no whole-capacity zeroing).  Bytes that enter \c size()
 *     are always written; reading beyond \c size() via \c operator[] yields an \e unspecified
 *     byte value -- which is well-defined (not UB) for \c std::byte.
+*   - The \c emplace_back family accepts at most one argument, of type \c std::byte or an
+*     integral type (floating-point and other enumeration arguments are rejected).
 *
 * Like \c dynamic_fixed_vector: \c data() applies \c std::assume_aligned<Align> so caller
 * loops can vectorize, \c zeroize_remaining_space() zeros the reserved tail with non-elidable
@@ -294,17 +298,24 @@ public:
     }
 
     /// \pre \c !is_full()
+    /// \note Accepts no argument (appends \c std::byte{}) or one \c std::byte / integral
+    /// argument, converted as by \c static_cast (out-of-range integers truncate mod 256).
+    /// Floating-point and other enumeration arguments are rejected; cast explicitly if
+    /// intended.
     template <class... Args>
-    requires requires(Args&&... args) { std::byte(std::forward<Args>(args)...); }
-    constexpr void unchecked_emplace_back(Args&&... args)
-        noexcept(noexcept(std::byte(std::forward<Args>(args)...)))
+    requires (sizeof...(Args) <= 1) &&
+             ((std::same_as<std::remove_cvref_t<Args>, std::byte> ||
+               std::integral<std::remove_cvref_t<Args>>) && ...)
+    constexpr void unchecked_emplace_back(Args&&... args) noexcept
     {
         *end() = std::byte(std::forward<Args>(args)...);
         ++size_;
     }
 
     template <class... Args>
-    requires requires(Args&&... args) { std::byte(std::forward<Args>(args)...); }
+    requires (sizeof...(Args) <= 1) &&
+             ((std::same_as<std::remove_cvref_t<Args>, std::byte> ||
+               std::integral<std::remove_cvref_t<Args>>) && ...)
     constexpr void emplace_back(Args&&... args)
     {
         if (is_full())
@@ -318,7 +329,9 @@ public:
     * \retval false if failure
     */
     template <class... Args>
-    requires requires(Args&&... args) { std::byte(std::forward<Args>(args)...); }
+    requires (sizeof...(Args) <= 1) &&
+             ((std::same_as<std::remove_cvref_t<Args>, std::byte> ||
+               std::integral<std::remove_cvref_t<Args>>) && ...)
     [[nodiscard]] constexpr bool try_emplace_back(Args&&... args)
     {
         if (is_full())

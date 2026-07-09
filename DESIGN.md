@@ -161,14 +161,15 @@ types. The API and conventions are unchanged; the element type enables these dif
   is no element and no remaining space. (`fixed_vector` cannot reach this state; it requires `N > 0`.)
 
 - **`std::byte` is not `std::constructible_from` an `int`.** Direct-initialization of a scoped
-  enumeration from an integer (`std::byte b(42)`) is ill-formed, so `std::constructible_from<std::byte,
-  int>` is `false` — even though the *functional cast* `std::byte(42)` used by the `emplace_back` body
-  is valid. `aligned_byte_buffer`'s `emplace_back` family is therefore constrained on the cast
-  expression itself (`requires { std::byte(std::forward<Args>(args)...); }`), which admits both byte
-  and integer arguments while rejecting non-convertible types. Note that the functional cast follows
-  `static_cast` rules, so the constraint filters *convertibility*, not value range: out-of-range
-  integers truncate silently (`emplace_back(256)` stores `byte{0}`) and floating-point arguments are
-  accepted (`emplace_back(3.99)` stores `byte{3}`).
+  enumeration from an integer (`std::byte b(42)`) is ill-formed, so a `constructible_from`
+  constraint would reject the integer arguments that the functional cast `std::byte(42)` in the
+  `emplace_back` body handles fine. `aligned_byte_buffer`'s `emplace_back` family is therefore
+  constrained by argument *type* instead: at most one argument, of type `std::byte` or an integral
+  type. This deliberately rejects floating-point arguments (an expression-validity constraint
+  would have accepted `emplace_back(3.99)` and stored `byte{3}`, since the cast follows
+  `static_cast` rules) and other enumeration types (cast explicitly, e.g. with
+  `std::to_underlying`, if intended). What no constraint can reject is an out-of-range *runtime*
+  integer: `emplace_back(256)` stores `byte{0}`.
 
 - **`append_range(span)` assumes the source does not alias the buffer** (it uses `memcpy` in the byte
   buffer). Appending a view over the buffer's own storage into itself is unsupported.

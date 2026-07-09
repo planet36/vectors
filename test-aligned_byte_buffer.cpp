@@ -97,6 +97,20 @@ constexpr_empty_ok()
 }
 static_assert(constexpr_empty_ok());
 
+// The emplace_back family is constrained to at most one std::byte / integral argument.
+// (A dependent context is needed so a rejected call yields false instead of a hard error.)
+template <typename... Args>
+constexpr bool can_emplace_back =
+    requires(aligned_byte_buffer<16> v, Args&&... args) {
+        v.emplace_back(std::forward<Args>(args)...);
+    };
+static_assert(can_emplace_back<std::byte>);
+static_assert(can_emplace_back<int>);
+static_assert(can_emplace_back<unsigned char>);
+static_assert(can_emplace_back<>);          // appends byte{}
+static_assert(!can_emplace_back<double>);   // floating point rejected
+static_assert(!can_emplace_back<int, int>); // arity > 1 rejected
+
 int main()
 {
     // ---- Constructors ----
