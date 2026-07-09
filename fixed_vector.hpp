@@ -558,6 +558,9 @@ public:
         return span();
     }
 
+    /// \note Unlike the heap-backed siblings, no \c std::assume_aligned<Align> is applied:
+    /// the array is a member of an \c alignas(Align) object, so the compiler derives the
+    /// pointer's alignment statically.
     [[nodiscard]] constexpr T* data() noexcept { return std::data(data_); }
 
     [[nodiscard]] constexpr const T* data() const noexcept { return std::data(data_); }
