@@ -571,97 +571,97 @@ Output:
 
 
 # Default constructor
-dfv: span=[]  size=0  cap=0  remaining=0  align=4  data%align=0  is_empty=true  is_full=true  sizeof=24
+dfv: span=[]  size=0  cap=0  remaining=0  align=8  data%align=0  is_empty=true  is_full=true  sizeof=24
 
 # Capacity constructor (reserve, empty)
-dfv: span=[]  size=0  cap=5  remaining=5  align=4  data%align=0  is_empty=true  is_full=false  sizeof=24
+dfv: span=[]  size=0  cap=5  remaining=5  align=8  data%align=0  is_empty=true  is_full=false  sizeof=24
 
 # Capacity + value constructor (filled to capacity)
-dfv: span=[42, 42, 42]  size=3  cap=3  remaining=0  align=4  data%align=0  is_empty=false  is_full=true  sizeof=24
+dfv: span=[42, 42, 42]  size=3  cap=3  remaining=0  align=8  data%align=0  is_empty=false  is_full=true  sizeof=24
 
 # std::span constructor
-dfv: span=[1, 2, 3]  size=3  cap=3  remaining=0  align=4  data%align=0  is_empty=false  is_full=true  sizeof=24
+dfv: span=[1, 2, 3]  size=3  cap=3  remaining=0  align=8  data%align=0  is_empty=false  is_full=true  sizeof=24
 
 # Forward iterator + sentinel constructor
-dfv: span=[1, 2, 3, 4]  size=4  cap=4  remaining=0  align=4  data%align=0  is_empty=false  is_full=true  sizeof=24
+dfv: span=[1, 2, 3, 4]  size=4  cap=4  remaining=0  align=8  data%align=0  is_empty=false  is_full=true  sizeof=24
 
 # Iterator + count constructor
-dfv: span=[2, 3]  size=2  cap=2  remaining=0  align=4  data%align=0  is_empty=false  is_full=true  sizeof=24
+dfv: span=[2, 3]  size=2  cap=2  remaining=0  align=8  data%align=0  is_empty=false  is_full=true  sizeof=24
 
 # initializer_list constructor
-dfv: span=[1, 2, 3]  size=3  cap=3  remaining=0  align=4  data%align=0  is_empty=false  is_full=true  sizeof=24
+dfv: span=[1, 2, 3]  size=3  cap=3  remaining=0  align=8  data%align=0  is_empty=false  is_full=true  sizeof=24
 
 # from_range constructor
-dfv: span=[1, 2, 3, 4]  size=4  cap=4  remaining=0  align=4  data%align=0  is_empty=false  is_full=true  sizeof=24
+dfv: span=[1, 2, 3, 4]  size=4  cap=4  remaining=0  align=8  data%align=0  is_empty=false  is_full=true  sizeof=24
 
 # initializer_list assignment operator
-dfv: span=[7, 8, 9]  size=3  cap=5  remaining=2  align=4  data%align=0  is_empty=false  is_full=false  sizeof=24
+dfv: span=[7, 8, 9]  size=3  cap=5  remaining=2  align=8  data%align=0  is_empty=false  is_full=false  sizeof=24
 
 # Copy constructor (deep copy)
-dfv: span=[1, 2, 3]  size=3  cap=4  remaining=1  align=4  data%align=0  is_empty=false  is_full=false  sizeof=24
+dfv: span=[1, 2, 3]  size=3  cap=4  remaining=1  align=8  data%align=0  is_empty=false  is_full=false  sizeof=24
 
 # Move constructor (source emptied)
-dfv: span=[1, 2, 3]  size=3  cap=3  remaining=0  align=4  data%align=0  is_empty=false  is_full=true  sizeof=24
+dfv: span=[1, 2, 3]  size=3  cap=3  remaining=0  align=8  data%align=0  is_empty=false  is_full=true  sizeof=24
 
 # Copy assignment (replaces capacity too)
-dfv: span=[1, 2, 3, 4, 5]  size=5  cap=5  remaining=0  align=4  data%align=0  is_empty=false  is_full=true  sizeof=24
+dfv: span=[1, 2, 3, 4, 5]  size=5  cap=5  remaining=0  align=8  data%align=0  is_empty=false  is_full=true  sizeof=24
 
 # Move assignment
-dfv: span=[4, 5, 6]  size=3  cap=3  remaining=0  align=4  data%align=0  is_empty=false  is_full=true  sizeof=24
+dfv: span=[4, 5, 6]  size=3  cap=3  remaining=0  align=8  data%align=0  is_empty=false  is_full=true  sizeof=24
 
 # swap
-dfv: span=[7, 8, 9]  size=3  cap=3  remaining=0  align=4  data%align=0  is_empty=false  is_full=true  sizeof=24
-dfv: span=[1, 2]  size=2  cap=2  remaining=0  align=4  data%align=0  is_empty=false  is_full=true  sizeof=24
+dfv: span=[7, 8, 9]  size=3  cap=3  remaining=0  align=8  data%align=0  is_empty=false  is_full=true  sizeof=24
+dfv: span=[1, 2]  size=2  cap=2  remaining=0  align=8  data%align=0  is_empty=false  is_full=true  sizeof=24
 
 # capacity()/max_size() report the runtime capacity (not SIZE_MAX)
 capacity=10 max_size=10
 
 # size()/remaining_space()/is_empty()/is_full()
-dfv: span=[1, 2, 3]  size=3  cap=3  remaining=0  align=4  data%align=0  is_empty=false  is_full=true  sizeof=24
+dfv: span=[1, 2, 3]  size=3  cap=3  remaining=0  align=8  data%align=0  is_empty=false  is_full=true  sizeof=24
 
 # clear() (does not change capacity)
-dfv: span=[]  size=0  cap=3  remaining=3  align=4  data%align=0  is_empty=true  is_full=false  sizeof=24
+dfv: span=[]  size=0  cap=3  remaining=3  align=8  data%align=0  is_empty=true  is_full=false  sizeof=24
 
 # resize() grow / shrink / single-arg
-dfv: span=[7, 0, 0, 0]  size=4  cap=5  remaining=1  align=4  data%align=0  is_empty=false  is_full=false  sizeof=24
+dfv: span=[7, 0, 0, 0]  size=4  cap=5  remaining=1  align=8  data%align=0  is_empty=false  is_full=false  sizeof=24
 
 # pop_back() (incl. pop on empty)
-dfv: span=[]  size=0  cap=3  remaining=3  align=4  data%align=0  is_empty=true  is_full=false  sizeof=24
+dfv: span=[]  size=0  cap=3  remaining=3  align=8  data%align=0  is_empty=true  is_full=false  sizeof=24
 
 # push_back() lvalue & rvalue
-dfv: span=[10, 20]  size=2  cap=3  remaining=1  align=4  data%align=0  is_empty=false  is_full=false  sizeof=24
+dfv: span=[10, 20]  size=2  cap=3  remaining=1  align=8  data%align=0  is_empty=false  is_full=false  sizeof=24
 
 # emplace_back()
-dfv: span=[5, 6]  size=2  cap=2  remaining=0  align=4  data%align=0  is_empty=false  is_full=true  sizeof=24
+dfv: span=[5, 6]  size=2  cap=2  remaining=0  align=8  data%align=0  is_empty=false  is_full=true  sizeof=24
 
 # unchecked_push_back()/unchecked_emplace_back()
-dfv: span=[1, 2, 3]  size=3  cap=3  remaining=0  align=4  data%align=0  is_empty=false  is_full=true  sizeof=24
+dfv: span=[1, 2, 3]  size=3  cap=3  remaining=0  align=8  data%align=0  is_empty=false  is_full=true  sizeof=24
 
 # try_push_back()/try_emplace_back() (success then failure)
-dfv: span=[1, 2]  size=2  cap=2  remaining=0  align=4  data%align=0  is_empty=false  is_full=true  sizeof=24
+dfv: span=[1, 2]  size=2  cap=2  remaining=0  align=8  data%align=0  is_empty=false  is_full=true  sizeof=24
 
 # fill_capacity()/fill_size()
-dfv: span=[9, 9, 9]  size=3  cap=5  remaining=2  align=4  data%align=0  is_empty=false  is_full=false  sizeof=24
-dfv: span=[4, 4, 4, 4, 4]  size=5  cap=5  remaining=0  align=4  data%align=0  is_empty=false  is_full=true  sizeof=24
+dfv: span=[9, 9, 9]  size=3  cap=5  remaining=2  align=8  data%align=0  is_empty=false  is_full=false  sizeof=24
+dfv: span=[4, 4, 4, 4, 4]  size=5  cap=5  remaining=0  align=8  data%align=0  is_empty=false  is_full=true  sizeof=24
 
 # zeroize_remaining_space() (zero the reserved tail)
-dfv: span=[9, 9]  size=2  cap=5  remaining=3  align=4  data%align=0  is_empty=false  is_full=false  sizeof=24
-dfv: span=[]  size=0  cap=5  remaining=5  align=4  data%align=0  is_empty=true  is_full=false  sizeof=24
+dfv: span=[9, 9]  size=2  cap=5  remaining=3  align=8  data%align=0  is_empty=false  is_full=false  sizeof=24
+dfv: span=[]  size=0  cap=5  remaining=5  align=8  data%align=0  is_empty=true  is_full=false  sizeof=24
 
 # append_range() overloads
-dfv: span=[1, 2, 3, 4, 5, 6, 7, 6, 8, 9]  size=10  cap=12  remaining=2  align=4  data%align=0  is_empty=false  is_full=false  sizeof=24
+dfv: span=[1, 2, 3, 4, 5, 6, 7, 6, 8, 9]  size=10  cap=12  remaining=2  align=8  data%align=0  is_empty=false  is_full=false  sizeof=24
 
 # try_append_range() (success then failure)
-dfv: span=[1, 2, 3, 4]  size=4  cap=4  remaining=0  align=4  data%align=0  is_empty=false  is_full=true  sizeof=24
+dfv: span=[1, 2, 3, 4]  size=4  cap=4  remaining=0  align=8  data%align=0  is_empty=false  is_full=true  sizeof=24
 
 # assign_range() overloads (clear + append)
-dfv: span=[10, 11, 12]  size=3  cap=6  remaining=3  align=4  data%align=0  is_empty=false  is_full=false  sizeof=24
+dfv: span=[10, 11, 12]  size=3  cap=6  remaining=3  align=8  data%align=0  is_empty=false  is_full=false  sizeof=24
 
 # span() / operator std::span / data()
 span=[1, 2, 3, 4]
 
 # front()/back()
-dfv: span=[11, 20, 31]  size=3  cap=3  remaining=0  align=4  data%align=0  is_empty=false  is_full=true  sizeof=24
+dfv: span=[11, 20, 31]  size=3  cap=3  remaining=0  align=8  data%align=0  is_empty=false  is_full=true  sizeof=24
 
 # operator[] incl. reading beyond size within capacity
 v[0]=11 v[2]=33 v[4] (beyond size)=0

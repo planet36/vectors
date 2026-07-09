@@ -65,6 +65,10 @@ The baseline. Storage is a value-initialized `std::array<T, N>`; the object is s
 heap), copy/move are trivial, and essentially the entire interface is `constexpr`. Constraints:
 `N > 0`, default-initializable, movable, trivially destructible, `Align` a power of two.
 
+The default `Align`, `std::max(alignof(std::size_t), alignof(T))`, only ever *over*-aligns: even
+for small `T` the array is at least word-aligned, and the `alignas` costs nothing because the
+adjacent `std::size_t` member already gives the object that alignment.
+
 ## `dynamic_fixed_vector<T, Align>`
 
 Same shape as `fixed_vector`, but capacity is a constructor argument and storage is a single
@@ -94,6 +98,11 @@ over-alignable heap block.
 - **Overflow guard.** Because the allocation size is computed by hand (`capacity * sizeof(T)`), the
   language's array-`new` overflow check does not apply, so `capacity > SIZE_MAX / sizeof(T)` is
   checked explicitly before allocating.
+
+- **Default alignment.** `Align` defaults to `std::max(alignof(std::size_t), alignof(T))`, matching
+  `fixed_vector`: the storage is never under-aligned, and word alignment for small `T` is free —
+  any alignment up to `__STDCPP_DEFAULT_NEW_ALIGNMENT__` costs the aligned allocator nothing.
+  (`aligned_byte_buffer` instead defaults to 16, its SIMD-lane motivation.)
 
 - **`data()` asserts alignment to the compiler.** It returns `std::assume_aligned<Align>(ptr)`
   (guarded for the null/empty case, whose precondition needs a real aligned pointer) so caller loops

@@ -62,7 +62,7 @@
 * \sa fixed_vector
 */
 template <typename T,
-          std::size_t Align = alignof(T)>
+          std::size_t Align = std::max(alignof(std::size_t), alignof(T))>
 requires std::default_initializable<T> && std::movable<T> &&
          std::is_trivially_destructible_v<T> &&
          (std::has_single_bit(Align)) && (Align >= alignof(T))
