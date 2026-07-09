@@ -115,6 +115,9 @@ public:
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
     constexpr fixed_vector() noexcept = default;
+    /// \note Copy and move are member-wise (defaulted).  Moving does \b not empty the
+    /// source: for trivially copyable \c T a moved-from fixed_vector is left unchanged --
+    /// unlike the heap-backed siblings, where move construction empties the source.
     fixed_vector(const fixed_vector&) noexcept(std::is_nothrow_copy_constructible_v<T>) = default;
     fixed_vector(fixed_vector&&) noexcept(std::is_nothrow_move_constructible_v<T>) = default;
     fixed_vector& operator=(const fixed_vector&) noexcept(std::is_nothrow_copy_assignable_v<T>) = default;
