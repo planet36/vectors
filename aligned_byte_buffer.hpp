@@ -40,6 +40,8 @@
 *     \c std::start_lifetime_as_array (no whole-capacity zeroing).  Bytes that enter \c size()
 *     are always written; reading beyond \c size() via \c operator[] yields an \e unspecified
 *     byte value -- which is well-defined (not UB) for \c std::byte.
+*   - \c zeroize_remaining_space() zeros the reserved tail (\c size() unchanged) with stores
+*     the compiler must not elide; \c clear() followed by it zeroizes the whole buffer.
 *
 * Like \c dynamic_fixed_vector: \c data() applies \c std::assume_aligned<Align> so caller
 * loops can vectorize, capacity is fixed at construction (\c capacity() / \c
@@ -106,6 +108,30 @@ private:
         {
             unchecked_emplace_back(*first);
             ++first;
+        }
+    }
+
+    /// Zero \a n bytes at \a p with stores the compiler must not optimize away.
+    /**
+    * Uses \c memset_explicit (C23 / C++26) or \c explicit_bzero (glibc, BSDs) when the C
+    * library declares one, and otherwise falls back to writes through a \c volatile
+    * pointer.  Availability is detected by name lookup on the dependent parameter \a P:
+    * neither function has a feature-test macro, and \c __cplusplus is useless here (GCC 16
+    * still reports 202400L for \c -std=c++26; the C library, not the language mode,
+    * determines availability).
+    */
+    template <typename P>
+    static void zero_explicit_(P const p, const std::size_t n) noexcept
+    {
+        if constexpr (requires { memset_explicit(p, 0, n); })
+            memset_explicit(p, 0, n);
+        else if constexpr (requires { explicit_bzero(p, n); })
+            explicit_bzero(p, n);
+        else
+        {
+            volatile unsigned char* const q = static_cast<volatile unsigned char*>(p);
+            for (std::size_t i = 0; i < n; ++i)
+                q[i] = 0;
         }
     }
 
@@ -328,6 +354,22 @@ public:
     {
         if (size_ != 0)
             std::memset(data(), std::to_integer<int>(value), size_);
+    }
+
+    /// Zero the reserved tail [\c size(), \c capacity()); \c size() is unchanged.
+    /**
+    * Replaces the unspecified reserved bytes with zeros -- e.g. to pad to an alignment
+    * boundary before reading whole SIMD lanes past \c size(), or to keep stale heap bytes
+    * from leaking through beyond-size reads.  The stores are guaranteed to happen even if
+    * nothing reads the tail afterward (\c memset_explicit / \c explicit_bzero / volatile
+    * fallback), so \c clear() followed by this zeroizes the whole buffer (e.g. scrubbing
+    * sensitive contents before destruction or reuse, where a plain \c memset is a dead
+    * store the optimizer may elide).
+    */
+    constexpr void zeroize_remaining_space() noexcept
+    {
+        if (remaining_space() != 0)
+            zero_explicit_(static_cast<void*>(data() + size_), remaining_space());
     }
 
     /// \pre \a spn does not overlap this buffer's storage.

@@ -111,6 +111,11 @@ the fixed element type:
 - **Byte-grained bulk ops:** `std::memcpy` for the span append fast path (non-overlap assumed),
   `std::memset` for `fill_*` / `resize`-grow; the copy ctor copies only the live `[0,size)`
   bytes; `operator==` / `operator<=>` are unconditional (`std::byte` is always comparable).
+- **Explicit zeroization:** `zeroize_remaining_space()` zeros the reserved tail (`size()`
+  unchanged; e.g. lane padding — and after `clear()` it scrubs the whole buffer) using
+  `memset_explicit`/`explicit_bzero` when the libc declares one (detected by name lookup —
+  there is no feature-test macro), else a volatile-write fallback, so the stores cannot be
+  elided.
 
 ## API / error-handling conventions
 

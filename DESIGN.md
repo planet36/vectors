@@ -131,6 +131,18 @@ types. The API and conventions are unchanged; the element type enables these dif
   `std::strong_ordering`). Note `memcpy`/`memset` are not `constexpr`; like the allocation they sit
   behind an emptiness guard, so the `constexpr` annotation still holds for the empty case.
 
+- **Explicit zeroization.** `zeroize_remaining_space()` zeros the reserved tail
+  `[size(), capacity())` without changing `size()` — for padding to an alignment boundary before
+  whole-lane SIMD reads past `size()`, or for keeping stale heap bytes from leaking through
+  beyond-size reads. The stores are guaranteed to happen even when nothing reads the tail
+  afterward, so `clear()` followed by `zeroize_remaining_space()` scrubs the whole buffer (a plain
+  `memset` before deallocation is a dead store the optimizer may elide). It calls `memset_explicit`
+  (C23 / C++26) or `explicit_bzero` (glibc ≥ 2.25, BSDs) when the C library declares one, falling
+  back to writes through a `volatile` pointer. Availability is detected with a requires-expression
+  on a dependent call — neither function has a feature-test macro, and a `__cplusplus` check is
+  useless (GCC 16 reports `202400L` even for `-std=c++26`, and it is the C library, not the
+  language mode, that provides these functions; glibc declares both even at `-std=c++23`).
+
 - **`constexpr` / `noexcept`** follow `dynamic_fixed_vector` (see above): empty instances are usable
   in constant expressions; capacity `> 0` requires a runtime allocation.
 

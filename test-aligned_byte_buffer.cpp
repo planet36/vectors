@@ -90,6 +90,7 @@ constexpr_empty_ok()
         return false;
     b.clear();
     b.pop_back();
+    b.zeroize_remaining_space(); // no reserved tail on a zero-capacity buffer -> no-op
     aligned_byte_buffer<16> c;
     swap(b, c);
     return b.size() == 0 && b == c;
@@ -340,6 +341,26 @@ int main()
         print_abb(v);
         assert(to_ivec(v) == std::vector({4, 4, 4, 4, 4}));
         assert(v.is_full());
+    }
+
+    {
+        fmt::println("\n# zeroize_remaining_space() (zero the reserved tail)");
+        aligned_byte_buffer<16> v(8);
+        v.append_range({1_b, 2_b, 3_b});
+        v.zeroize_remaining_space(); // [size, capacity) is now zero; size unchanged
+        assert(v.size() == 3 && v.capacity() == 8);
+        assert(to_ivec(v) == std::vector({1, 2, 3}));
+        // The tail bytes are now determinate (zero), so they may be asserted.
+        for (std::size_t i = v.size(); i < v.capacity(); ++i)
+            assert(v[i] == 0_b);
+        print_abb(v);
+        // Scrub the whole buffer: clear() + zeroize_remaining_space() (non-elidable stores).
+        v.clear();
+        v.zeroize_remaining_space();
+        assert(v.is_empty() && v.capacity() == 8);
+        for (std::size_t i = 0; i < v.capacity(); ++i)
+            assert(v[i] == 0_b);
+        print_abb(v);
     }
 
     // ---- append_range / try_append_range / assign_range ----
@@ -624,6 +645,10 @@ abb: span=[1, 2]  size=2  cap=2  remaining=0  align=16  data%align=0  is_empty=f
 # fill_capacity()/fill_size()
 abb: span=[9, 9, 9]  size=3  cap=5  remaining=2  align=16  data%align=0  is_empty=false  is_full=false  sizeof=24
 abb: span=[4, 4, 4, 4, 4]  size=5  cap=5  remaining=0  align=16  data%align=0  is_empty=false  is_full=true  sizeof=24
+
+# zeroize_remaining_space() (zero the reserved tail)
+abb: span=[1, 2, 3]  size=3  cap=8  remaining=5  align=16  data%align=0  is_empty=false  is_full=false  sizeof=24
+abb: span=[]  size=0  cap=8  remaining=8  align=16  data%align=0  is_empty=true  is_full=false  sizeof=24
 
 # append_range() overloads
 abb: span=[1, 2, 3, 4, 5, 6, 7, 6, 8, 9]  size=10  cap=12  remaining=2  align=16  data%align=0  is_empty=false  is_full=false  sizeof=24
