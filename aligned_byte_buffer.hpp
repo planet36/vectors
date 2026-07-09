@@ -270,6 +270,7 @@ public:
     template <class... Args>
     requires requires(Args&&... args) { std::byte(std::forward<Args>(args)...); }
     constexpr void unchecked_emplace_back(Args&&... args)
+        noexcept(noexcept(std::byte(std::forward<Args>(args)...)))
     {
         *end() = std::byte(std::forward<Args>(args)...);
         ++size_;
@@ -301,7 +302,10 @@ public:
     }
 
     /// \pre \c !is_full()
-    constexpr void unchecked_push_back(const std::byte value) { unchecked_emplace_back(value); }
+    constexpr void unchecked_push_back(const std::byte value) noexcept
+    {
+        unchecked_emplace_back(value);
+    }
 
     constexpr void push_back(const std::byte value) { emplace_back(value); }
 
@@ -310,14 +314,14 @@ public:
         return try_emplace_back(value);
     }
 
-    constexpr void fill_capacity(const std::byte value)
+    constexpr void fill_capacity(const std::byte value) noexcept
     {
         if (capacity_ != 0)
             std::memset(data(), std::to_integer<int>(value), capacity_);
         size_ = capacity_;
     }
 
-    constexpr void fill_size(const std::byte value)
+    constexpr void fill_size(const std::byte value) noexcept
     {
         if (size_ != 0)
             std::memset(data(), std::to_integer<int>(value), size_);
@@ -575,12 +579,13 @@ public:
         return std::reverse_iterator(cbegin());
     }
 
-    [[nodiscard]] constexpr bool operator==(const aligned_byte_buffer& rhs) const
+    [[nodiscard]] constexpr bool operator==(const aligned_byte_buffer& rhs) const noexcept
     {
         return std::ranges::equal(span(), rhs.span());
     }
 
-    [[nodiscard]] constexpr std::strong_ordering operator<=>(const aligned_byte_buffer& rhs) const
+    [[nodiscard]] constexpr std::strong_ordering
+    operator<=>(const aligned_byte_buffer& rhs) const noexcept
     {
         return std::lexicographical_compare_three_way(begin(), end(), rhs.begin(), rhs.end());
     }
