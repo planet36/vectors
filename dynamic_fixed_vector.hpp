@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <bit>
+#include <compare>
 #include <concepts>
 #include <cstddef>
 #include <initializer_list>
