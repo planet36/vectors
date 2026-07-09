@@ -40,10 +40,9 @@
 *     \c std::start_lifetime_as_array (no whole-capacity zeroing).  Bytes that enter \c size()
 *     are always written; reading beyond \c size() via \c operator[] yields an \e unspecified
 *     byte value -- which is well-defined (not UB) for \c std::byte.
-*   - \c data() applies \c std::assume_aligned<Align> so caller loops can vectorize on the
-*     known alignment.
 *
-* Like \c dynamic_fixed_vector: capacity is fixed at construction (\c capacity() / \c
+* Like \c dynamic_fixed_vector: \c data() applies \c std::assume_aligned<Align> so caller
+* loops can vectorize, capacity is fixed at construction (\c capacity() / \c
 * max_size() return it), \c operator[] is unchecked and capacity-based, \c at() is
 * bounds-checked, capacity overflow throws \c std::bad_alloc, and the \c try_* family returns
 * \c bool.  The interface is annotated \c constexpr, but because over-aligned allocation is

@@ -35,7 +35,8 @@
 *     template parameter, so \c capacity() / \c max_size() are non-static.
 *   - Storage is an over-alignable heap block allocated with the aligned \c ::operator \c new
 *     and owned by a \c std::unique_ptr.  \a Align may exceed \c alignof(T) (e.g. \c std::byte
-*     data aligned like a 16-byte SIMD lane).
+*     data aligned like a 16-byte SIMD lane).  \c data() applies \c std::assume_aligned<Align>
+*     (guarded for the null/empty case) so caller loops can vectorize on the known alignment.
 *   - The single-argument constructor reserves capacity and starts \b empty
 *     (\c size()==0), unlike \c fixed_vector where it created elements.
 *   - Range / iterator-sentinel constructors require \b forward iterators (the capacity must
@@ -519,9 +520,17 @@ public:
         return span();
     }
 
-    [[nodiscard]] constexpr T* data() noexcept { return data_.get(); }
+    [[nodiscard]] constexpr T* data() noexcept
+    {
+        T* const p = data_.get();
+        return p != nullptr ? std::assume_aligned<Align>(p) : p;
+    }
 
-    [[nodiscard]] constexpr const T* data() const noexcept { return data_.get(); }
+    [[nodiscard]] constexpr const T* data() const noexcept
+    {
+        const T* const p = data_.get();
+        return p != nullptr ? std::assume_aligned<Align>(p) : p;
+    }
 
     /// \pre \c !is_empty()
     [[nodiscard]] constexpr T& front() noexcept { return *begin(); }

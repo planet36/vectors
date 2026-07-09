@@ -79,6 +79,8 @@ capacity + heap storage:
   bypassed when you size the allocation yourself).
 - **`capacity()` / `max_size()` are non-static** and return the runtime capacity (deliberately
   **not** a `SIZE_MAX`-ish value like `std::vector::max_size()`).
+- **`data()` applies `std::assume_aligned<Align>`** (guarded for the null/empty case) so caller
+  loops can vectorize.
 - **`X(n)` reserves capacity `n` and starts empty** (`size()==0`) — unlike `fixed_vector`
   where `X(count)` created `count` elements. Range / iterator-sentinel **constructors require
   forward** iterators (capacity must be computed up front); input-only sources use `X(capacity)`
@@ -106,8 +108,6 @@ the fixed element type:
   `size()` are always written; reading beyond `size()` via `operator[]` yields an *unspecified*
   byte — **well-defined, not UB, for `std::byte`** (so the test does not assert a value there,
   unlike the `dynamic_fixed_vector` test).
-- **`data()` applies `std::assume_aligned<Align>`** (guarded for the null/empty case) so caller
-  loops can vectorize.
 - **Byte-grained bulk ops:** `std::memcpy` for the span append fast path (non-overlap assumed),
   `std::memset` for `fill_*` / `resize`-grow; the copy ctor copies only the live `[0,size)`
   bytes; `operator==` / `operator<=>` are unconditional (`std::byte` is always comparable).

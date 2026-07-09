@@ -76,6 +76,11 @@ over-alignable heap block.
   language's array-`new` overflow check does not apply, so `capacity > SIZE_MAX / sizeof(T)` is
   checked explicitly before allocating.
 
+- **`data()` asserts alignment to the compiler.** It returns `std::assume_aligned<Align>(ptr)`
+  (guarded for the null/empty case, whose precondition needs a real aligned pointer) so caller loops
+  can vectorize on the known alignment. `begin() == data()` is aligned; `end() = data() + size()` is
+  not claimed to be.
+
 - **Constructing from a range/iterators requires forward iterators.** Capacity must be known before
   allocation, so the range and iterator+sentinel *constructors* require forward iterators/ranges
   (capacity = distance). Input-only sources are handled by constructing with an explicit capacity
@@ -114,11 +119,6 @@ types. The API and conventions are unchanged; the element type enables these dif
   (like `unsigned char`) is exempt from the indeterminate-value rules. This trades a strict
   "beyond-size reads as zero" guarantee for avoiding an O(capacity) zeroing at construction, which
   matters for large scratch/IO buffers.
-
-- **`data()` asserts alignment to the compiler.** It returns `std::assume_aligned<Align>(ptr)` (guarded
-  for the null/empty case, whose precondition needs a real aligned pointer) so caller loops can
-  vectorize on the known alignment. `begin() == data()` is aligned; `end() = data() + size()` is not
-  claimed to be.
 
 - **Byte-granular bulk operations.** `std::memcpy` for the span append fast path (assuming the source
   does not overlap the buffer), `std::memset` for `fill_capacity` / `fill_size` / `resize`-grow. The
