@@ -60,6 +60,7 @@ private:
             throw std::out_of_range("fixed_vector: index >= size");
     }
 
+    /// \pre \a spn does not overlap this vector's storage.
     constexpr void common_append_range_(const std::span<const T> spn)
     {
         (void)std::ranges::copy(spn, end());
@@ -353,6 +354,7 @@ public:
     }
 
     /**
+    * \pre \a spn does not overlap this vector's storage.
     * \sa https://cppreference.com/w/cpp/container/inplace_vector/append_range.html
     */
     constexpr void append_range(const std::span<const T> spn)
@@ -417,6 +419,7 @@ public:
     }
 
     /**
+    * \pre \a spn does not overlap this vector's storage.
     * \retval false if failure
     * \retval true if success
     * \sa https://cppreference.com/w/cpp/container/inplace_vector/try_append_range.html
@@ -494,6 +497,7 @@ public:
 
     /**
     * \note Does not destroy elements.
+    * \pre \a spn does not overlap this vector's storage.
     * \sa https://cppreference.com/w/cpp/container/inplace_vector/assign_range.html
     */
     constexpr void assign_range(const std::span<const T> spn)
