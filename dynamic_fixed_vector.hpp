@@ -298,10 +298,9 @@ public:
 
     constexpr void swap(dynamic_fixed_vector& other) noexcept
     {
-        using std::swap;
-        swap(size_, other.size_);
-        swap(capacity_, other.capacity_);
-        swap(data_, other.data_);
+        std::swap(size_, other.size_);
+        std::swap(capacity_, other.capacity_);
+        std::swap(data_, other.data_);
     }
 
     friend constexpr void swap(dynamic_fixed_vector& a, dynamic_fixed_vector& b) noexcept

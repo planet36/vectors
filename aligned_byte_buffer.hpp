@@ -242,10 +242,9 @@ public:
 
     constexpr void swap(aligned_byte_buffer& other) noexcept
     {
-        using std::swap;
-        swap(size_, other.size_);
-        swap(capacity_, other.capacity_);
-        swap(data_, other.data_);
+        std::swap(size_, other.size_);
+        std::swap(capacity_, other.capacity_);
+        std::swap(data_, other.data_);
     }
 
     friend constexpr void swap(aligned_byte_buffer& a, aligned_byte_buffer& b) noexcept
