@@ -376,6 +376,11 @@ public:
     }
 
     /**
+    * \pre <code>[first, last)</code> is a valid range (\a last is reachable from \a first).
+    * For a \c std::sized_sentinel_for this guarantees <code>last - first</code> is
+    * non-negative, so the up-front size check's cast to \c std::size_t is well-defined;
+    * a caller passing \a first past \a last is undefined regardless (the loop below
+    * would never terminate).
     * \note If the source size is computable up front (\c std::sized_sentinel_for), it is
     * checked before writing (all-or-nothing).  Otherwise appends element-wise: the
     * elements that fit are appended before \c std::bad_alloc is thrown.
@@ -444,6 +449,11 @@ public:
     }
 
     /**
+    * \pre <code>[first, last)</code> is a valid range (\a last is reachable from \a first).
+    * For a \c std::sized_sentinel_for this guarantees <code>last - first</code> is
+    * non-negative, so the up-front size check's cast to \c std::size_t is well-defined;
+    * a caller passing \a first past \a last is undefined regardless (the loop below
+    * would never terminate).
     * \note If the source size is computable up front (\c std::sized_sentinel_for), it is
     * checked before writing (nothing appended on \c false).  Otherwise appends
     * element-wise: on \c false, the elements that fit have already been appended
