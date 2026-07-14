@@ -204,6 +204,20 @@ types. The API and conventions are unchanged; the element type enables these dif
   the position of the first differing byte through timing; the container's own comparisons stay
   variable-time, per ordinary container semantics.
 
+  The guarantee is *unenforced*, which is a real limitation and not an oversight. Branch-freedom
+  holds in the source, but the standard has no notion of timing, so nothing forbids a compiler
+  from proving the accumulator is monotone and short-circuiting the loop. Note this cuts the
+  opposite way from `zeroize_remaining_space()`, which distrusts the optimizer and pays for
+  `memset_explicit` to defeat it. The difference is that a dead-store elision is *routine* —
+  compilers do it constantly, so the mitigation earns its cost — whereas short-circuiting an
+  OR-accumulation is a transformation no production compiler is known to make, and the available
+  defenses (an `asm` barrier, a volatile accumulator) are non-portable, un-`constexpr`, and would
+  block the vectorization that currently makes this fast. So the choice is: write the standard
+  idiom, verify the codegen, and record the verification. Checked for GCC 16 at `-O3
+  -march=native` — the loop vectorizes to a `vpxor`/`vpor` accumulation with a horizontal reduce,
+  and every surviving conditional branch tests a size rather than a content byte. That check is
+  tied to a compiler and flags, so it is worth repeating if either moves.
+
 - **`constexpr` / `noexcept`** follow `dynamic_fixed_vector` (see above): empty instances are usable
   in constant expressions; capacity `> 0` requires a runtime allocation.
 

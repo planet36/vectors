@@ -799,6 +799,15 @@ public:
 * e.g. a fixed tag length) influence the timing, not the contents.
 * \note \c aligned_byte_buffer itself does \b not use this: container \c operator== is
 * deliberately variable-time, per ordinary container semantics.
+* \note Branch-freedom is a property of this source, not one the language guarantees: nothing
+* forbids a compiler from proving \c diff can only accumulate and exiting the loop early.  The
+* asymmetry with \c zeroize_remaining_space() is deliberate but worth knowing -- that one
+* defeats the optimizer outright (\c memset_explicit and friends), whereas this one relies on
+* it declining a transformation it is permitted to make.  Verified for GCC 16 at \c -O3
+* \c -march=native: the loop vectorizes to a \c vpxor / \c vpor accumulation with a horizontal
+* reduce, and every conditional branch that survives tests a size, not a content byte.  Re-check
+* if the compiler or the flags change; should one ever short-circuit here, the fix is a barrier
+* on \c diff (an empty \c asm volatile reading it, or a volatile accumulator), not a rewrite.
 */
 [[nodiscard]] constexpr bool
 constant_time_equal(const std::span<const std::byte> a,
