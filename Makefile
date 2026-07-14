@@ -67,18 +67,10 @@ debug: $(DEBUG_BINS)
 # summary line is all there is to read.  Every test runs even after one fails; the exit status
 # is 0 only if all of them passed.
 test: $(BINS)
-	@rc=0; \
-	for bin in $^; do \
-	    if ./$$bin; then echo "PASS $$bin"; else echo "FAIL $$bin"; rc=1; fi; \
-	done; \
-	exit $$rc
+	@set -e; for bin in $^; do ./$$bin; done
 
 test-debug: $(DEBUG_BINS)
-	@rc=0; \
-	for bin in $^; do \
-	    if ./$$bin; then echo "PASS $$bin"; else echo "FAIL $$bin"; rc=1; fi; \
-	done; \
-	exit $$rc
+	@set -e; for bin in $^; do ./$$bin; done
 
 clean:
 	@$(RM) --verbose -- $(DEPS) $(BINS) $(DEBUG_BINS)
