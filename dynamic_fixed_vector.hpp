@@ -57,6 +57,16 @@
 * capacity-based, \c at() is bounds-checked, capacity overflow throws \c std::bad_alloc, and
 * the \c try_* family returns \c bool.
 *
+* \invariant \c size() \c <= \c capacity().
+* \invariant \c data() is null \b exactly when \c capacity() is 0.  A capacity of 0 allocates
+* nothing, and the aligned \c ::operator \c new never returns null (it throws \c std::bad_alloc),
+* so no other state holds a null block.
+*
+* Those two are what make the preconditions below sufficient on their own.  \c !is_full(),
+* \c !is_empty() and <code>i < capacity()</code> each imply \c capacity() \c != \c 0, hence a
+* non-null, \a Align-aligned block -- which is why the members carrying them index \c data()
+* without re-checking it for null.
+*
 * \warning This container is only suitable for trivially destructible types.
 *
 * \sa fixed_vector
@@ -402,6 +412,7 @@ public:
         unchecked_emplace_back(value);
     }
 
+    /// \pre \c !is_full()
     constexpr void unchecked_push_back(T&& value)
         noexcept(noexcept(unchecked_emplace_back(std::move(value))))
     {
@@ -627,12 +638,20 @@ public:
         return span();
     }
 
+    /// \returns A pointer to the block, aligned to \a Align, or \c nullptr if \c capacity()
+    /// is 0 (per the class invariant, that is the only case).
+    /**
+    * \note The null test is not defensive: \c std::assume_aligned requires a pointer to a real
+    * object, so it may not be applied to the empty container's null block.  Members whose
+    * precondition already rules \c capacity() \c == \c 0 out do not repeat the test.
+    */
     [[nodiscard]] constexpr T* data() noexcept
     {
         T* const p = data_.get();
         return p != nullptr ? std::assume_aligned<Align>(p) : p;
     }
 
+    /// \copydoc data()
     [[nodiscard]] constexpr const T* data() const noexcept
     {
         const T* const p = data_.get();

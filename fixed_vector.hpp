@@ -52,6 +52,11 @@
 * \c dynamic_fixed_vector, where the same bound is load-bearing: its storage is raw bytes from
 * the aligned \c ::operator \c new, so a smaller \a Align would under-align the elements (UB).
 *
+* \invariant \c size() \c <= \c capacity(), which is \a N.
+* \invariant \c data() is never null: the storage is an in-place \c std::array member, not an
+* allocation, so there is no empty state that lacks a block.  This is why \c data() needs none
+* of the null handling its heap-backed siblings' \c data() carries.
+*
 * \warning This container is only suitable for trivially destructible types.
 *
 * \sa https://cppreference.com/w/cpp/container/inplace_vector.html
@@ -306,6 +311,10 @@ public:
         unchecked_emplace_back(value);
     }
 
+    /**
+    * \pre \c !is_full()
+    * \sa https://cppreference.com/w/cpp/container/inplace_vector/unchecked_push_back.html
+    */
     constexpr void unchecked_push_back(T&& value)
         noexcept(noexcept(unchecked_emplace_back(std::move(value))))
     {

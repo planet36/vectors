@@ -55,6 +55,16 @@
 * not usable in constant evaluation, only empty (non-allocating) instances are usable in
 * constant expressions.
 *
+* \invariant \c size() \c <= \c capacity().
+* \invariant \c data() is null \b exactly when \c capacity() is 0.  A capacity of 0 allocates
+* nothing, and the aligned \c ::operator \c new never returns null (it throws \c std::bad_alloc),
+* so no other state holds a null block.
+*
+* Those two are what make the preconditions below sufficient on their own.  \c !is_full(),
+* \c !is_empty() and <code>i < capacity()</code> each imply \c capacity() \c != \c 0, hence a
+* non-null, \a Align-aligned block -- which is why the members carrying them index \c data()
+* without re-checking it for null.
+*
 * \sa dynamic_fixed_vector
 */
 template <std::size_t Align = 16>
@@ -571,12 +581,20 @@ public:
         return span();
     }
 
+    /// \returns A pointer to the block, aligned to \a Align, or \c nullptr if \c capacity()
+    /// is 0 (per the class invariant, that is the only case).
+    /**
+    * \note The null test is not defensive: \c std::assume_aligned requires a pointer to a real
+    * object, so it may not be applied to the empty buffer's null block.  Members whose
+    * precondition already rules \c capacity() \c == \c 0 out do not repeat the test.
+    */
     [[nodiscard]] constexpr std::byte* data() noexcept
     {
         std::byte* const p = data_.get();
         return p != nullptr ? std::assume_aligned<Align>(p) : p;
     }
 
+    /// \copydoc data()
     [[nodiscard]] constexpr const std::byte* data() const noexcept
     {
         const std::byte* const p = data_.get();
