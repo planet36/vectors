@@ -63,15 +63,6 @@ debug: $(DEBUG_BINS)
 %: %.cpp
 	$(CXX) $(DEPFLAGS) $(CPPFLAGS) $(CXXFLAGS) $(RELEASE_CXXFLAGS) $(LDFLAGS) $< -o $@ $(LDLIBS)
 
-# A test passes by printing nothing and exiting 0, so a silent run is the good outcome: set -e
-# stops at the first program that does not, and make reports which target it was.
-#
-# Both variants, because neither subsumes the other.  The debug build finds what the release
-# build hides (its asserts, debug mode, and the sanitizers), but it cannot find what the
-# optimizer's assumptions do: -Og leaves -fstrict-aliasing off, and it never cashes in data()'s
-# assume_aligned<Align> -- at -Og the caller loop that promise exists for emits no SIMD at all,
-# where -O3 -march=native emits the aligned vmovdqa that faults if the promise is ever broken.
-# Release runs first: it builds in half the time, so a shared failure surfaces sooner.
 test: test-release test-debug
 
 test-release: $(BINS)
