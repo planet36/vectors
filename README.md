@@ -25,7 +25,7 @@ All three share one API. Learn one and you know the others.
 
 ## Requirements
 
-- **GCC 16** with `-std=c++26` (the headers use `std::from_range`, `std::start_lifetime_as_array`,
+- **GCC 16** with `-std=c++23` (the headers use `std::from_range`, `std::start_lifetime_as_array`,
   ranges, and concepts).
 - No third-party libraries — the headers and their tests need only the standard library.
 
@@ -181,7 +181,7 @@ variant — see below for why both. Each program is self-contained, so building 
 too:
 
 ```sh
-g++ -std=c++26 test-fixed_vector.cpp -o test-fixed_vector && ./test-fixed_vector
+g++ -std=c++23 test-fixed_vector.cpp -o test-fixed_vector && ./test-fixed_vector
 ```
 
 | Program | Covers |

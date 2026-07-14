@@ -29,7 +29,7 @@ Two documents accompany the headers; an API change should update both:
 
 ## Build & test
 
-Requires **GCC 16 / `-std=c++26`** (uses `std::from_range`, ranges, concepts). No third-party
+Requires **GCC 16 / `-std=c++23`** (uses `std::from_range`, ranges, concepts). No third-party
 libraries: the tests need only the standard library.
 
 ```sh
@@ -45,7 +45,7 @@ Notes:
   leaving the remaining checks unrun.
 - `make test` is that contract applied to all three programs in both variants: a passing run
   prints nothing at all. `set -e` stops at the first program that fails, and make names the
-  target it was under. A single program still builds and runs by hand — `g++ -std=c++26
+  target it was under. A single program still builds and runs by hand — `g++ -std=c++23
   test-fixed_vector.cpp -o test-fixed_vector && ./test-fixed_vector` — since nothing in the
   suites needs the Makefile.
 - **`make test` runs both variants because neither subsumes the other**, and running only the

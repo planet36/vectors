@@ -10,7 +10,7 @@ DEPFLAGS = -MMD -MP -MF $@.d
 
 #CPPFLAGS =
 
-CXXFLAGS = -std=c++26
+CXXFLAGS = -std=c++23
 CXXFLAGS += -pipe -Wall -Wextra -Wpedantic -Wfatal-errors
 CXXFLAGS += -Wno-unused-function
 
