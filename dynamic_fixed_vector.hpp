@@ -172,6 +172,27 @@ private:
         }
     }
 
+    /// True if \a R is a sized, contiguous range of exactly \c T.
+    /**
+    * Such a range is handed to the \c std::span overload, which copies in bulk, rather than
+    * appended element-wise.  Overload resolution does not do this on its own: for e.g.
+    * \c std::vector<T> the \c R&& template is an exact match while the \c std::span overload
+    * needs a user-defined conversion, so the template wins and the bulk path is never reached
+    * unless the caller writes the \c std::span out by hand.
+    */
+    template <typename R>
+    static constexpr bool is_bulk_appendable_ =
+        std::ranges::contiguous_range<R> && std::ranges::sized_range<R> &&
+        std::same_as<std::ranges::range_value_t<R>, T>;
+
+    /// \pre \a rg satisfies \c is_bulk_appendable_.
+    template <typename R>
+    [[nodiscard]] static constexpr std::span<const T> as_span_(R& rg)
+    {
+        return std::span<const T>{std::ranges::data(rg),
+                                  static_cast<std::size_t>(std::ranges::size(rg))};
+    }
+
     /// Zero \a n bytes at \a p with stores the compiler must not optimize away.
     /**
     * Uses \c memset_explicit (C23 / C++26) or \c explicit_bzero (glibc, BSDs) when the C
@@ -511,17 +532,30 @@ public:
 
     /// \note Sized sources are checked up front (all-or-nothing); unsized sources append
     /// element-wise and may partially append before throwing \c std::bad_alloc.
+    /// \pre If \a rg is a contiguous range of \c T, it does not overlap this vector's storage:
+    /// that case is forwarded to the \c std::span overload, which carries the same tag.
     template <std::ranges::input_range R>
     constexpr void append_range(R&& rg)
     {
-        if constexpr (std::ranges::sized_range<R>)
+        if constexpr (is_bulk_appendable_<R>)
+        {
+            append_range(as_span_(rg));
+        }
+        else if constexpr (std::ranges::sized_range<R>)
         {
             if (std::ranges::size(rg) > remaining_space())
                 throw std::bad_alloc{};
-        }
 
-        for (auto&& e : std::forward<R>(rg))
-            emplace_back(std::forward<decltype(e)>(e));
+            // The check above covers every element, so emplace_back's per-element repeat of
+            // it would be redundant.
+            for (auto&& e : std::forward<R>(rg))
+                unchecked_emplace_back(std::forward<decltype(e)>(e));
+        }
+        else
+        {
+            for (auto&& e : std::forward<R>(rg))
+                emplace_back(std::forward<decltype(e)>(e));
+        }
     }
 
     /**
@@ -583,22 +617,37 @@ public:
     /// \note Sized sources are checked up front (nothing appended on \c false); unsized
     /// sources append element-wise, so on \c false the elements that fit have already been
     /// appended (observe \c size()).
+    /// \pre If \a rg is a contiguous range of \c T, it does not overlap this vector's storage:
+    /// that case is forwarded to the \c std::span overload, which carries the same tag.
     template <std::ranges::input_range R>
     [[nodiscard]] constexpr bool try_append_range(R&& rg)
     {
-        if constexpr (std::ranges::sized_range<R>)
+        if constexpr (is_bulk_appendable_<R>)
+        {
+            return try_append_range(as_span_(rg));
+        }
+        else if constexpr (std::ranges::sized_range<R>)
         {
             if (std::ranges::size(rg) > remaining_space())
                 return false;
-        }
 
-        for (auto&& e : std::forward<R>(rg))
+            // The check above covers every element, so try_emplace_back's per-element repeat
+            // of it would be redundant.
+            for (auto&& e : std::forward<R>(rg))
+                unchecked_emplace_back(std::forward<decltype(e)>(e));
+
+            return true;
+        }
+        else
         {
-            if (!try_emplace_back(std::forward<decltype(e)>(e)))
-                return false;
-        }
+            for (auto&& e : std::forward<R>(rg))
+            {
+                if (!try_emplace_back(std::forward<decltype(e)>(e)))
+                    return false;
+            }
 
-        return true;
+            return true;
+        }
     }
 
     /// \note Does not destroy elements.  Throws if the source exceeds \c capacity().
