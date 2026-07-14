@@ -47,19 +47,17 @@
 * \c unchecked_* families are provided -- though the \c try_* members return \c bool here
 * rather than \c std::inplace_vector's pointer/iterator.
 *
-* \note \a Align is required to be at least \c alignof(T), which is \e not needed for
-* correctness here: \c alignas cannot weaken a type's natural alignment, so \c data_ would be
-* suitably aligned even without the constraint.  It is required because a weakened \c alignas
-* is ill-formed ([dcl.align]/5), yet GCC accepts it silently (Clang rejects it) -- so without
-* the constraint an under-alignment request would be quietly ignored rather than diagnosed.
-* The constraint rejects a request this container cannot honor, and mirrors
-* \c dynamic_fixed_vector, where the same bound is load-bearing: its storage is raw bytes from
-* the aligned \c ::operator \c new, so a smaller \a Align would under-align the elements (UB).
+* \note <code>Align >= alignof(T)</code> is not needed for correctness here -- \c alignas
+* cannot weaken a type's natural alignment -- but is required as a diagnostic: a weakened
+* \c alignas is ill-formed ([dcl.align]/5), yet GCC accepts it silently (Clang rejects it), so
+* without the constraint an under-alignment request would be quietly ignored.  In
+* \c dynamic_fixed_vector the same bound is instead required for correctness: its storage is
+* raw bytes from the aligned \c ::operator \c new, which a smaller \a Align would under-align.
 *
 * \invariant \c size() \c <= \c capacity(), which is \a N.
-* \invariant \c data() is never null: the storage is an in-place \c std::array member, not an
-* allocation, so there is no empty state that lacks a block.  This is why \c data() needs none
-* of the null handling its heap-backed siblings' \c data() carries.
+* \invariant \c data() is never null: the storage is an in-place \c std::array member, so there
+* is no empty state that lacks a block (hence none of the null handling in the heap-backed
+* siblings' \c data()).
 *
 * \warning This container is only suitable for trivially destructible types.
 *
@@ -78,7 +76,6 @@ private:
     std::size_t size_{};
     alignas(Align) std::array<T, N> data_{};
 
-    /// Check the index \a i against \c size()
     constexpr void check_idx_(const std::size_t i) const
     {
         if (i >= size())
@@ -104,11 +101,10 @@ private:
 
     /// True if \a R is a sized, contiguous range of exactly \c T.
     /**
-    * Such a range is handed to the \c std::span overload, which copies in bulk, rather than
-    * appended element-wise.  Overload resolution does not do this on its own: for e.g.
-    * \c std::vector<T> the \c R&& template is an exact match while the \c std::span overload
-    * needs a user-defined conversion, so the template wins and the bulk path is never reached
-    * unless the caller writes the \c std::span out by hand.
+    * Such a range is handed to the \c std::span overload for its bulk copy.  Overload
+    * resolution will not do this on its own: for e.g. \c std::vector<T> the \c R&& template is
+    * an exact match while the \c std::span overload needs a user-defined conversion, so the
+    * template wins and the bulk path is dead code for callers who do not hand-write a span.
     */
     template <typename R>
     static constexpr bool is_bulk_appendable_ =
@@ -126,21 +122,15 @@ private:
     /// Zero \a n bytes at \a p with stores the compiler must not optimize away.
     /**
     * Uses \c ::memset_explicit (C23) or \c explicit_bzero (glibc, BSDs) when the C library
-    * declares one, and otherwise falls back to writes through a \c volatile pointer.
-    * Availability is detected by name lookup on the dependent parameter \a P: neither
-    * function has a feature-test macro, and \c __cplusplus is useless here -- the C library,
-    * not the language mode, provides them.  glibc declares both under \c __USE_MISC, which
-    * the \c _GNU_SOURCE that g++ defines at every \c -std turns on, so which branch is taken
-    * does not move with the language standard.
+    * declares one, else writes through a \c volatile pointer.  Neither has a feature-test
+    * macro, so availability is probed by unqualified name lookup on the dependent parameter
+    * \a P.
     *
-    * \note The lookup is unqualified on purpose; do \b not "modernize" it to
-    * \c std::memset_explicit.  That is the C++26 spelling of the same function, libstdc++ 16
-    * does not define it at any \c -std, and -- unlike the unqualified name -- it cannot be
-    * probed for: a qualified name into a namespace that lacks the member is a hard error at
-    * template definition, not a substitution failure, so
-    * <code>requires { std::memset_explicit(...); }</code> never evaluates to \c false.  It
-    * fails the build outright, and the \c else branches below never get their chance.  If
-    * libstdc++ adds it, expect a using-declaration for this same C function.
+    * \note The lookup must stay unqualified; do \b not "modernize" it to
+    * \c std::memset_explicit.  libstdc++ 16 does not define that C++26 spelling at any
+    * \c -std, and a qualified name into a namespace lacking the member is a hard error rather
+    * than a substitution failure -- so the \c requires probe cannot reject it, and the build
+    * fails outright instead of reaching the branches below.
     */
     template <typename P>
     static void zero_explicit_(P const p, const std::size_t n) noexcept
@@ -171,9 +161,9 @@ public:
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
     constexpr fixed_vector() noexcept = default;
-    /// \note Copy and move are member-wise (defaulted).  Moving does \b not empty the
-    /// source: for trivially copyable \c T a moved-from fixed_vector is left unchanged --
-    /// unlike the heap-backed siblings, where move construction empties the source.
+    /// \note Copy and move are member-wise (defaulted): moving a trivially copyable \c T leaves
+    /// the source unchanged, \b not emptied -- unlike the heap-backed siblings, whose move
+    /// construction empties it.
     fixed_vector(const fixed_vector&) noexcept(std::is_nothrow_copy_constructible_v<T>) = default;
     fixed_vector(fixed_vector&&) noexcept(std::is_nothrow_move_constructible_v<T>) = default;
     fixed_vector& operator=(const fixed_vector&) noexcept(std::is_nothrow_copy_assignable_v<T>) = default;
@@ -277,9 +267,8 @@ public:
 
     /// Resize to \a count elements
     /**
-    * If \a count > \c size(), new elements are assigned \a value.
-    * If \a count <= \c size(), removed elements are unchanged.
-    * \note Does not destroy elements.
+    * Growing assigns \a value to the new elements; shrinking leaves the removed ones alive and
+    * unchanged (nothing is destroyed).
     * \sa https://cppreference.com/w/cpp/container/inplace_vector/resize.html
     */
     constexpr void resize(const std::size_t count, const T& value)
@@ -310,10 +299,9 @@ public:
 
     /**
     * \pre \c !is_full()
-    * \note "Emplace" cannot construct in place here: the slot already holds a live element
-    * (elements are never destroyed), so a temporary \c T is constructed from \a args and
-    * move-assigned into the slot -- equivalent to \c push_back(T(args...)).  Kept for API
-    * parity with \c std::inplace_vector.
+    * \note "Emplace" cannot construct in place here: the slot already holds a live element, so
+    * a temporary \c T is constructed from \a args and move-assigned in -- equivalent to
+    * \c push_back(T(args...)).  Kept for API parity with \c std::inplace_vector.
     * \sa https://cppreference.com/w/cpp/container/inplace_vector/unchecked_emplace_back.html
     */
     template <class... Args>
@@ -342,11 +330,7 @@ public:
         unchecked_emplace_back(std::forward<Args>(args)...);
     }
 
-    /**
-    * \retval true if success
-    * \retval false if failure
-    * \sa https://cppreference.com/w/cpp/container/inplace_vector/try_emplace_back.html
-    */
+    /// \sa https://cppreference.com/w/cpp/container/inplace_vector/try_emplace_back.html
     template <class... Args>
     requires std::constructible_from<T, Args...> && std::assignable_from<T&, T>
     [[nodiscard]] constexpr bool try_emplace_back(Args&&... args)
@@ -420,13 +404,11 @@ public:
 
     /// Zeroize the reserved tail elements [\c size(), \c max_size()); \c size() is unchanged.
     /**
-    * Each tail element stays alive; its object representation is set to all-zero bytes
-    * (for scalar \c T this equals the value-initialized value, as after construction).
-    * At run time the stores are guaranteed to happen even if nothing reads the tail
-    * afterward (\c memset_explicit / \c explicit_bzero / volatile fallback), so \c clear()
-    * followed by this zeroizes the whole array (e.g. scrubbing sensitive contents, where a
-    * plain fill is a dead store the optimizer may elide).  During constant evaluation --
-    * where there is no memory to scrub -- the tail is value-assigned instead.
+    * Each tail element stays alive; its object representation is set to all-zero bytes (for
+    * scalar \c T, the value-initialized value).  At run time the stores happen even if nothing
+    * reads the tail afterward, so \c clear() followed by this scrubs the whole array -- for
+    * sensitive contents, where a plain fill is a dead store the optimizer may elide.  During
+    * constant evaluation, where there is no memory to scrub, the tail is value-assigned.
     */
     constexpr void zeroize_remaining_space() noexcept
     requires std::is_trivially_copyable_v<T>
@@ -456,14 +438,11 @@ public:
     }
 
     /**
-    * \pre <code>[first, last)</code> is a valid range (\a last is reachable from \a first).
-    * For a \c std::sized_sentinel_for this guarantees <code>last - first</code> is
-    * non-negative, so the up-front size check's cast to \c std::size_t is well-defined;
-    * a caller passing \a first past \a last is undefined regardless (the loop below
-    * would never terminate).
-    * \note If the source size is computable up front (\c std::sized_sentinel_for), it is
-    * checked before writing (all-or-nothing).  Otherwise appends element-wise: the
-    * elements that fit are appended before \c std::bad_alloc is thrown.
+    * \pre <code>[first, last)</code> is a valid range.  For a \c std::sized_sentinel_for this
+    * keeps <code>last - first</code> non-negative, so the size check's cast to \c std::size_t
+    * is well-defined.
+    * \note A \c std::sized_sentinel_for source is checked up front (all-or-nothing); otherwise
+    * the elements that fit are appended before \c std::bad_alloc is thrown.
     */
     template <std::input_iterator It, std::sentinel_for<It> S>
     constexpr void append_range(It first, S last)
@@ -512,8 +491,7 @@ public:
             if (std::ranges::size(rg) > remaining_space())
                 throw std::bad_alloc{};
 
-            // The check above covers every element, so emplace_back's per-element repeat of
-            // it would be redundant.
+            // The size check above covers every element, so skip the per-element repeat.
             for (auto&& e : std::forward<R>(rg))
             {
                 unchecked_emplace_back(std::forward<decltype(e)>(e));
@@ -530,8 +508,6 @@ public:
 
     /**
     * \pre \a spn does not overlap this vector's storage.
-    * \retval false if failure
-    * \retval true if success
     * \sa https://cppreference.com/w/cpp/container/inplace_vector/try_append_range.html
     */
     [[nodiscard]] constexpr bool try_append_range(const std::span<const T> spn)
@@ -544,15 +520,12 @@ public:
     }
 
     /**
-    * \pre <code>[first, last)</code> is a valid range (\a last is reachable from \a first).
-    * For a \c std::sized_sentinel_for this guarantees <code>last - first</code> is
-    * non-negative, so the up-front size check's cast to \c std::size_t is well-defined;
-    * a caller passing \a first past \a last is undefined regardless (the loop below
-    * would never terminate).
-    * \note If the source size is computable up front (\c std::sized_sentinel_for), it is
-    * checked before writing (nothing appended on \c false).  Otherwise appends
-    * element-wise: on \c false, the elements that fit have already been appended
-    * (observe \c size()).
+    * \pre <code>[first, last)</code> is a valid range.  For a \c std::sized_sentinel_for this
+    * keeps <code>last - first</code> non-negative, so the size check's cast to \c std::size_t
+    * is well-defined.
+    * \note A \c std::sized_sentinel_for source is checked up front (nothing appended on
+    * \c false); otherwise the elements that fit have already been appended when \c false is
+    * returned (observe \c size()).
     */
     template <std::input_iterator It, std::sentinel_for<It> S>
     [[nodiscard]] constexpr bool try_append_range(It first, S last)
@@ -606,8 +579,7 @@ public:
             if (std::ranges::size(rg) > remaining_space())
                 return false;
 
-            // The check above covers every element, so try_emplace_back's per-element repeat
-            // of it would be redundant.
+            // The size check above covers every element, so skip the per-element repeat.
             for (auto&& e : std::forward<R>(rg))
             {
                 unchecked_emplace_back(std::forward<decltype(e)>(e));
@@ -679,9 +651,8 @@ public:
         return span();
     }
 
-    /// \note Unlike the heap-backed siblings, no \c std::assume_aligned<Align> is applied:
-    /// the array is a member of an \c alignas(Align) object, so the compiler derives the
-    /// pointer's alignment statically.
+    /// \note No \c std::assume_aligned<Align> is needed, unlike the heap-backed siblings: the
+    /// array is a member of an \c alignas(Align) object, so the compiler derives the alignment.
     [[nodiscard]] constexpr T* data() noexcept { return std::data(data_); }
 
     [[nodiscard]] constexpr const T* data() const noexcept { return std::data(data_); }
@@ -726,8 +697,8 @@ public:
 
     /**
     * \pre \a i < \c capacity()
-    * \note Does not check bounds.  Indexes in [size(), capacity()) are valid reads (every
-    * capacity slot holds a live element); \c at() is the bounds-checked accessor.
+    * \note Unchecked and capacity-based: an index in [size(), capacity()) is a valid read,
+    * since every capacity slot holds a live element.  \c at() is the bounds-checked accessor.
     */
     [[nodiscard]] constexpr T& operator[](const std::size_t i) noexcept
     {
@@ -747,9 +718,9 @@ public:
 
     /**
     * \returns A reference to the element at index \a i.
-    * \note The only bounds-checked accessor.  It is checked against \c size(), not
-    * \c capacity(): the element at an index in [size(), capacity()) is alive and \c operator[]
-    * reads it, but this rejects that index.
+    * \note The only bounds-checked accessor, and checked against \c size(), not \c capacity():
+    * an element in [size(), capacity()) is alive and \c operator[] reads it, but this rejects
+    * that index.
     * \throws std::out_of_range if \a i >= \c size().
     * \sa https://cppreference.com/w/cpp/container/inplace_vector/at.html
     */

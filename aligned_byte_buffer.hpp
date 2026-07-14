@@ -49,25 +49,22 @@
 *   - The \c emplace_back family accepts at most one argument, of type \c std::byte or an
 *     integral type (floating-point and other enumeration arguments are rejected).
 *
-* Like \c dynamic_fixed_vector: \c data() applies \c std::assume_aligned<Align> so caller
-* loops can vectorize, \c zeroize_remaining_space() zeros the reserved tail with non-elidable
-* stores (\c clear() followed by it zeroizes the whole buffer), capacity is fixed at
-* construction (\c capacity() / \c
-* max_size() return it), \c operator[] is unchecked and capacity-based, \c at() is
-* bounds-checked, capacity overflow throws \c std::bad_alloc, and the \c try_* family returns
-* \c bool.  The interface is annotated \c constexpr, but because over-aligned allocation is
-* not usable in constant evaluation, only empty (non-allocating) instances are usable in
-* constant expressions.
+* Like \c dynamic_fixed_vector: \c data() applies \c std::assume_aligned<Align> so caller loops
+* can vectorize, \c zeroize_remaining_space() zeros the reserved tail with non-elidable stores
+* (\c clear() followed by it scrubs the whole buffer), capacity is fixed at construction,
+* \c operator[] is unchecked and capacity-based, \c at() is bounds-checked, capacity overflow
+* throws \c std::bad_alloc, and the \c try_* family returns \c bool.  The interface is annotated
+* \c constexpr, but over-aligned allocation is not usable in constant evaluation, so only empty
+* (non-allocating) instances are usable in constant expressions.
 *
 * \invariant \c size() \c <= \c capacity().
 * \invariant \c data() is null \b exactly when \c capacity() is 0.  A capacity of 0 allocates
-* nothing, and the aligned \c ::operator \c new never returns null (it throws \c std::bad_alloc),
-* so no other state holds a null block.
+* nothing, and the aligned \c ::operator \c new never returns null (it throws), so no other
+* state holds a null block.
 *
-* Those two are what make the preconditions below sufficient on their own.  \c !is_full(),
-* \c !is_empty() and <code>i < capacity()</code> each imply \c capacity() \c != \c 0, hence a
-* non-null, \a Align-aligned block -- which is why the members carrying them index \c data()
-* without re-checking it for null.
+* Together those make the preconditions below sufficient on their own: \c !is_full(),
+* \c !is_empty() and <code>i < capacity()</code> each imply a non-null, \a Align-aligned block,
+* so the members carrying them index \c data() without re-checking it for null.
 *
 * \sa dynamic_fixed_vector
 */
@@ -101,12 +98,10 @@ private:
 
         // sizeof(std::byte) == 1, so the byte count is exactly cap -- no overflow is possible.
         void* const raw = ::operator new(cap, std::align_val_t{Align});
-        // Begin the lifetimes of cap std::byte objects without initializing them.
         std::byte* const p = std::start_lifetime_as_array<std::byte>(raw, cap);
         return storage_ptr{p};
     }
 
-    /// Check the index \a i against \c size()
     constexpr void check_idx_(const std::size_t i) const
     {
         if (i >= size())
@@ -133,11 +128,11 @@ private:
 
     /// True if \a R is a sized, contiguous range of exactly \c std::byte.
     /**
-    * Such a range is handed to the \c std::span overload, which copies with \c std::memcpy,
-    * rather than appended byte-wise.  Overload resolution does not do this on its own: for
-    * e.g. \c std::vector<std::byte> the \c R&& template is an exact match while the
-    * \c std::span overload needs a user-defined conversion, so the template wins and the
-    * \c memcpy is never reached unless the caller writes the \c std::span out by hand.
+    * Such a range is handed to the \c std::span overload for its \c std::memcpy.  Overload
+    * resolution will not do this on its own: for e.g. \c std::vector<std::byte> the \c R&&
+    * template is an exact match while the \c std::span overload needs a user-defined
+    * conversion, so the template wins and the \c memcpy is dead code for callers who do not
+    * hand-write a span.
     */
     template <typename R>
     static constexpr bool is_bulk_appendable_ =
@@ -155,21 +150,15 @@ private:
     /// Zero \a n bytes at \a p with stores the compiler must not optimize away.
     /**
     * Uses \c ::memset_explicit (C23) or \c explicit_bzero (glibc, BSDs) when the C library
-    * declares one, and otherwise falls back to writes through a \c volatile pointer.
-    * Availability is detected by name lookup on the dependent parameter \a P: neither
-    * function has a feature-test macro, and \c __cplusplus is useless here -- the C library,
-    * not the language mode, provides them.  glibc declares both under \c __USE_MISC, which
-    * the \c _GNU_SOURCE that g++ defines at every \c -std turns on, so which branch is taken
-    * does not move with the language standard.
+    * declares one, else writes through a \c volatile pointer.  Neither has a feature-test
+    * macro, so availability is probed by unqualified name lookup on the dependent parameter
+    * \a P.
     *
-    * \note The lookup is unqualified on purpose; do \b not "modernize" it to
-    * \c std::memset_explicit.  That is the C++26 spelling of the same function, libstdc++ 16
-    * does not define it at any \c -std, and -- unlike the unqualified name -- it cannot be
-    * probed for: a qualified name into a namespace that lacks the member is a hard error at
-    * template definition, not a substitution failure, so
-    * <code>requires { std::memset_explicit(...); }</code> never evaluates to \c false.  It
-    * fails the build outright, and the \c else branches below never get their chance.  If
-    * libstdc++ adds it, expect a using-declaration for this same C function.
+    * \note The lookup must stay unqualified; do \b not "modernize" it to
+    * \c std::memset_explicit.  libstdc++ 16 does not define that C++26 spelling at any
+    * \c -std, and a qualified name into a namespace lacking the member is a hard error rather
+    * than a substitution failure -- so the \c requires probe cannot reject it, and the build
+    * fails outright instead of reaching the branches below.
     */
     template <typename P>
     static void zero_explicit_(P const p, const std::size_t n) noexcept
@@ -321,8 +310,7 @@ public:
 
     /// Resize to \a count bytes
     /**
-    * If \a count > \c size(), new bytes are set to \a value.
-    * If \a count <= \c size(), removed bytes are unchanged.
+    * Growing sets the new bytes to \a value; shrinking leaves the removed ones unchanged.
     */
     constexpr void resize(const std::size_t count, const std::byte value)
     {
@@ -351,8 +339,8 @@ public:
     /// argument, converted as by \c static_cast (out-of-range integers truncate mod 256).
     /// Floating-point and other enumeration arguments are rejected; cast explicitly if
     /// intended.
-    /// \note "Emplace" is assignment here: the slot already holds a live byte (elements are
-    /// never destroyed), so this is equivalent to \c push_back(std::byte(args...)).
+    /// \note "Emplace" is assignment here: the slot already holds a live byte, so this is
+    /// equivalent to \c push_back(std::byte(args...)).
     template <class... Args>
     requires (sizeof...(Args) <= 1) &&
              ((std::same_as<std::remove_cvref_t<Args>, std::byte> ||
@@ -378,10 +366,6 @@ public:
         unchecked_emplace_back(std::forward<Args>(args)...);
     }
 
-    /**
-    * \retval true if success
-    * \retval false if failure
-    */
     template <class... Args>
     requires (sizeof...(Args) <= 1) &&
              ((std::same_as<std::remove_cvref_t<Args>, std::byte> ||
@@ -426,12 +410,10 @@ public:
     /// Zero the reserved tail [\c size(), \c capacity()); \c size() is unchanged.
     /**
     * Replaces the unspecified reserved bytes with zeros -- e.g. to pad to an alignment
-    * boundary before reading whole SIMD lanes past \c size(), or to keep stale heap bytes
-    * from leaking through beyond-size reads.  The stores are guaranteed to happen even if
-    * nothing reads the tail afterward (\c memset_explicit / \c explicit_bzero / volatile
-    * fallback), so \c clear() followed by this zeroizes the whole buffer (e.g. scrubbing
-    * sensitive contents before destruction or reuse, where a plain \c memset is a dead
-    * store the optimizer may elide).
+    * boundary before reading whole SIMD lanes past \c size(), or to keep stale heap bytes from
+    * leaking through beyond-size reads.  The stores happen even if nothing reads the tail
+    * afterward, so \c clear() followed by this scrubs the whole buffer -- for sensitive
+    * contents, where a plain \c memset is a dead store the optimizer may elide.
     */
     constexpr void zeroize_remaining_space() noexcept
     {
@@ -448,14 +430,11 @@ public:
         common_append_range_(spn);
     }
 
-    /// \note If the source size is computable up front (\c std::sized_sentinel_for), it is
-    /// checked before writing (all-or-nothing).  Otherwise appends byte-wise: the bytes
-    /// that fit are appended before \c std::bad_alloc is thrown.
-    /// \pre <code>[first, last)</code> is a valid range (\a last is reachable from \a first).
-    /// For a \c std::sized_sentinel_for this guarantees <code>last - first</code> is
-    /// non-negative, so the up-front size check's cast to \c std::size_t is well-defined;
-    /// a caller passing \a first past \a last is undefined regardless (the loop below
-    /// would never terminate).
+    /// \pre <code>[first, last)</code> is a valid range.  For a \c std::sized_sentinel_for this
+    /// keeps <code>last - first</code> non-negative, so the size check's cast to \c std::size_t
+    /// is well-defined.
+    /// \note A \c std::sized_sentinel_for source is checked up front (all-or-nothing);
+    /// otherwise the bytes that fit are appended before \c std::bad_alloc is thrown.
     template <std::input_iterator It, std::sentinel_for<It> S>
     constexpr void append_range(It first, S last)
     {
@@ -499,8 +478,7 @@ public:
             if (std::ranges::size(rg) > remaining_space())
                 throw std::bad_alloc{};
 
-            // The check above covers every element, so emplace_back's per-element repeat of
-            // it would be redundant.
+            // The size check above covers every element, so skip the per-element repeat.
             for (auto&& e : std::forward<R>(rg))
                 unchecked_emplace_back(std::forward<decltype(e)>(e));
         }
@@ -511,11 +489,7 @@ public:
         }
     }
 
-    /**
-    * \pre \a spn does not overlap this buffer's storage.
-    * \retval false if failure
-    * \retval true if success
-    */
+    /// \pre \a spn does not overlap this buffer's storage.
     [[nodiscard]] constexpr bool try_append_range(const std::span<const std::byte> spn)
     {
         if (std::size(spn) > remaining_space())
@@ -525,15 +499,12 @@ public:
         return true;
     }
 
-    /// \note If the source size is computable up front (\c std::sized_sentinel_for), it is
-    /// checked before writing (nothing appended on \c false).  Otherwise appends
-    /// byte-wise: on \c false, the bytes that fit have already been appended
-    /// (observe \c size()).
-    /// \pre <code>[first, last)</code> is a valid range (\a last is reachable from \a first).
-    /// For a \c std::sized_sentinel_for this guarantees <code>last - first</code> is
-    /// non-negative, so the up-front size check's cast to \c std::size_t is well-defined;
-    /// a caller passing \a first past \a last is undefined regardless (the loop below
-    /// would never terminate).
+    /// \pre <code>[first, last)</code> is a valid range.  For a \c std::sized_sentinel_for this
+    /// keeps <code>last - first</code> non-negative, so the size check's cast to \c std::size_t
+    /// is well-defined.
+    /// \note A \c std::sized_sentinel_for source is checked up front (nothing appended on
+    /// \c false); otherwise the bytes that fit have already been appended when \c false is
+    /// returned (observe \c size()).
     template <std::input_iterator It, std::sentinel_for<It> S>
     [[nodiscard]] constexpr bool try_append_range(It first, S last)
     {
@@ -584,8 +555,7 @@ public:
             if (std::ranges::size(rg) > remaining_space())
                 return false;
 
-            // The check above covers every element, so try_emplace_back's per-element repeat
-            // of it would be redundant.
+            // The size check above covers every element, so skip the per-element repeat.
             for (auto&& e : std::forward<R>(rg))
                 unchecked_emplace_back(std::forward<decltype(e)>(e));
 
@@ -654,11 +624,8 @@ public:
 
     /// \returns A pointer to the block, aligned to \a Align, or \c nullptr if \c capacity()
     /// is 0 (per the class invariant, that is the only case).
-    /**
-    * \note The null test is not defensive: \c std::assume_aligned requires a pointer to a real
-    * object, so it may not be applied to the empty buffer's null block.  Members whose
-    * precondition already rules \c capacity() \c == \c 0 out do not repeat the test.
-    */
+    /// \note The null test is not defensive: \c std::assume_aligned requires a pointer to a
+    /// real object, so it may not be applied to the empty buffer's null block.
     [[nodiscard]] constexpr std::byte* data() noexcept
     {
         std::byte* const p = data_.get();
@@ -707,8 +674,8 @@ public:
     }
 
     /// \pre \a i < \c capacity()
-    /// \note Does not check bounds.  Reading an index in [size(), capacity()) is valid but
-    /// yields an unspecified (not indeterminate) byte value; \c at() is the bounds-checked
+    /// \note Unchecked and capacity-based: reading an index in [size(), capacity()) is valid
+    /// but yields an unspecified (not indeterminate) byte.  \c at() is the bounds-checked
     /// accessor.
     [[nodiscard]] constexpr std::byte& operator[](const std::size_t i) noexcept
     {
@@ -727,7 +694,7 @@ public:
     }
 
     /// \returns A reference to the byte at index \a i.
-    /// \note The only bounds-checked accessor.  It is checked against \c size(), not
+    /// \note The only bounds-checked accessor, and checked against \c size(), not
     /// \c capacity(): \c operator[] reads an index in [size(), capacity()) and yields an
     /// unspecified byte, but this rejects that index.
     /// \throws std::out_of_range if \a i >= \c size().
@@ -799,25 +766,24 @@ public:
 
 /// Constant-time equality comparison of two byte spans.
 /**
-* Runs in time dependent only on the spans' sizes, never on their contents: every byte pair
-* is examined and the XORed differences are OR-accumulated, with no data-dependent branch or
-* early exit.  Use this instead of \c operator== / \c std::memcmp when comparing
-* secret-dependent data (e.g. verifying a MAC / authentication tag), where a first-mismatch
-* early exit leaks the position of the first differing byte through timing.
+* Runs in time dependent only on the spans' sizes, never on their contents: every byte pair is
+* examined and the XORed differences are OR-accumulated, with no data-dependent branch or early
+* exit.  Use this instead of \c operator== / \c std::memcmp when comparing secret-dependent data
+* (e.g. verifying a MAC / authentication tag), where a first-mismatch early exit leaks the
+* position of the first differing byte through timing.  Spans of unequal size compare unequal
+* immediately; sizes are normally public (e.g. a fixed tag length).
 *
-* \note Spans of unequal size compare unequal immediately; only the sizes (normally public,
-* e.g. a fixed tag length) influence the timing, not the contents.
-* \note \c aligned_byte_buffer itself does \b not use this: container \c operator== is
-* deliberately variable-time, per ordinary container semantics.
+* \note \c aligned_byte_buffer::operator== is deliberately variable-time, per ordinary container
+* semantics, and does \b not use this.
 * \note Branch-freedom is a property of this source, not one the language guarantees: nothing
-* forbids a compiler from proving \c diff can only accumulate and exiting the loop early.  The
-* asymmetry with \c zeroize_remaining_space() is deliberate but worth knowing -- that one
-* defeats the optimizer outright (\c memset_explicit and friends), whereas this one relies on
-* it declining a transformation it is permitted to make.  Verified for GCC 16 at \c -O3
-* \c -march=native: the loop vectorizes to a \c vpxor / \c vpor accumulation with a horizontal
-* reduce, and every conditional branch that survives tests a size, not a content byte.  Re-check
-* if the compiler or the flags change; should one ever short-circuit here, the fix is a barrier
-* on \c diff (an empty \c asm volatile reading it, or a volatile accumulator), not a rewrite.
+* forbids a compiler from proving \c diff can only accumulate and exiting the loop early.  Note
+* the asymmetry with \c zeroize_remaining_space(), which defeats the optimizer outright, whereas
+* this relies on it declining a transformation it is permitted to make.  Verified for GCC 16 at
+* \c -O3 \c -march=native: the loop vectorizes to a \c vpxor / \c vpor accumulation with a
+* horizontal reduce, and every surviving conditional branch tests a size, not a content byte.
+* Re-check if the compiler or flags change; should one ever short-circuit here, the fix is a
+* barrier on \c diff (an empty \c asm volatile reading it, or a volatile accumulator), not a
+* rewrite.
 */
 [[nodiscard]] constexpr bool
 constant_time_equal(const std::span<const std::byte> a,

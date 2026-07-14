@@ -145,7 +145,7 @@ over-alignable heap block.
   language's array-`new` overflow check does not apply, so `capacity > SIZE_MAX / sizeof(T)` is
   checked explicitly before allocating.
 
-- **`Align >= alignof(T)` is load-bearing.** The `requires` clause demands it (alongside
+- **`Align >= alignof(T)` is required for correctness.** The `requires` clause demands it (alongside
   power-of-two), and here — unlike `fixed_vector`, where `alignas` would keep the array naturally
   aligned regardless — nothing else would enforce it: the block is raw storage from the aligned
   `::operator new`, so a smaller `Align` would begin element lifetimes at an under-aligned address,
