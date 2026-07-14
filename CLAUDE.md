@@ -41,15 +41,15 @@ gpp test-fixed_vector.cpp -o a.out && ./a.out
 ```
 
 Notes:
-- Each test file's leading comment shows the original command (`gpp -I ../include … && d ./a.out`).
-  `../include` is historical — the header sits next to the tests here, so plain `gpp test-X.cpp`
-  resolves the `#include "fixed_vector.hpp"`. `d` is a personal run helper; just use `./a.out`.
+- Each test file's leading comment shows the command it was built with.
 - Without the `gpp` wrapper, compile directly: `g++ -std=gnu++26 test-X.cpp -lfmt -o a.out`.
 - There is no test framework or runner. A test passes when it **exits 0** (all `assert`s hold);
   each file also embeds its **expected stdout** in a trailing comment block — diff the program's
-  output against that block to catch regressions the asserts don't cover.
-- `test-fixed_vector.cpp` is the hand-written suite; `test-fixed_vector2.cpp` (ChatGPT) and
-  `test-fixed_vector3.cpp` (Claude) are generated suites covering the same API.
+  output against that block to catch regressions the asserts don't cover. Regenerate that block
+  from a real run rather than editing it by hand.
+- One suite per type, each covering every member. `test-fixed_vector.cpp` covers `fixed_vector`;
+  because nearly its whole API is `constexpr`, it front-loads a `static_assert` block that drives
+  the container at compile time — a semantic regression there fails the build, not just the run.
 - `test-dynamic_fixed_vector.cpp` covers `dynamic_fixed_vector` and
   `test-aligned_byte_buffer.cpp` covers `aligned_byte_buffer` (every member each). Because both
   hand-manage aligned heap memory (and the byte buffer reads partially-uninitialized storage),

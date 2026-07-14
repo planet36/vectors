@@ -166,10 +166,14 @@ g++ -std=gnu++26 test-fixed_vector.cpp -lfmt -o a.out && ./a.out
 
 | Program | Covers |
 |---|---|
-| `test-fixed_vector.cpp` | `fixed_vector` (hand-written suite) |
-| `test-fixed_vector2.cpp`, `test-fixed_vector3.cpp` | the same API, generated suites |
+| `test-fixed_vector.cpp` | `fixed_vector` |
 | `test-dynamic_fixed_vector.cpp` | `dynamic_fixed_vector` |
 | `test-aligned_byte_buffer.cpp` | `aligned_byte_buffer` |
+
+Nearly all of `fixed_vector` is `constexpr`, so its suite additionally drives the container
+through a `static_assert` block before `main()` — those checks fail the compile rather than the
+run. The heap-backed types cannot do this (over-aligned allocation is not constant-evaluable), so
+their suites only `static_assert` the empty/zero-capacity cases.
 
 The two heap-backed types hand-manage aligned memory, and the byte buffer intentionally reads
 partially-uninitialized storage, so also run their tests under sanitizers — both are expected to
@@ -179,10 +183,10 @@ be clean:
 g++ -std=gnu++26 -g -fsanitize=address,undefined test-aligned_byte_buffer.cpp -lfmt -o a.san && ./a.san
 ```
 
-Each test file's leading comment shows the original command, which refers to `gpp` (a personal
-wrapper for `g++ $CPPFLAGS $CXXFLAGS "$@" -lfmt`, where `$CXXFLAGS` already sets `-std=gnu++26`
-and a large warning set), an `-I ../include` path that is historical, and `d`, a personal run
-helper. The headers sit next to the tests, so the plain `g++` commands above work as written.
+Each test file's leading comment shows the command it was built with, which refers to `gpp` — a
+personal wrapper for `g++ $CPPFLAGS $CXXFLAGS "$@" -lfmt`, where `$CXXFLAGS` already sets
+`-std=gnu++26` and a large warning set. The headers sit next to the tests, so the plain `g++`
+commands above work as written.
 
 ## License
 
