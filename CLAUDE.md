@@ -29,32 +29,33 @@ Two documents accompany the headers; an API change should update both:
 
 ## Build & test
 
-Requires **GCC 16 / `-std=gnu++26`** (uses `std::from_range`, ranges, concepts) and the
-**{fmt}** library (tests include `<fmt/ranges.h>` and link `-lfmt`).
-
-The repo assumes a personal wrapper `gpp` on `PATH` — it is just
-`g++ $CPPFLAGS $CXXFLAGS "$@" -lfmt`, where `$CXXFLAGS` already sets `-std=gnu++26` and a
-large warning set. Build and run a test:
+Requires **GCC 16 / `-std=c++26`** (uses `std::from_range`, ranges, concepts). No third-party
+libraries: the tests need only the standard library. Build and run a test:
 
 ```sh
-gpp test-fixed_vector.cpp -o a.out && ./a.out
+g++ -std=c++26 test-fixed_vector.cpp -o test-fixed_vector && ./test-fixed_vector
 ```
 
 Notes:
-- Each test file's leading comment shows the command it was built with.
-- Without the `gpp` wrapper, compile directly: `g++ -std=gnu++26 test-X.cpp -lfmt -o a.out`.
-- There is no test framework or runner. A test passes when it **exits 0** (all `assert`s hold);
-  each file also embeds its **expected stdout** in a trailing comment block — diff the program's
-  output against that block to catch regressions the asserts don't cover. Regenerate that block
-  from a real run rather than editing it by hand.
-- One suite per type, each covering every member. `test-fixed_vector.cpp` covers `fixed_vector`;
-  because nearly its whole API is `constexpr`, it front-loads a `static_assert` block that drives
-  the container at compile time — a semantic regression there fails the build, not just the run.
+- There is no test framework or runner. **A test passes when it prints nothing and exits 0**;
+  that exit status is the whole contract. On the first failed check the program prints one line
+  to stderr (`file:line: function: CHECK failed: <expr>`) and exits `EXIT_FAILURE` immediately,
+  leaving the remaining checks unrun.
+- `test-utils.hpp` holds the shared harness: `CHECK` / `CHECK_THROWS`, `run_tests`, and the
+  `to_ivec` / `to_byte` / `_b` / `is_aligned` helpers. **Do not use `assert`** in a test — it
+  calls `abort()` and dumps core; `CHECK` exits cleanly instead. For the same reason `run_tests`
+  catches everything, so a stray exception cannot reach `terminate()`.
+- One suite per type, each covering every member — **including both overloads** (const and
+  non-const accessors, `const&` and `&&` parameters). Each `{ }` block is a `static void
+  test_<member>()` called from `main`, so reading `main` is how you audit that coverage.
+- `test-fixed_vector.cpp` covers `fixed_vector`; because nearly its whole API is `constexpr`, it
+  front-loads a `static_assert` block that drives the container at compile time — a semantic
+  regression there fails the build, not just the run.
 - `test-dynamic_fixed_vector.cpp` covers `dynamic_fixed_vector` and
   `test-aligned_byte_buffer.cpp` covers `aligned_byte_buffer` (every member each). Because both
   hand-manage aligned heap memory (and the byte buffer reads partially-uninitialized storage),
   also run them once under sanitizers, e.g.:
-  `g++ -std=gnu++26 -g -fsanitize=address,undefined test-aligned_byte_buffer.cpp -lfmt -o a.san && ./a.san`.
+  `g++ -std=c++26 -g -fsanitize=address,undefined test-aligned_byte_buffer.cpp -o a.san && ./a.san`.
 
 ## Design invariants (the reason this isn't `std::inplace_vector`)
 

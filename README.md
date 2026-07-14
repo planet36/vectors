@@ -24,9 +24,9 @@ All three share one API. Learn one and you know the others.
 
 ## Requirements
 
-- **GCC 16** with `-std=gnu++26` (the headers use `std::from_range`, `std::start_lifetime_as_array`,
+- **GCC 16** with `-std=c++26` (the headers use `std::from_range`, `std::start_lifetime_as_array`,
   ranges, and concepts).
-- The **{fmt}** library — needed only by the test programs, not by the headers themselves.
+- No third-party libraries — the headers and their tests need only the standard library.
 
 ## Quick start
 
@@ -156,12 +156,16 @@ writes.
 ## Building and running the tests
 
 There is no test framework and no runner. Each type has one standalone program that exercises
-every member with `assert`s and prints observable state; **a test passes when it exits 0**. Each
-file also embeds its expected stdout in a trailing comment block, so diffing the output catches
-regressions the asserts miss.
+every member, and the exit status is the whole contract: **a test passes when it prints nothing
+and exits 0**. On the first failed check it prints one line to stderr and exits non-zero
+immediately:
+
+```
+test-fixed_vector.cpp:536: test_at: CHECK failed: v.at(1) == 99
+```
 
 ```sh
-g++ -std=gnu++26 test-fixed_vector.cpp -lfmt -o a.out && ./a.out
+g++ -std=c++26 test-fixed_vector.cpp -o test-fixed_vector && ./test-fixed_vector
 ```
 
 | Program | Covers |
@@ -169,6 +173,11 @@ g++ -std=gnu++26 test-fixed_vector.cpp -lfmt -o a.out && ./a.out
 | `test-fixed_vector.cpp` | `fixed_vector` |
 | `test-dynamic_fixed_vector.cpp` | `dynamic_fixed_vector` |
 | `test-aligned_byte_buffer.cpp` | `aligned_byte_buffer` |
+
+All three share `test-utils.hpp`, which holds `CHECK` / `CHECK_THROWS` / `run_tests` and a few
+helpers. Each program is a list of `test_<member>()` functions called from `main()`, one per
+member, so `main()` doubles as the coverage checklist. Nothing calls `abort()` — a failing test
+exits, it does not dump core.
 
 `test-fixed_vector.cpp` also drives the container through a `static_assert` block ahead of
 `main()`, so a regression there fails the compile rather than the run; the heap-backed suites can
@@ -179,13 +188,10 @@ partially-uninitialized storage, so also run their tests under sanitizers — bo
 be clean:
 
 ```sh
-g++ -std=gnu++26 -g -fsanitize=address,undefined test-aligned_byte_buffer.cpp -lfmt -o a.san && ./a.san
+g++ -std=c++26 -g -fsanitize=address,undefined test-aligned_byte_buffer.cpp -o a.san && ./a.san
 ```
 
-Each test file's leading comment shows the command it was built with, which refers to `gpp` — a
-personal wrapper for `g++ $CPPFLAGS $CXXFLAGS "$@" -lfmt`, where `$CXXFLAGS` already sets
-`-std=gnu++26` and a large warning set. The headers sit next to the tests, so the plain `g++`
-commands above work as written.
+The headers sit next to the tests, so the commands above work as written.
 
 ## License
 
