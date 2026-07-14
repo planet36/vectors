@@ -170,36 +170,55 @@ public:
     fixed_vector& operator=(fixed_vector&&) noexcept(std::is_nothrow_move_assignable_v<T>) = default;
     ~fixed_vector() = default;
 
+    /// Create \a count elements equal to \a value (\c size()==count).
+    /// \throws std::bad_alloc if \a count > \c max_size().
     constexpr explicit fixed_vector(const std::size_t count, const T& value)
     {
         resize(count, value);
     }
 
+    /// Create \a count value-initialized elements (\c size()==count).
+    /**
+    * \note This creates elements, unlike the heap-backed siblings' \c X(n), which reserves
+    * capacity \a n and starts empty.  Capacity here is already \a N, so the argument can only
+    * mean the size.
+    * \throws std::bad_alloc if \a count > \c max_size().
+    */
     constexpr explicit fixed_vector(const std::size_t count)
     {
         if (count > max_size())
             throw std::bad_alloc{};
 
-        // Elements of \c data_ are already value-initialized.
+        // Elements of data_ are already value-initialized.
         size_ = count;
     }
 
+    /// Copy the elements of \a spn (\c size()==spn.size()).
+    /// \throws std::bad_alloc if \a spn does not fit in \c max_size().
     constexpr explicit fixed_vector(const std::span<const T> spn) { append_range(spn); }
 
+    /// Copy the elements of <code>[first, last)</code>.
+    /// \throws std::bad_alloc if the source does not fit in \c max_size().
     template <std::input_iterator It, std::sentinel_for<It> S>
     constexpr explicit fixed_vector(It first, S last)
     {
         append_range(first, last);
     }
 
+    /// Copy \a count elements starting at \a first (\c size()==count).
+    /// \throws std::bad_alloc if \a count > \c max_size().
     template <std::input_iterator It>
     constexpr explicit fixed_vector(It first, const std::size_t count)
     {
         append_range(first, count);
     }
 
+    /// Copy the elements of \a il (\c size()==il.size()).
+    /// \throws std::bad_alloc if \a il does not fit in \c max_size().
     constexpr fixed_vector(const std::initializer_list<T> il) { append_range(il); }
 
+    /// Copy the elements of \a rg.
+    /// \throws std::bad_alloc if the source does not fit in \c max_size().
     template <std::ranges::input_range R>
     constexpr explicit fixed_vector(std::from_range_t, R&& rg)
     {
@@ -716,6 +735,14 @@ public:
         return data_[i];
     }
 
+    /**
+    * \returns A reference to the element at index \a i.
+    * \note The only bounds-checked accessor.  It is checked against \c size(), not
+    * \c capacity(): the element at an index in [size(), capacity()) is alive and \c operator[]
+    * reads it, but this rejects that index.
+    * \throws std::out_of_range if \a i >= \c size().
+    * \sa https://cppreference.com/w/cpp/container/inplace_vector/at.html
+    */
     [[nodiscard]] constexpr T& at(const std::size_t i)
     {
         check_idx_(i);

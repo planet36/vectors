@@ -776,6 +776,11 @@ public:
         return data()[i];
     }
 
+    /// \returns A reference to the element at index \a i.
+    /// \note The only bounds-checked accessor.  It is checked against \c size(), not
+    /// \c capacity(): the element at an index in [size(), capacity()) is alive and
+    /// \c operator[] reads it, but this rejects that index.
+    /// \throws std::out_of_range if \a i >= \c size().
     [[nodiscard]] constexpr T& at(const std::size_t i)
     {
         check_idx_(i);

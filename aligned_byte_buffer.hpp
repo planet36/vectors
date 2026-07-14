@@ -304,6 +304,9 @@ public:
 
     [[nodiscard]] constexpr bool is_full() const noexcept { return size_ == capacity_; }
 
+    /// \note Does not zero the bytes: they stay in the buffer, readable through \c operator[]
+    /// as the now-reserved tail.  \c clear() followed by \c zeroize_remaining_space() scrubs
+    /// them.
     constexpr void clear() noexcept { size_ = 0; }
 
     /// Resize to \a count bytes
@@ -713,6 +716,11 @@ public:
         return data()[i];
     }
 
+    /// \returns A reference to the byte at index \a i.
+    /// \note The only bounds-checked accessor.  It is checked against \c size(), not
+    /// \c capacity(): \c operator[] reads an index in [size(), capacity()) and yields an
+    /// unspecified byte, but this rejects that index.
+    /// \throws std::out_of_range if \a i >= \c size().
     [[nodiscard]] constexpr std::byte& at(const std::size_t i)
     {
         check_idx_(i);
