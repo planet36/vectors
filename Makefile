@@ -50,9 +50,7 @@ BINS = $(basename $(SRCS))
 DEBUG_BINS = $(addsuffix .debug,$(BINS))
 DEPS = $(addsuffix .d,$(BINS) $(DEBUG_BINS))
 
-all: $(BINS)
-
-debug: $(DEBUG_BINS)
+all: $(BINS) $(DEBUG_BINS)
 
 # Must precede the match-anything rule below, which would otherwise take x.debug and look for
 # x.debug.cpp.
@@ -78,7 +76,7 @@ lint:
 	-clang-tidy --quiet $(SRCS) -- $(CPPFLAGS) $(CXXFLAGS) $(RELEASE_CXXFLAGS)
 
 # https://www.gnu.org/software/make/manual/make.html#Phony-Targets
-.PHONY: all debug test test-release test-debug clean lint
+.PHONY: all test test-release test-debug clean lint
 
 # https://www.gnu.org/software/make/manual/html_node/Special-Targets.html#index-removing-targets-on-failure
 .DELETE_ON_ERROR:
