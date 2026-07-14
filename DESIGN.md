@@ -220,14 +220,27 @@ types. The API and conventions are unchanged; the element type enables these dif
 
 ## Testing
 
-See `README.md` for the test inventory and the commands to run it. Two of the choices it describes
-are deliberate rather than incidental; this is the reasoning behind them.
+See `README.md` for the test inventory and the commands to run it. Three of the choices it
+describes are deliberate rather than incidental; this is the reasoning behind them.
 
 - **Each program's expected stdout is embedded in its trailing comment block.** The `assert`s pin
   down the invariants, but a container has plenty of observable state nobody thinks to assert —
   printed sizes and capacities, `sizeof`, span contents, formatting. The recorded output is a
   second, coarser net: diffing a run against the block catches changes there that the assertions
   are indifferent to.
+
+- **`fixed_vector`'s suite drives the container at compile time.** Nearly its whole interface is
+  `constexpr`, so a `static_assert` block ahead of `main()` runs a vector through `append_range`,
+  `push_back`, `emplace_back`, `try_push_back`, `assign_range`, `resize`, `swap` and
+  `zeroize_remaining_space` during constant evaluation. That moves a regression from a failed run
+  to a failed build, and buys one check the other two nets cannot: an index outside the storage is
+  rejected outright there. `operator[]` is unchecked by design, so at run time `v[10]` on a
+  `fixed_vector<int, 5>` reads whatever is past the array and every `assert` still passes; in a
+  `static_assert` the same expression fails to compile (GCC 16.1.1 rejects it through
+  `std::array`'s hardened precondition). The heap-backed types cannot be tested this way, because
+  over-aligned allocation is not usable in constant evaluation; their suites reach only the empty
+  and zero-capacity members, which is why the compile-time coverage is so lopsided across the
+  three.
 
 - **The heap-backed types are also run under AddressSanitizer + UndefinedBehaviorSanitizer.**
   `assert`s are blind to the specific mistakes these two can make: a read or write just past the

@@ -170,10 +170,9 @@ g++ -std=gnu++26 test-fixed_vector.cpp -lfmt -o a.out && ./a.out
 | `test-dynamic_fixed_vector.cpp` | `dynamic_fixed_vector` |
 | `test-aligned_byte_buffer.cpp` | `aligned_byte_buffer` |
 
-Nearly all of `fixed_vector` is `constexpr`, so its suite additionally drives the container
-through a `static_assert` block before `main()` — those checks fail the compile rather than the
-run. The heap-backed types cannot do this (over-aligned allocation is not constant-evaluable), so
-their suites only `static_assert` the empty/zero-capacity cases.
+`test-fixed_vector.cpp` also drives the container through a `static_assert` block ahead of
+`main()`, so a regression there fails the compile rather than the run; the heap-backed suites can
+only do that for their empty and zero-capacity cases. See `DESIGN.md` for why.
 
 The two heap-backed types hand-manage aligned memory, and the byte buffer intentionally reads
 partially-uninitialized storage, so also run their tests under sanitizers — both are expected to
