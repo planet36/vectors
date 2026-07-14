@@ -321,6 +321,8 @@ public:
     template <class... Args>
     requires std::constructible_from<T, Args...> && std::assignable_from<T&, T>
     [[nodiscard]] constexpr bool try_emplace_back(Args&&... args)
+        noexcept(std::is_nothrow_constructible_v<T, Args...> &&
+                 std::is_nothrow_assignable_v<T&, T>)
     {
         if (is_full())
             return false;
@@ -360,11 +362,13 @@ public:
     * \sa https://cppreference.com/w/cpp/container/inplace_vector/try_push_back.html
     */
     [[nodiscard]] constexpr bool try_push_back(const T& value)
+        noexcept(noexcept(try_emplace_back(value)))
     {
         return try_emplace_back(value);
     }
 
     [[nodiscard]] constexpr bool try_push_back(T&& value)
+        noexcept(noexcept(try_emplace_back(std::move(value))))
     {
         return try_emplace_back(std::move(value));
     }

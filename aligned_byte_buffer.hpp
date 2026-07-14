@@ -373,7 +373,7 @@ public:
     requires (sizeof...(Args) <= 1) &&
              ((std::same_as<std::remove_cvref_t<Args>, std::byte> ||
                std::integral<std::remove_cvref_t<Args>>) && ...)
-    [[nodiscard]] constexpr bool try_emplace_back(Args&&... args)
+    [[nodiscard]] constexpr bool try_emplace_back(Args&&... args) noexcept
     {
         if (is_full())
             return false;
@@ -390,7 +390,7 @@ public:
 
     constexpr void push_back(const std::byte value) { emplace_back(value); }
 
-    [[nodiscard]] constexpr bool try_push_back(const std::byte value)
+    [[nodiscard]] constexpr bool try_push_back(const std::byte value) noexcept
     {
         return try_emplace_back(value);
     }
