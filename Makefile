@@ -61,12 +61,7 @@ all: $(BINS) $(DEBUG_BINS)
 %: %.cpp
 	$(CXX) $(DEPFLAGS) $(CPPFLAGS) $(CXXFLAGS) $(RELEASE_CXXFLAGS) $(LDFLAGS) $< -o $@ $(LDLIBS)
 
-test: test-release test-debug
-
-test-release: $(BINS)
-	@set -e; for bin in $^; do ./$$bin; done
-
-test-debug: $(DEBUG_BINS)
+test: $(BINS) $(DEBUG_BINS)
 	@set -e; for bin in $^; do ./$$bin; done
 
 clean:
@@ -76,7 +71,7 @@ lint:
 	-clang-tidy --quiet $(SRCS) -- $(CPPFLAGS) $(CXXFLAGS) $(RELEASE_CXXFLAGS)
 
 # https://www.gnu.org/software/make/manual/make.html#Phony-Targets
-.PHONY: all test test-release test-debug clean lint
+.PHONY: all test clean lint
 
 # https://www.gnu.org/software/make/manual/html_node/Special-Targets.html#index-removing-targets-on-failure
 .DELETE_ON_ERROR:
