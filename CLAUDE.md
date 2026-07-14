@@ -33,11 +33,8 @@ Requires **GCC 16 / `-std=c++26`** (uses `std::from_range`, ranges, concepts). N
 libraries: the tests need only the standard library.
 
 ```sh
-make              # build the test programs
-make test         # run both variants below -- the one to run by default
-make test-release # build if needed, then run the release programs
-make debug        # build the debug programs (asserts + sanitizers, see below)
-make test-debug   # build if needed, then run those
+make              # build the test programs -- both variants (release and debug, see below)
+make test         # build if needed, then run both variants -- the one to run by default
 make clean
 ```
 
@@ -66,13 +63,14 @@ Notes:
     (std::sized_sentinel_for<...>)` branch the tests take. `__debug::vector`'s iterators still
     model `contiguous_iterator` / `sized_sentinel_for`, so both variants exercise the same
     paths. Don't re-derive this one; it was measured.
-- `make debug` builds `test-*.debug` with asserts, libstdc++ debug mode, fortified string ops,
-  and ASan/UBSan (see the Makefile's `DEBUG_CXXFLAGS`, which explains each). The debug and
-  release binaries have different names, so neither build ever silently serves the other's
-  stale binary. Two of those flags are subtler than they look:
+- The debug half is `test-*.debug`, which `make` builds alongside the release binaries, with
+  asserts, libstdc++ debug mode, fortified string ops, and ASan/UBSan (see the Makefile's
+  `DEBUG_CXXFLAGS`, which explains each). The debug and release binaries have different names,
+  so neither build ever silently serves the other's stale binary. Two of those flags are
+  subtler than they look:
   - **`-UNDEBUG` is not decorative.** `assert` obeys `NDEBUG`, so an `NDEBUG` arriving from the
-    environment's `CPPFLAGS` would disable every assert while `make debug` still looked like it
-    worked. It only wins because the recipe puts `DEBUG_CXXFLAGS` after `CPPFLAGS`; `-D`/`-U`
+    environment's `CPPFLAGS` would disable every assert while the debug build still looked like
+    it worked. It only wins because the recipe puts `DEBUG_CXXFLAGS` after `CPPFLAGS`; `-D`/`-U`
     apply in command-line order, so don't reorder them.
   - **`-D_FORTIFY_SOURCE=3` requires the `-Og`.** At `-O0` it warns and silently degrades to
     level 0. It does stay live under ASan.
@@ -91,12 +89,13 @@ Notes:
 - `test-dynamic_fixed_vector.cpp` covers `dynamic_fixed_vector` and
   `test-aligned_byte_buffer.cpp` covers `aligned_byte_buffer` (every member each). Because both
   hand-manage aligned heap memory (and the byte buffer reads partially-uninitialized storage),
-  they need a sanitizer run — `make test` covers it via `test-debug`, and both are expected to
-  be clean.
+  they need a sanitizer run — `make test` covers it via the debug variant, and both are expected
+  to be clean.
 
 ### `DEBUG` assertions in the headers
 
-`-DDEBUG` (set by `make debug`) enables an `assert` for each precondition the headers already
+`-DDEBUG` (set by the Makefile's `DEBUG_CXXFLAGS`, so it reaches only the `test-*.debug`
+binaries) enables an `assert` for each precondition the headers already
 document with a `\pre` tag *and* can check cheaply: `!is_full()` on the `unchecked_*` family,
 `!is_empty()` on `front`/`back`, and `i < capacity()` on `operator[]`. Each sits in a
 `#if defined(DEBUG)` block, so a release build contains no `__assert_fail` at all.

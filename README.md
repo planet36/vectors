@@ -171,7 +171,7 @@ test-fixed_vector.cpp:536: test_at: CHECK failed: v.at(1) == 99
 ```
 
 ```sh
-make        # build the test programs
+make        # build the test programs -- both variants (see below)
 make test   # build if needed, then run them
 ```
 
@@ -201,12 +201,12 @@ only do that for their empty and zero-capacity cases. See `DESIGN.md` for why.
 
 ### The two build variants
 
-`make test` runs the suite twice, because neither build subsumes the other:
+`make test` runs the suite twice, because neither build subsumes the other. The variants are two
+sets of binaries rather than two targets — `make` builds both, `make test` runs both:
 
-```sh
-make test-release  # -O3 -flto -march=native
-make test-debug    # asserts + libstdc++ debug mode + fortified string ops + ASan/UBSan
-```
+- **release** — `test-*`, built at `-O3 -flto -march=native`.
+- **debug** — `test-*.debug`, built with asserts, libstdc++ debug mode, fortified string ops,
+  and ASan/UBSan.
 
 The **debug** build catches what the release build hides. The two heap-backed types hand-manage
 aligned memory and the byte buffer intentionally reads partially-uninitialized storage, so the
@@ -220,8 +220,8 @@ at `-O2`), and it never cashes in `data()`'s `assume_aligned<Align>` — a calle
 `vmovdqa` that faults the moment that promise is untrue. Testing only the debug build would
 leave the library's whole reason for `assume_aligned` unexercised.
 
-Both are expected to be clean. The debug programs are named `test-*.debug`, so they coexist with
-the release binaries rather than shadowing them.
+Both are expected to be clean. The two variants' binaries are named differently, so they coexist
+rather than shadowing each other and neither build ever silently serves the other's stale binary.
 
 `-DDEBUG` turns on the headers' own precondition checks: every `\pre` the headers document and
 can check cheaply — `!is_full()` for the `unchecked_*` family, `!is_empty()` for `front`/`back`,

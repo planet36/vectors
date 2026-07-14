@@ -6,12 +6,12 @@ a.san
 *.gch
 *.pch
 
-# Compiled test programs (make, make debug) and their dep files
+# Compiled test programs (both variants, built by make) and their dep files
 test-*
 !test-*.cpp
 !test-*.hpp
 *.d
 
-# A failed assert in a `make debug` binary aborts, which can drop one of these here
+# A failed assert in a test-*.debug binary aborts, which can drop one of these here
 core
 core.*
