@@ -220,9 +220,20 @@ types. The API and conventions are unchanged; the element type enables these dif
 
 ## Testing
 
-There is no test framework. Each type has a standalone program that exercises every member function
-with `assert`s and prints observable state; the program's expected stdout is embedded in a trailing
-comment block so output regressions are catchable by diffing even when the asserts do not cover them.
-A test passes when it exits 0. Because the runtime types hand-manage aligned memory (and the byte
-buffer intentionally reads partially-uninitialized storage), the tests are also run under
-AddressSanitizer + UndefinedBehaviorSanitizer; both are expected to be clean.
+See `README.md` for the test inventory and the commands to run it. Two of the choices it describes
+are deliberate rather than incidental; this is the reasoning behind them.
+
+- **Each program's expected stdout is embedded in its trailing comment block.** The `assert`s pin
+  down the invariants, but a container has plenty of observable state nobody thinks to assert —
+  printed sizes and capacities, `sizeof`, span contents, formatting. The recorded output is a
+  second, coarser net: diffing a run against the block catches changes there that the assertions
+  are indifferent to.
+
+- **The heap-backed types are also run under AddressSanitizer + UndefinedBehaviorSanitizer.**
+  `assert`s are blind to the specific mistakes these two can make: a read or write just past the
+  block, a leaked buffer, or an aligned `::operator new` paired with the wrong deallocation
+  function — the array-`new` trap described above — all leave every assertion passing and the
+  program exiting 0. ASan sees them, and reports that last one as `new-delete-type-mismatch`,
+  naming the allocated and the deallocated alignment. `aligned_byte_buffer` adds a wrinkle: it
+  reads beyond `size()` on purpose, which is legitimate inside the allocation and must not be
+  allowed to shade into straying outside it. Both suites are expected to be clean.
