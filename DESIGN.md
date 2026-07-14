@@ -69,11 +69,22 @@ and essentially the entire interface is `constexpr`. Moving does
 *not* empty the source: the defaulted move is member-wise, so for trivially copyable `T` a
 moved-from `fixed_vector` is left unchanged — unlike the heap-backed siblings, where move
 construction empties the source. Constraints:
-`N > 0`, default-initializable, movable, trivially destructible, `Align` a power of two.
+`N > 0`, default-initializable, movable, trivially destructible, `Align` a power of two and at
+least `alignof(T)`.
 
 The default `Align`, `std::max(alignof(std::size_t), alignof(T))`, only ever *over*-aligns: even
 for small `T` the array is at least word-aligned, and the `alignas` costs nothing because the
 adjacent `std::size_t` member already gives the object that alignment.
+
+The `Align >= alignof(T)` bound is **not** needed for correctness here, unlike on the heap-backed
+siblings: storage is a real `std::array<T, N>` member, and `alignas` cannot weaken a type's
+natural alignment, so the array is suitably aligned even for an under-aligned request. The bound
+exists for diagnosis. A weakened `alignas` is ill-formed ([dcl.align]/5), but GCC accepts it
+silently at any warning level (Clang rejects it), so without the constraint
+`fixed_vector<int, 8, 1>` compiles, ignores the request, and yields a 4-aligned array — an intent
+the container cannot honor, expressed with no diagnostic, in code that builds on only one
+compiler. The constraint turns that into a named constraint failure, and makes the family's three
+`requires` clauses consistent.
 
 ## `dynamic_fixed_vector<T, Align>`
 
@@ -104,6 +115,14 @@ over-alignable heap block.
 - **Overflow guard.** Because the allocation size is computed by hand (`capacity * sizeof(T)`), the
   language's array-`new` overflow check does not apply, so `capacity > SIZE_MAX / sizeof(T)` is
   checked explicitly before allocating.
+
+- **`Align >= alignof(T)` is load-bearing.** The `requires` clause demands it (alongside
+  power-of-two), and here — unlike `fixed_vector`, where `alignas` would keep the array naturally
+  aligned regardless — nothing else would enforce it: the block is raw storage from the aligned
+  `::operator new`, so a smaller `Align` would begin element lifetimes at an under-aligned address,
+  which is undefined behavior. `aligned_byte_buffer` needs no such constraint because
+  `alignof(std::byte)` is 1, so every power of two satisfies it; that is why its clause reduces to
+  `has_single_bit(Align)`.
 
 - **Default alignment.** `Align` defaults to `std::max(alignof(std::size_t), alignof(T))`, matching
   `fixed_vector`: the storage is never under-aligned, and word alignment for small `T` is free —

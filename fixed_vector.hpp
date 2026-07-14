@@ -43,6 +43,15 @@
 * \c unchecked_* families are provided -- though the \c try_* members return \c bool here
 * rather than \c std::inplace_vector's pointer/iterator.
 *
+* \note \a Align is required to be at least \c alignof(T), which is \e not needed for
+* correctness here: \c alignas cannot weaken a type's natural alignment, so \c data_ would be
+* suitably aligned even without the constraint.  It is required because a weakened \c alignas
+* is ill-formed ([dcl.align]/5), yet GCC accepts it silently (Clang rejects it) -- so without
+* the constraint an under-alignment request would be quietly ignored rather than diagnosed.
+* The constraint rejects a request this container cannot honor, and mirrors
+* \c dynamic_fixed_vector, where the same bound is load-bearing: its storage is raw bytes from
+* the aligned \c ::operator \c new, so a smaller \a Align would under-align the elements (UB).
+*
 * \warning This container is only suitable for trivially destructible types.
 *
 * \sa https://cppreference.com/w/cpp/container/inplace_vector.html
@@ -52,7 +61,8 @@ template <typename T,
           std::size_t N,
           std::size_t Align = std::max(alignof(std::size_t), alignof(T))>
 requires (N > 0) && std::default_initializable<T> && std::movable<T> &&
-         std::is_trivially_destructible_v<T> && (std::has_single_bit(Align))
+         std::is_trivially_destructible_v<T> &&
+         (std::has_single_bit(Align)) && (Align >= alignof(T))
 class fixed_vector
 {
 private:

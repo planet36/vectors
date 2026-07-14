@@ -67,7 +67,14 @@ The header's class docstring lists the intended differences from `std::inplace_v
 - **Elements are never destroyed.** `clear()`, `pop_back()`, and `resize()` only adjust the
   `size_` counter; the underlying array elements stay alive. Consequently the type is
   constrained to `std::is_trivially_destructible_v<T>` (enforced in the `requires` clause,
-  along with `N > 0`, `default_initializable`, `movable`, and `Align` being a power of two).
+  along with `N > 0`, `default_initializable`, `movable`, and `Align` being a power of two
+  that is at least `alignof(T)`).
+- **`Align >= alignof(T)` is deliberate in `fixed_vector`, not redundant** — do not drop it as
+  "already guaranteed by `alignas`". It is a *diagnostic*: `alignas` cannot weaken natural
+  alignment, so the array is safe either way, but a weakened `alignas` is ill-formed and GCC
+  ignores it silently (Clang errors), so without the constraint `fixed_vector<int, 8, 1>` would
+  compile and quietly ignore the request. See DESIGN.md; it is load-bearing on
+  `dynamic_fixed_vector` for a different reason.
 - **`operator[]` is capacity-based and unchecked** — it can legitimately read an initialized
   element at an index `>= size()` (this is tested intentionally). `at()` is the only
   bounds-checked accessor.
@@ -86,6 +93,11 @@ capacity + heap storage:
   route to the non-aligned deallocation → UB. The `allocate_` helper also guards
   `capacity * sizeof(T)` against `std::size_t` overflow (the language's array-new check is
   bypassed when you size the allocation yourself).
+- **`Align >= alignof(T)` is in the `requires` clause and is load-bearing here** (unlike in
+  `fixed_vector`, where it is only a diagnostic): the block is raw storage from the aligned
+  `::operator new`, so nothing but the constraint prevents a smaller `Align` from under-aligning
+  the elements → UB. Vacuous for `aligned_byte_buffer` (`alignof(std::byte) == 1`), which is why
+  its clause is only `has_single_bit(Align)`.
 - **`capacity()` / `max_size()` are non-static** and return the runtime capacity (deliberately
   **not** a `SIZE_MAX`-ish value like `std::vector::max_size()`).
 - **`data()` applies `std::assume_aligned<Align>`** (guarded for the null/empty case) so caller
