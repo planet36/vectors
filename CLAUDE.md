@@ -4,8 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A header-only C++ library of fixed-capacity vectors. There is no build system or package
-manifest — just the headers and their standalone test programs.
+A header-only C++ library of fixed-capacity vectors. Consuming it needs no build system or
+package manifest — the headers are standalone. A `Makefile` builds and runs the test programs.
 
 - `fixed_vector.hpp` — `fixed_vector<T, N, Align>`: capacity `N` is a **compile-time**
   template parameter, backed by in-place `std::array<T, N>` storage (no heap allocation).
@@ -30,10 +30,14 @@ Two documents accompany the headers; an API change should update both:
 ## Build & test
 
 Requires **GCC 16 / `-std=c++26`** (uses `std::from_range`, ranges, concepts). No third-party
-libraries: the tests need only the standard library. Build and run a test:
+libraries: the tests need only the standard library.
 
 ```sh
-g++ -std=c++26 test-fixed_vector.cpp -o test-fixed_vector && ./test-fixed_vector
+make             # build the test programs
+make test        # build if needed, then run them all
+make debug       # build the debug programs (asserts + sanitizers, see below)
+make test-debug  # build if needed, then run those
+make clean
 ```
 
 Notes:
@@ -41,10 +45,26 @@ Notes:
   that exit status is the whole contract. On the first failed check the program prints one line
   to stderr (`file:line: function: CHECK failed: <expr>`) and exits `EXIT_FAILURE` immediately,
   leaving the remaining checks unrun.
+- `make test` is that contract applied to all three programs: each one runs even after another
+  fails, each gets one `PASS`/`FAIL` line, and the exit status is 0 only if all passed. A single
+  program still builds and runs by hand — `g++ -std=c++26 test-fixed_vector.cpp -o
+  test-fixed_vector && ./test-fixed_vector` — since nothing in the suites needs the Makefile.
+- `make debug` builds `test-*.debug` with asserts, libstdc++ debug mode, fortified string ops,
+  and ASan/UBSan (see the Makefile's `DEBUG_CXXFLAGS`, which explains each). The debug and
+  release binaries have different names, so neither build ever silently serves the other's
+  stale binary. Two of those flags are subtler than they look:
+  - **`-UNDEBUG` is not decorative.** `assert` obeys `NDEBUG`, so an `NDEBUG` arriving from the
+    environment's `CPPFLAGS` would disable every assert while `make debug` still looked like it
+    worked. It only wins because the recipe puts `DEBUG_CXXFLAGS` after `CPPFLAGS`; `-D`/`-U`
+    apply in command-line order, so don't reorder them.
+  - **`-D_FORTIFY_SOURCE=3` requires the `-Og`.** At `-O0` it warns and silently degrades to
+    level 0. It does stay live under ASan.
 - `test-utils.hpp` holds the shared harness: `CHECK` / `CHECK_THROWS`, `run_tests`, and the
   `to_ivec` / `to_byte` / `_b` / `is_aligned` helpers. **Do not use `assert`** in a test — it
   calls `abort()` and dumps core; `CHECK` exits cleanly instead. For the same reason `run_tests`
-  catches everything, so a stray exception cannot reach `terminate()`.
+  catches everything, so a stray exception cannot reach `terminate()`. This bans `assert` from
+  the *tests* only; the headers assert their own preconditions under `-DDEBUG` (below), which is
+  the opposite situation — a caller in UB, where aborting loudly is the point.
 - One suite per type, each covering every member — **including both overloads** (const and
   non-const accessors, `const&` and `&&` parameters). Each `{ }` block is a `static void
   test_<member>()` called from `main`, so reading `main` is how you audit that coverage.
@@ -54,8 +74,40 @@ Notes:
 - `test-dynamic_fixed_vector.cpp` covers `dynamic_fixed_vector` and
   `test-aligned_byte_buffer.cpp` covers `aligned_byte_buffer` (every member each). Because both
   hand-manage aligned heap memory (and the byte buffer reads partially-uninitialized storage),
-  also run them once under sanitizers, e.g.:
-  `g++ -std=c++26 -g -fsanitize=address,undefined test-aligned_byte_buffer.cpp -o a.san && ./a.san`.
+  also run them once under sanitizers — that is what `make test-debug` is for, and both are
+  expected to be clean. Run it after touching either header's allocation or `size_` bookkeeping.
+
+### `DEBUG` assertions in the headers
+
+`-DDEBUG` (set by `make debug`) enables an `assert` for each precondition the headers already
+document with a `\pre` tag *and* can check cheaply: `!is_full()` on the `unchecked_*` family,
+`!is_empty()` on `front`/`back`, and `i < capacity()` on `operator[]`. Each sits in a
+`#if defined(DEBUG)` block, so a release build contains no `__assert_fail` at all.
+
+- **The `\pre` tags are the spec; the asserts only enforce them.** Adding an assert without a
+  matching `\pre`, or asserting something stricter than the tag says, is how this drifts into
+  contradicting the design. In particular `operator[]` asserts `i < capacity()`, **not**
+  `i < size()` — reading a live element at an index `>= size()` is intended, and the tests do it.
+- The remaining `\pre` tags are unasserted: the non-overlap tags on the `span` overloads would
+  need a runtime aliasing check that these paths exist to avoid, and "`[first, last)` is a valid
+  range" is not checkable *by the container*. `_GLIBCXX_DEBUG` covers that last one from the
+  other side, whenever the iterators come from a std container — which is how the tests use it.
+  It is worth keeping for that alone: an invalid iterator otherwise yields a garbage distance,
+  which the up-front capacity check reports as **`std::bad_alloc`**, sending you after a
+  phantom capacity bug. Debug mode names the real one instead ("attempt to copy a singular
+  iterator", "iterators from different sequences"), and plain ASan does not catch it at all.
+- `unchecked_push_back` delegates to `unchecked_emplace_back`, which is where its `!is_full()`
+  assert lives — one check at the leaf, and violations through either overload still trip it.
+- The asserts are `constexpr`-clean: an assert whose condition holds is fine in constant
+  evaluation, so `test-fixed_vector.cpp`'s `static_assert` block still compiles under `-DDEBUG`.
+- Standard `NDEBUG` caveat: `DEBUG` changes the definition of inline/template functions, so
+  don't link a `-DDEBUG` TU against a non-`DEBUG` one — that is an ODR violation. `_GLIBCXX_DEBUG`
+  is the same hazard one level down (it swaps in `__debug::vector` etc.), which is safe here only
+  because each test is a single TU. Both are reasons the debug build gets its own binaries.
+- `-fhardened` was considered and rejected: GCC warns that it declines to apply its own
+  `_FORTIFY_SOURCE` / `_GLIBCXX_ASSERTIONS` when those are set explicitly (they are), and its
+  remaining parts — PIE, relro, cf-protection, stack-protector — harden a shipped binary rather
+  than find bugs in a test run, with ASan already detecting stack smashes more precisely.
 
 ## Design invariants (the reason this isn't `std::inplace_vector`)
 

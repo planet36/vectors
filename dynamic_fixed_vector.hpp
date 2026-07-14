@@ -14,6 +14,9 @@
 
 #include <algorithm>
 #include <bit>
+#if defined(DEBUG)
+#include <cassert>
+#endif
 #include <compare>
 #include <concepts>
 #include <cstddef>
@@ -379,6 +382,9 @@ public:
         noexcept(std::is_nothrow_constructible_v<T, Args...> &&
                  std::is_nothrow_assignable_v<T&, T>)
     {
+#if defined(DEBUG)
+        assert(!is_full());
+#endif
         *end() = T(std::forward<Args>(args)...);
         ++size_;
     }
@@ -662,22 +668,55 @@ public:
     }
 
     /// \pre \c !is_empty()
-    [[nodiscard]] constexpr T& front() noexcept { return *begin(); }
+    [[nodiscard]] constexpr T& front() noexcept
+    {
+#if defined(DEBUG)
+        assert(!is_empty());
+#endif
+        return *begin();
+    }
 
-    [[nodiscard]] constexpr const T& front() const noexcept { return *begin(); }
+    [[nodiscard]] constexpr const T& front() const noexcept
+    {
+#if defined(DEBUG)
+        assert(!is_empty());
+#endif
+        return *begin();
+    }
 
     /// \pre \c !is_empty()
-    [[nodiscard]] constexpr T& back() noexcept { return *rbegin(); }
+    [[nodiscard]] constexpr T& back() noexcept
+    {
+#if defined(DEBUG)
+        assert(!is_empty());
+#endif
+        return *rbegin();
+    }
 
-    [[nodiscard]] constexpr const T& back() const noexcept { return *rbegin(); }
+    [[nodiscard]] constexpr const T& back() const noexcept
+    {
+#if defined(DEBUG)
+        assert(!is_empty());
+#endif
+        return *rbegin();
+    }
 
     /// \pre \a i < \c capacity()
     /// \note Does not check bounds.  Indexes in [size(), capacity()) are valid reads (every
     /// capacity slot holds a live element); \c at() is the bounds-checked accessor.
-    [[nodiscard]] constexpr T& operator[](const std::size_t i) noexcept { return data()[i]; }
+    [[nodiscard]] constexpr T& operator[](const std::size_t i) noexcept
+    {
+#if defined(DEBUG)
+        assert(i < capacity());
+#endif
+        return data()[i];
+    }
 
     [[nodiscard]] constexpr const T& operator[](const std::size_t i) const noexcept
     {
+#if defined(DEBUG)
+        assert(i < capacity());
+#endif
         return data()[i];
     }
 

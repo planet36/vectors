@@ -14,6 +14,9 @@
 
 #include <algorithm>
 #include <bit>
+#if defined(DEBUG)
+#include <cassert>
+#endif
 #include <compare>
 #include <concepts>
 #include <cstddef>
@@ -322,6 +325,9 @@ public:
                std::integral<std::remove_cvref_t<Args>>) && ...)
     constexpr void unchecked_emplace_back(Args&&... args) noexcept
     {
+#if defined(DEBUG)
+        assert(!is_full());
+#endif
         *end() = std::byte(std::forward<Args>(args)...);
         ++size_;
     }
@@ -605,14 +611,38 @@ public:
     }
 
     /// \pre \c !is_empty()
-    [[nodiscard]] constexpr std::byte& front() noexcept { return *begin(); }
+    [[nodiscard]] constexpr std::byte& front() noexcept
+    {
+#if defined(DEBUG)
+        assert(!is_empty());
+#endif
+        return *begin();
+    }
 
-    [[nodiscard]] constexpr const std::byte& front() const noexcept { return *begin(); }
+    [[nodiscard]] constexpr const std::byte& front() const noexcept
+    {
+#if defined(DEBUG)
+        assert(!is_empty());
+#endif
+        return *begin();
+    }
 
     /// \pre \c !is_empty()
-    [[nodiscard]] constexpr std::byte& back() noexcept { return *rbegin(); }
+    [[nodiscard]] constexpr std::byte& back() noexcept
+    {
+#if defined(DEBUG)
+        assert(!is_empty());
+#endif
+        return *rbegin();
+    }
 
-    [[nodiscard]] constexpr const std::byte& back() const noexcept { return *rbegin(); }
+    [[nodiscard]] constexpr const std::byte& back() const noexcept
+    {
+#if defined(DEBUG)
+        assert(!is_empty());
+#endif
+        return *rbegin();
+    }
 
     /// \pre \a i < \c capacity()
     /// \note Does not check bounds.  Reading an index in [size(), capacity()) is valid but
@@ -620,11 +650,17 @@ public:
     /// accessor.
     [[nodiscard]] constexpr std::byte& operator[](const std::size_t i) noexcept
     {
+#if defined(DEBUG)
+        assert(i < capacity());
+#endif
         return data()[i];
     }
 
     [[nodiscard]] constexpr const std::byte& operator[](const std::size_t i) const noexcept
     {
+#if defined(DEBUG)
+        assert(i < capacity());
+#endif
         return data()[i];
     }
 

@@ -1,7 +1,17 @@
-# Build artifacts (tests are compiled ad hoc; see CLAUDE.md)
+# Build artifacts (see the Makefile)
 a.out
 a.san
 *.o
 *.obj
 *.gch
 *.pch
+
+# Compiled test programs (make, make debug) and their dep files
+test-*
+!test-*.cpp
+!test-*.hpp
+*.d
+
+# A failed assert in a `make debug` binary aborts, which can drop one of these here
+core
+core.*

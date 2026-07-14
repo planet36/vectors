@@ -4,8 +4,9 @@ A header-only C++ library of **fixed-capacity vectors**: resizable sequences tha
 reallocate, never grow past a capacity fixed when the container is created, and never
 individually destroy an element.
 
-Each header is standalone — drop it in an include path and `#include` it. There is no build
-system and no package manifest.
+Each header is standalone — drop it in an include path and `#include` it. There is no package
+manifest, and using the library needs no build system; the `Makefile` here only builds and runs
+the tests.
 
 ## The containers
 
@@ -165,6 +166,14 @@ test-fixed_vector.cpp:536: test_at: CHECK failed: v.at(1) == 99
 ```
 
 ```sh
+make        # build the test programs
+make test   # build if needed, run all three, print one PASS/FAIL line each
+```
+
+`make test` exits 0 only if every program passed, and runs them all even after one fails. Each
+program is self-contained, so building one by hand works too:
+
+```sh
 g++ -std=c++26 test-fixed_vector.cpp -o test-fixed_vector && ./test-fixed_vector
 ```
 
@@ -184,12 +193,23 @@ exits, it does not dump core.
 only do that for their empty and zero-capacity cases. See `DESIGN.md` for why.
 
 The two heap-backed types hand-manage aligned memory, and the byte buffer intentionally reads
-partially-uninitialized storage, so also run their tests under sanitizers — both are expected to
-be clean:
+partially-uninitialized storage, so there is a second build that checks what the release build
+cannot — both are expected to be clean:
 
 ```sh
-g++ -std=c++26 -g -fsanitize=address,undefined test-aligned_byte_buffer.cpp -o a.san && ./a.san
+make debug        # asserts + libstdc++ debug mode + fortified string ops + ASan/UBSan
+make test-debug   # run the debug programs
 ```
+
+The debug programs are named `test-*.debug`, so they coexist with the release binaries rather
+than shadowing them.
+
+`-DDEBUG` turns on the headers' own precondition checks: every `\pre` the headers document and
+can check cheaply — `!is_full()` for the `unchecked_*` family, `!is_empty()` for `front`/`back`,
+`i < capacity()` for `operator[]` — becomes an `assert` that aborts on a violation. They check
+the *documented* contract, not `std::vector`'s: `operator[]` asserts `i < capacity()`, so
+reading a live element past `size()` stays legal. Each assert is inside `#if defined(DEBUG)`,
+so a release build has no trace of one.
 
 The headers sit next to the tests, so the commands above work as written.
 
