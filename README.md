@@ -150,6 +150,11 @@ followed by `append_range`. Overloads that can know the source size up front val
 writing and are all-or-nothing; truly unsized sources append element-wise and may leave the
 elements that fit in place before throwing (or returning `false`).
 
+Passing a contiguous range of the element type — a `std::vector<T>`, a `std::array<T, N>`, a
+span — gets the bulk copy (`memcpy` in the byte buffer) without the call site doing anything
+special; the source must not overlap the container's own storage. Anything else appends
+element-wise.
+
 `zeroize_remaining_space()` zeroizes `[size(), capacity())` with stores the optimizer may not
 elide — `memset_explicit` / `explicit_bzero` when the C library declares one, otherwise volatile
 writes.

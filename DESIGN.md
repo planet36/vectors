@@ -48,6 +48,18 @@ These are deliberate and hold across all three types:
   sized ranges, sized sentinels) validate before writing and are all-or-nothing; truly unsized
   sources append element-wise, so an overflowing append may add the elements that fit before
   throwing (or returning `false` from `try_*`).
+- **The input-range overload forwards a sized contiguous range of exactly the element type to the
+  span overload**, so an ordinary `std::vector<T>` / `std::array<T, N>` lands on the bulk copy
+  (`std::ranges::copy`, or `memcpy` in the byte buffer) instead of being appended element-wise.
+  The dispatch is explicit because overload resolution cannot reach that conclusion: for
+  `std::vector<T>` the `R&&` template is an *exact match* while the span overload needs a
+  user-defined conversion, so the template always wins and the bulk path would be reachable only
+  by spelling the span out at the call site — which no caller should have to know to do. The
+  element type must match exactly; a contiguous range of some *other* type (`std::vector<int>`
+  into a byte buffer) still converts element by element, as it must. Sized-but-not-contiguous
+  sources append through `unchecked_emplace_back`, the up-front size check having already covered
+  every element, so a `sized_range` that misreports its size trips that family's `!is_full()`
+  assert under `-DDEBUG` rather than throwing.
 - **`zeroize_remaining_space()`** (trivially copyable element types only) sets the object
   representation of the reserved tail `[size(), capacity())` to all-zero bytes without changing
   `size()`; `clear()` followed by it scrubs the whole container. The stores are guaranteed to
@@ -216,7 +228,9 @@ types. The API and conventions are unchanged; the element type enables these dif
   integer: `emplace_back(256)` stores `byte{0}`.
 
 - **`append_range(span)` assumes the source does not alias the buffer** (it uses `memcpy` in the byte
-  buffer). Appending a view over the buffer's own storage into itself is unsupported.
+  buffer). Appending a view over the buffer's own storage into itself is unsupported. The
+  assumption reaches past the span overloads themselves: a contiguous range of the element type is
+  forwarded to them (see above), so `append_range(rg)` carries the same tag for that case.
 
 ## Testing
 

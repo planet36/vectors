@@ -105,8 +105,10 @@ document with a `\pre` tag *and* can check cheaply: `!is_full()` on the `uncheck
   matching `\pre`, or asserting something stricter than the tag says, is how this drifts into
   contradicting the design. In particular `operator[]` asserts `i < capacity()`, **not**
   `i < size()` — reading a live element at an index `>= size()` is intended, and the tests do it.
-- The remaining `\pre` tags are unasserted: the non-overlap tags on the `span` overloads would
-  need a runtime aliasing check that these paths exist to avoid, and "`[first, last)` is a valid
+- The remaining `\pre` tags are unasserted: the non-overlap tags on the `span` overloads — and on
+  the range overloads, which carry them for the contiguous case they forward to the `span`
+  overload — would need a runtime aliasing check that these paths exist to avoid, and
+  "`[first, last)` is a valid
   range" is not checkable *by the container*. `_GLIBCXX_DEBUG` covers that last one from the
   other side, whenever the iterators come from a std container — which is how the tests use it.
   It is worth keeping for that alone: an invalid iterator otherwise yields a garbage distance,
@@ -228,3 +230,11 @@ the fixed element type:
   `std::equality_comparable` / `std::three_way_comparable`.
 - `append_range` / `assign_range` are overloaded for span, iterator+sentinel, iterator+count,
   `initializer_list`, and arbitrary input ranges; `assign_range` is `clear()` + `append_range`.
+- **The input-range overload's dispatch to the `span` overload is not redundant** — do not
+  collapse it as "the `span` overload already handles that". A sized contiguous range of exactly
+  the element type is forwarded there so it reaches the bulk copy; without that `if constexpr`,
+  overload resolution picks the `R&&` template for `std::vector<T>` (exact match, vs. a
+  user-defined conversion for the `span` overload) and the bulk path is dead code for every
+  caller who does not hand-write a span. It inherits the `span` overload's non-overlap `\pre` for
+  that case. Sized non-contiguous sources go through `unchecked_emplace_back` — the up-front size
+  check already covers every element. See DESIGN.md.
