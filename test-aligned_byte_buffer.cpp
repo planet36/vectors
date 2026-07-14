@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #include "aligned_byte_buffer.hpp"
-#include "test-utils.hpp"
+#include "test_utils.hpp"
 
 #include <array>
 #include <cstddef>

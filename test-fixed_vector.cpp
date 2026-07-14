@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #include "fixed_vector.hpp"
-#include "test-utils.hpp"
+#include "test_utils.hpp"
 
 #include <algorithm>
 #include <array>

@@ -74,7 +74,7 @@ Notes:
     apply in command-line order, so don't reorder them.
   - **`-D_FORTIFY_SOURCE=3` requires the `-Og`.** At `-O0` it warns and silently degrades to
     level 0. It does stay live under ASan.
-- `test-utils.hpp` holds the shared harness: `CHECK` / `CHECK_THROWS`, `run_tests`, and the
+- `test_utils.hpp` holds the shared harness: `CHECK` / `CHECK_THROWS`, `run_tests`, and the
   `to_ivec` / `to_byte` / `_b` / `is_aligned` helpers. **Do not use `assert`** in a test — it
   calls `abort()` and dumps core; `CHECK` exits cleanly instead. For the same reason `run_tests`
   catches everything, so a stray exception cannot reach `terminate()`. This bans `assert` from

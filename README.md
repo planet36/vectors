@@ -190,7 +190,7 @@ g++ -std=c++23 test-fixed_vector.cpp -o test-fixed_vector && ./test-fixed_vector
 | `test-dynamic_fixed_vector.cpp` | `dynamic_fixed_vector` |
 | `test-aligned_byte_buffer.cpp` | `aligned_byte_buffer` |
 
-All three share `test-utils.hpp`, which holds `CHECK` / `CHECK_THROWS` / `run_tests` and a few
+All three share `test_utils.hpp`, which holds `CHECK` / `CHECK_THROWS` / `run_tests` and a few
 helpers. Each program is a list of `test_<member>()` functions called from `main()`, one per
 member, so `main()` doubles as the coverage checklist. Nothing calls `abort()` — a failing test
 exits, it does not dump core.
