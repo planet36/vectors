@@ -4,6 +4,7 @@
 /**
 * \file
 * \author Steven Ward
+* \sa https://github.com/planet36/vectors
 *
 * Defines the class \c dynamic_fixed_vector, a fixed-capacity vector whose capacity is
 * chosen at run time and whose storage may be over-aligned.

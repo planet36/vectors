@@ -4,6 +4,7 @@
 /**
 * \file
 * \author Steven Ward
+* \sa https://github.com/planet36/vectors
 *
 * Defines the class \c aligned_byte_buffer, a run-time-capacity, over-aligned buffer of
 * \c std::byte.

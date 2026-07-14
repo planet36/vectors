@@ -4,6 +4,7 @@
 /**
 * \file
 * \author Steven Ward
+* \sa https://github.com/planet36/vectors
 *
 * Defines the class \c fixed_vector, a fixed-capacity vector with in-place storage.
 */
