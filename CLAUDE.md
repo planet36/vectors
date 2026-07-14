@@ -18,6 +18,15 @@ manifest — just the headers and their standalone test programs.
   `dynamic_fixed_vector` (element type fixed to `std::byte`, so only `Align` is a template
   parameter, default 16). Same API, simpler and faster — see its differences below.
 
+Two documents accompany the headers; an API change should update both:
+
+- `README.md` — the entry point for a human reader: what the three containers are, a quick
+  start for each, an API summary, and the build commands. Its snippets and commands are
+  verified to compile and run as written — keep them that way rather than sketching pseudocode.
+- `DESIGN.md` — the rationale behind the invariants below (why each was chosen, the allocation
+  strategy, the edge cases). This file states the invariants and the README summarizes them;
+  DESIGN.md is where the reasoning lives, so revising an invariant means revising it there too.
+
 ## Build & test
 
 Requires **GCC 16 / `-std=gnu++26`** (uses `std::from_range`, ranges, concepts) and the

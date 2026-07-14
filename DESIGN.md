@@ -2,6 +2,8 @@
 
 Engineering rationale for the fixed-capacity vector family in this repository. These notes are
 implementation-agnostic and intended for anyone (human or tool) reviewing or extending the code.
+See `README.md` for the API overview, a quick start for each container, and the build
+instructions — this file covers only the *why*.
 
 ## The family
 
