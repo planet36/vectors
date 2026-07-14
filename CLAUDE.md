@@ -33,10 +33,11 @@ Requires **GCC 16 / `-std=c++26`** (uses `std::from_range`, ranges, concepts). N
 libraries: the tests need only the standard library.
 
 ```sh
-make             # build the test programs
-make test        # build if needed, then run them all
-make debug       # build the debug programs (asserts + sanitizers, see below)
-make test-debug  # build if needed, then run those
+make              # build the test programs
+make test         # run both variants below -- the one to run by default
+make test-release # build if needed, then run the release programs
+make debug        # build the debug programs (asserts + sanitizers, see below)
+make test-debug   # build if needed, then run those
 make clean
 ```
 
@@ -45,10 +46,26 @@ Notes:
   that exit status is the whole contract. On the first failed check the program prints one line
   to stderr (`file:line: function: CHECK failed: <expr>`) and exits `EXIT_FAILURE` immediately,
   leaving the remaining checks unrun.
-- `make test` is that contract applied to all three programs: each one runs even after another
-  fails, each gets one `PASS`/`FAIL` line, and the exit status is 0 only if all passed. A single
-  program still builds and runs by hand — `g++ -std=c++26 test-fixed_vector.cpp -o
-  test-fixed_vector && ./test-fixed_vector` — since nothing in the suites needs the Makefile.
+- `make test` is that contract applied to all three programs in both variants: a passing run
+  prints nothing at all. `set -e` stops at the first program that fails, and make names the
+  target it was under. A single program still builds and runs by hand — `g++ -std=c++26
+  test-fixed_vector.cpp -o test-fixed_vector && ./test-fixed_vector` — since nothing in the
+  suites needs the Makefile.
+- **`make test` runs both variants because neither subsumes the other**, and running only the
+  release half is how a bug hides: it is the *weaker* check, yet the habitual one. A violated
+  precondition passes it silently and only the debug build reports it.
+  - The debug build finds what the release build hides: the asserts, `_GLIBCXX_DEBUG`, and the
+    sanitizers.
+  - The release build finds what the optimizer's assumptions do, and `-Og` cannot. `-Og` leaves
+    `-fstrict-aliasing` **off** (it is on from `-O2`), which is exactly the UB class that
+    `aligned_byte_buffer`'s `start_lifetime_as_array` lifetime work could harbor. And `-Og`
+    never cashes in `data()`'s `assume_aligned<Align>`: the caller loop that promise exists for
+    compiles to no SIMD at all at `-Og`, where `-O3 -march=native` emits the aligned `vmovdqa`
+    that faults if the promise is ever broken. A debug-only run leaves that untested.
+  - Checked and *not* a difference: `_GLIBCXX_DEBUG` does not change which `if constexpr
+    (std::sized_sentinel_for<...>)` branch the tests take. `__debug::vector`'s iterators still
+    model `contiguous_iterator` / `sized_sentinel_for`, so both variants exercise the same
+    paths. Don't re-derive this one; it was measured.
 - `make debug` builds `test-*.debug` with asserts, libstdc++ debug mode, fortified string ops,
   and ASan/UBSan (see the Makefile's `DEBUG_CXXFLAGS`, which explains each). The debug and
   release binaries have different names, so neither build ever silently serves the other's
@@ -74,8 +91,8 @@ Notes:
 - `test-dynamic_fixed_vector.cpp` covers `dynamic_fixed_vector` and
   `test-aligned_byte_buffer.cpp` covers `aligned_byte_buffer` (every member each). Because both
   hand-manage aligned heap memory (and the byte buffer reads partially-uninitialized storage),
-  also run them once under sanitizers — that is what `make test-debug` is for, and both are
-  expected to be clean. Run it after touching either header's allocation or `size_` bookkeeping.
+  they need a sanitizer run — `make test` covers it via `test-debug`, and both are expected to
+  be clean.
 
 ### `DEBUG` assertions in the headers
 

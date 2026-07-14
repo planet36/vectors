@@ -167,11 +167,13 @@ test-fixed_vector.cpp:536: test_at: CHECK failed: v.at(1) == 99
 
 ```sh
 make        # build the test programs
-make test   # build if needed, run all three, print one PASS/FAIL line each
+make test   # build if needed, then run them
 ```
 
-`make test` exits 0 only if every program passed, and runs them all even after one fails. Each
-program is self-contained, so building one by hand works too:
+`make test` applies that same contract to the suite: it prints nothing and exits 0 when every
+program passes, and stops at the first one that doesn't. It runs the tests twice, once per build
+variant — see below for why both. Each program is self-contained, so building one by hand works
+too:
 
 ```sh
 g++ -std=c++26 test-fixed_vector.cpp -o test-fixed_vector && ./test-fixed_vector
@@ -192,17 +194,29 @@ exits, it does not dump core.
 `main()`, so a regression there fails the compile rather than the run; the heap-backed suites can
 only do that for their empty and zero-capacity cases. See `DESIGN.md` for why.
 
-The two heap-backed types hand-manage aligned memory, and the byte buffer intentionally reads
-partially-uninitialized storage, so there is a second build that checks what the release build
-cannot — both are expected to be clean:
+### The two build variants
+
+`make test` runs the suite twice, because neither build subsumes the other:
 
 ```sh
-make debug        # asserts + libstdc++ debug mode + fortified string ops + ASan/UBSan
-make test-debug   # run the debug programs
+make test-release  # -O3 -flto -march=native
+make test-debug    # asserts + libstdc++ debug mode + fortified string ops + ASan/UBSan
 ```
 
-The debug programs are named `test-*.debug`, so they coexist with the release binaries rather
-than shadowing them.
+The **debug** build catches what the release build hides. The two heap-backed types hand-manage
+aligned memory and the byte buffer intentionally reads partially-uninitialized storage, so the
+sanitizers have real work to do — and the asserts check preconditions the release build ignores
+outright.
+
+The **release** build catches what `-Og` structurally cannot, because the optimizer only *acts*
+on the code's promises once it is optimizing. `-Og` leaves `-fstrict-aliasing` off (it turns on
+at `-O2`), and it never cashes in `data()`'s `assume_aligned<Align>` — a caller loop over
+`data()` compiles to no SIMD at all at `-Og`, while `-O3 -march=native` emits an aligned
+`vmovdqa` that faults the moment that promise is untrue. Testing only the debug build would
+leave the library's whole reason for `assume_aligned` unexercised.
+
+Both are expected to be clean. The debug programs are named `test-*.debug`, so they coexist with
+the release binaries rather than shadowing them.
 
 `-DDEBUG` turns on the headers' own precondition checks: every `\pre` the headers document and
 can check cheaply — `!is_full()` for the `unchecked_*` family, `!is_empty()` for `front`/`back`,

@@ -63,10 +63,18 @@ debug: $(DEBUG_BINS)
 %: %.cpp
 	$(CXX) $(DEPFLAGS) $(CPPFLAGS) $(CXXFLAGS) $(RELEASE_CXXFLAGS) $(LDFLAGS) $< -o $@ $(LDLIBS)
 
-# A test passes by printing nothing and exiting 0, so a silent run is the good outcome and the
-# summary line is all there is to read.  Every test runs even after one fails; the exit status
-# is 0 only if all of them passed.
-test: $(BINS)
+# A test passes by printing nothing and exiting 0, so a silent run is the good outcome: set -e
+# stops at the first program that does not, and make reports which target it was.
+#
+# Both variants, because neither subsumes the other.  The debug build finds what the release
+# build hides (its asserts, debug mode, and the sanitizers), but it cannot find what the
+# optimizer's assumptions do: -Og leaves -fstrict-aliasing off, and it never cashes in data()'s
+# assume_aligned<Align> -- at -Og the caller loop that promise exists for emits no SIMD at all,
+# where -O3 -march=native emits the aligned vmovdqa that faults if the promise is ever broken.
+# Release runs first: it builds in half the time, so a shared failure surfaces sooner.
+test: test-release test-debug
+
+test-release: $(BINS)
 	@set -e; for bin in $^; do ./$$bin; done
 
 test-debug: $(DEBUG_BINS)
@@ -79,7 +87,7 @@ lint:
 	-clang-tidy --quiet $(SRCS) -- $(CPPFLAGS) $(CXXFLAGS) $(RELEASE_CXXFLAGS)
 
 # https://www.gnu.org/software/make/manual/make.html#Phony-Targets
-.PHONY: all debug test test-debug clean lint
+.PHONY: all debug test test-release test-debug clean lint
 
 # https://www.gnu.org/software/make/manual/html_node/Special-Targets.html#index-removing-targets-on-failure
 .DELETE_ON_ERROR:
