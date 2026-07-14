@@ -125,12 +125,22 @@ private:
 
     /// Zero \a n bytes at \a p with stores the compiler must not optimize away.
     /**
-    * Uses \c memset_explicit (C23 / C++26) or \c explicit_bzero (glibc, BSDs) when the C
-    * library declares one, and otherwise falls back to writes through a \c volatile
-    * pointer.  Availability is detected by name lookup on the dependent parameter \a P:
-    * neither function has a feature-test macro, and \c __cplusplus is useless here (GCC 16
-    * still reports 202400L for \c -std=c++26; the C library, not the language mode,
-    * determines availability).
+    * Uses \c ::memset_explicit (C23) or \c explicit_bzero (glibc, BSDs) when the C library
+    * declares one, and otherwise falls back to writes through a \c volatile pointer.
+    * Availability is detected by name lookup on the dependent parameter \a P: neither
+    * function has a feature-test macro, and \c __cplusplus is useless here -- the C library,
+    * not the language mode, provides them.  glibc declares both under \c __USE_MISC, which
+    * the \c _GNU_SOURCE that g++ defines at every \c -std turns on, so which branch is taken
+    * does not move with the language standard.
+    *
+    * \note The lookup is unqualified on purpose; do \b not "modernize" it to
+    * \c std::memset_explicit.  That is the C++26 spelling of the same function, libstdc++ 16
+    * does not define it at any \c -std, and -- unlike the unqualified name -- it cannot be
+    * probed for: a qualified name into a namespace that lacks the member is a hard error at
+    * template definition, not a substitution failure, so
+    * <code>requires { std::memset_explicit(...); }</code> never evaluates to \c false.  It
+    * fails the build outright, and the \c else branches below never get their chance.  If
+    * libstdc++ adds it, expect a using-declaration for this same C function.
     */
     template <typename P>
     static void zero_explicit_(P const p, const std::size_t n) noexcept

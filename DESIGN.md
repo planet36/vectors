@@ -64,12 +64,29 @@ These are deliberate and hold across all three types:
   representation of the reserved tail `[size(), capacity())` to all-zero bytes without changing
   `size()`; `clear()` followed by it scrubs the whole container. The stores are guaranteed to
   happen even when nothing reads the tail afterward — a plain fill before deallocation is a dead
-  store the optimizer may elide. The zeroing primitive is `memset_explicit` (C23 / C++26) or
+  store the optimizer may elide. The zeroing primitive is `::memset_explicit` (C23) or
   `explicit_bzero` (glibc ≥ 2.25, BSDs) when the C library declares one, else a volatile-write
   fallback; availability is detected with a requires-expression on a dependent call — neither
-  function has a feature-test macro, and a `__cplusplus` check is useless (GCC 16 reports
-  `202400L` even for `-std=c++26`, and it is the C library, not the language mode, that provides
-  these functions; glibc declares both even at `-std=c++23`). During constant evaluation
+  function has a feature-test macro, and a `__cplusplus` check is useless: it is the C library,
+  not the language mode, that provides them. glibc declares both under `__USE_MISC`, which the
+  `_GNU_SOURCE` that g++ defines at every `-std` turns on, so the selection does not move with
+  the language standard.
+
+  **Why the call is unqualified, and why it must stay that way.** It is `::memset_explicit`
+  (C23), not `std::memset_explicit` (C++26) — and that is not a shortcut, it is the only form
+  that works. libstdc++ 16 does not define `std::memset_explicit` at any `-std`, and there is
+  no way to ask whether it exists: [SD-6][sd6] lists no feature-test macro for it, and a
+  requires-expression cannot substitute for one, because a qualified name into a namespace that
+  lacks the member is a hard error at template definition rather than a substitution failure.
+  So `requires { std::memset_explicit(...); }` does not evaluate to `false` and fall through —
+  it fails the build, taking the `explicit_bzero` and volatile branches down with it. The
+  unqualified name is the only spelling this detection idiom can probe. Nothing is lost by it:
+  the project targets Linux/glibc, where C23 guarantees `::memset_explicit`, and when libstdc++
+  eventually adds the `std::` name it will be a using-declaration for this same function.
+
+  [sd6]: https://isocpp.org/std/standing-documents/sd-6-sg10-feature-test-recommendations
+
+  During constant evaluation
   `fixed_vector` value-assigns the tail instead (there is no memory to scrub at compile time);
   the heap types are only ever empty in constant evaluation.
 
