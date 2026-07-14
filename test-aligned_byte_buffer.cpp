@@ -227,6 +227,72 @@ test_swap()
 // ---- Observers ----
 
 static void
+test_data_null_iff_capacity_zero()
+{
+    // The class invariant the \pre !is_full() / !is_empty() members rely on to reach the
+    // storage without re-checking data() for null.  One direction is free (the throwing
+    // ::operator new never returns null), but "capacity 0 -> null" is not: ::operator new(0)
+    // returns a *non-null* block, so allocate_'s early return is the only thing making it
+    // true.  Cover each structurally distinct way to reach capacity 0, not every permutation.
+    const std::vector<std::byte> empty;
+
+    { const aligned_byte_buffer<16> b;           CHECK(data_null_iff_empty(b)); } // never allocates
+    { const aligned_byte_buffer<16> b(0);        CHECK(data_null_iff_empty(b)); } // the early return
+    { const aligned_byte_buffer<16> b(8);        CHECK(data_null_iff_empty(b)); } // real allocation
+    { const aligned_byte_buffer<16> b(0, 7_b);   CHECK(data_null_iff_empty(b)); }
+    { const aligned_byte_buffer<16> b(std::span<const std::byte>{});     CHECK(data_null_iff_empty(b)); }
+    { const aligned_byte_buffer<16> b(empty.begin(), empty.end());       CHECK(data_null_iff_empty(b)); }
+    { const aligned_byte_buffer<16> b(std::from_range, empty);           CHECK(data_null_iff_empty(b)); }
+
+    // Capacity 0 reached by transfer rather than by construction.
+    {
+        aligned_byte_buffer<16> a(8);
+        const aligned_byte_buffer<16> b = std::move(a);
+        CHECK(data_null_iff_empty(a)); // moved-from: null unique_ptr, capacity 0
+        CHECK(data_null_iff_empty(b));
+    }
+    {
+        aligned_byte_buffer<16> a(8);
+        aligned_byte_buffer<16> b; // capacity 0
+        b = std::move(a);
+        CHECK(data_null_iff_empty(a)); // swap gave the source the target's former (empty) state
+        CHECK(data_null_iff_empty(b));
+    }
+    {
+        const aligned_byte_buffer<16> a; // capacity 0
+        aligned_byte_buffer<16> b(8);
+        b = a; // copy assignment replaces capacity, so b becomes empty
+        CHECK(data_null_iff_empty(b));
+    }
+    {
+        aligned_byte_buffer<16> a(8);
+        aligned_byte_buffer<16> b;
+        swap(a, b);
+        CHECK(data_null_iff_empty(a));
+        CHECK(data_null_iff_empty(b));
+    }
+
+    // Members that change size() must not disturb it.
+    {
+        aligned_byte_buffer<16> b(8);
+        b.clear();
+        CHECK(data_null_iff_empty(b)); // clear() does not release the block
+        b.resize(2);
+        CHECK(data_null_iff_empty(b));
+        b.fill_capacity(1_b);
+        CHECK(data_null_iff_empty(b));
+    }
+
+    // The invariant must survive a throw: assign_range keeps the current capacity, so this
+    // overflows a capacity-0 buffer and must leave it consistent.
+    {
+        aligned_byte_buffer<16> b;
+        CHECK_THROWS(std::bad_alloc, b.assign_range({1_b, 2_b}));
+        CHECK(data_null_iff_empty(b));
+    }
+}
+
+static void
 test_capacity_max_size()
 {
     // Non-static and reporting the runtime capacity, deliberately not a SIZE_MAX-ish value like
@@ -627,6 +693,7 @@ main()
         test_move_assign();
         test_swap();
 
+        test_data_null_iff_capacity_zero();
         test_capacity_max_size();
         test_size_remaining_space_is_empty_is_full();
 

@@ -209,6 +209,73 @@ test_swap()
 // ---- Observers ----
 
 static void
+test_data_null_iff_capacity_zero()
+{
+    // The class invariant the \pre !is_full() / !is_empty() members rely on to reach the
+    // storage without re-checking data() for null.  One direction is free (the throwing
+    // ::operator new never returns null), but "capacity 0 -> null" is not: ::operator new(0)
+    // returns a *non-null* block, so allocate_raw_'s early return is the only thing making it
+    // true.  Cover each structurally distinct way to reach capacity 0, not every permutation.
+    const std::vector<int> src{1, 2, 3};
+    const std::vector<int> empty;
+
+    { const dynamic_fixed_vector<int> v;              CHECK(data_null_iff_empty(v)); } // never allocates
+    { const dynamic_fixed_vector<int> v(0);           CHECK(data_null_iff_empty(v)); } // the early return
+    { const dynamic_fixed_vector<int> v(3);           CHECK(data_null_iff_empty(v)); } // real allocation
+    { const dynamic_fixed_vector<int> v(0, 7);        CHECK(data_null_iff_empty(v)); }
+    { const dynamic_fixed_vector<int> v(std::span<const int>{});      CHECK(data_null_iff_empty(v)); }
+    { const dynamic_fixed_vector<int> v(empty.begin(), empty.end());  CHECK(data_null_iff_empty(v)); }
+    { const dynamic_fixed_vector<int> v(std::from_range, empty);      CHECK(data_null_iff_empty(v)); }
+
+    // Capacity 0 reached by transfer rather than by construction.
+    {
+        dynamic_fixed_vector<int> a(3);
+        const dynamic_fixed_vector<int> b = std::move(a);
+        CHECK(data_null_iff_empty(a)); // moved-from: null unique_ptr, capacity 0
+        CHECK(data_null_iff_empty(b));
+    }
+    {
+        dynamic_fixed_vector<int> a(3);
+        dynamic_fixed_vector<int> b; // capacity 0
+        b = std::move(a);
+        CHECK(data_null_iff_empty(a)); // swap gave the source the target's former (empty) state
+        CHECK(data_null_iff_empty(b));
+    }
+    {
+        const dynamic_fixed_vector<int> a; // capacity 0
+        dynamic_fixed_vector<int> b(3);
+        b = a; // copy assignment replaces capacity, so b becomes empty
+        CHECK(data_null_iff_empty(b));
+    }
+    {
+        dynamic_fixed_vector<int> a(3);
+        dynamic_fixed_vector<int> b;
+        swap(a, b);
+        CHECK(data_null_iff_empty(a));
+        CHECK(data_null_iff_empty(b));
+    }
+
+    // Members that change size() must not disturb it.
+    {
+        dynamic_fixed_vector<int> v(3);
+        v.clear();
+        CHECK(data_null_iff_empty(v)); // clear() does not release the block
+        v.resize(2);
+        CHECK(data_null_iff_empty(v));
+        v.fill_capacity(1);
+        CHECK(data_null_iff_empty(v));
+    }
+
+    // The invariant must survive a throw: assign_range keeps the current capacity, so this
+    // overflows a capacity-0 vector and must leave it consistent.
+    {
+        dynamic_fixed_vector<int> v;
+        CHECK_THROWS(std::bad_alloc, v.assign_range({1, 2}));
+        CHECK(data_null_iff_empty(v));
+    }
+}
+
+static void
 test_capacity_max_size()
 {
     // Non-static and reporting the runtime capacity, deliberately not a SIZE_MAX-ish value like
@@ -620,6 +687,7 @@ main()
         test_move_assign();
         test_swap();
 
+        test_data_null_iff_capacity_zero();
         test_capacity_max_size();
         test_size_remaining_space_is_empty_is_full();
 

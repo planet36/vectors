@@ -103,6 +103,8 @@ private:
     */
     [[nodiscard]] static constexpr storage_ptr allocate_raw_(const std::size_t cap)
     {
+        // Not an optimization: ::operator new(0) returns a non-null block, so only this keeps
+        // the class invariant's "capacity 0 implies null data()" true.
         if (cap == 0)
             return nullptr;
 

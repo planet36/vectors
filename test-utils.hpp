@@ -138,3 +138,16 @@ is_aligned(const void* const p, const std::size_t align) noexcept
 {
     return reinterpret_cast<std::uintptr_t>(p) % align == 0;
 }
+
+/// True if the heap-backed containers' class invariant holds for \a v: \c data() is null
+/// exactly when \c capacity() is 0.
+/**
+* A predicate rather than a CHECK of its own, so that a failure reports the caller's line --
+* the point is *which state* broke the invariant.
+*/
+template <typename V>
+[[nodiscard]] bool
+data_null_iff_empty(const V& v) noexcept
+{
+    return (v.data() == nullptr) == (v.capacity() == 0);
+}
