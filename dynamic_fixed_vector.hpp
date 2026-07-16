@@ -271,7 +271,7 @@ public:
 
     /// Reserve capacity \a capacity; the vector starts empty.
     constexpr explicit dynamic_fixed_vector(const std::size_t capacity)
-        : size_{0}, capacity_{capacity}, data_{allocate_(capacity)}
+        : capacity_{capacity}, data_{allocate_(capacity)}
     {}
 
     /// Reserve capacity \a capacity and fill it with \a value (\c size()==capacity).

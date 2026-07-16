@@ -232,7 +232,7 @@ public:
 
     /// Reserve capacity \a capacity; the buffer starts empty.
     constexpr explicit aligned_byte_buffer(const std::size_t capacity)
-        : size_{0}, capacity_{capacity}, data_{allocate_(capacity)}
+        : capacity_{capacity}, data_{allocate_(capacity)}
     {}
 
     /// Reserve capacity \a capacity and fill it with \a value (\c size()==capacity).
