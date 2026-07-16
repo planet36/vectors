@@ -211,6 +211,7 @@ static void
 test_move_ctor()
 {
     fixed_vector<int, 5> a{1, 2, 3};
+    // NOLINTNEXTLINE(hicpp-move-const-arg,performance-move-const-arg)
     const fixed_vector<int, 5> b = std::move(a);
     CHECK(to_ivec(b) == std::vector({1, 2, 3}));
     // Copy and move are member-wise (defaulted): for a trivially copyable T a moved-from
@@ -235,6 +236,7 @@ test_move_assign()
 {
     fixed_vector<int, 5> a{4, 5, 6};
     fixed_vector<int, 5> b;
+    // NOLINTNEXTLINE(hicpp-move-const-arg,performance-move-const-arg)
     b = std::move(a);
     CHECK(to_ivec(b) == std::vector({4, 5, 6}));
 }
@@ -367,6 +369,7 @@ test_unchecked_push_back_unchecked_emplace_back()
     v.unchecked_push_back(x); // const&
     v.unchecked_push_back(3); // &&
     int y = 4;
+    // NOLINTNEXTLINE(hicpp-move-const-arg,performance-move-const-arg)
     v.unchecked_push_back(std::move(y)); // &&
     CHECK(to_ivec(v) == std::vector({1, 2, 3, 4}));
     CHECK(v.is_full());

@@ -381,6 +381,7 @@ test_unchecked_push_back_unchecked_emplace_back()
     v.unchecked_push_back(x); // const&
     v.unchecked_push_back(3); // &&
     int y = 4;
+    // NOLINTNEXTLINE(hicpp-move-const-arg,performance-move-const-arg)
     v.unchecked_push_back(std::move(y)); // &&
     CHECK(to_ivec(v) == std::vector({1, 2, 3, 4}));
     CHECK(v.is_full());
