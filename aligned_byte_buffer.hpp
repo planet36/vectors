@@ -109,7 +109,7 @@ private:
     }
 
     /// \pre \a spn does not overlap this buffer's storage.
-    constexpr void common_append_range_(const std::span<const std::byte> spn)
+    constexpr void common_append_range_(const std::span<const std::byte> spn) noexcept
     {
         if (!spn.empty())
             std::memcpy(data() + size_, spn.data(), spn.size());
@@ -500,7 +500,7 @@ public:
     }
 
     /// \pre \a spn does not overlap this buffer's storage.
-    [[nodiscard]] constexpr bool try_append_range(const std::span<const std::byte> spn)
+    [[nodiscard]] constexpr bool try_append_range(const std::span<const std::byte> spn) noexcept
     {
         if (std::size(spn) > remaining_space())
             return false;
@@ -543,7 +543,8 @@ public:
         return true;
     }
 
-    [[nodiscard]] constexpr bool try_append_range(const std::initializer_list<std::byte> il)
+    [[nodiscard]] constexpr bool
+    try_append_range(const std::initializer_list<std::byte> il) noexcept
     {
         return try_append_range(std::span<const std::byte>{std::data(il), std::size(il)});
     }

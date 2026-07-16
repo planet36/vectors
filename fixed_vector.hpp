@@ -166,7 +166,10 @@ public:
     using reverse_iterator = std::reverse_iterator<iterator>;
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-    constexpr fixed_vector() noexcept = default;
+    /// \note Not unconditionally \c noexcept: the in-place \c std::array<T, N> member
+    /// value-initializes all \a N elements on this path, and \c std::default_initializable<T>
+    /// does not require that construction be non-throwing.
+    constexpr fixed_vector() noexcept(std::is_nothrow_default_constructible_v<T>) = default;
     /// \note Copy and move are member-wise (defaulted): moving a trivially copyable \c T leaves
     /// the source unchanged, \b not emptied -- unlike the heap-backed siblings, whose move
     /// construction empties it.
@@ -397,6 +400,7 @@ public:
     * \sa https://cppreference.com/w/cpp/container/array/fill.html
     */
     constexpr void fill_capacity(const T& value)
+        noexcept(std::is_nothrow_copy_assignable_v<T>)
     {
         data_.fill(value);
         size_ = max_size();
@@ -406,7 +410,11 @@ public:
     * Fill the live elements [0, \c size()) with \a value; \c size() is unchanged.
     * \sa https://cppreference.com/w/cpp/algorithm/ranges/fill
     */
-    constexpr void fill_size(const T& value) { (void)std::ranges::fill(span(), value); }
+    constexpr void fill_size(const T& value)
+        noexcept(std::is_nothrow_copy_assignable_v<T>)
+    {
+        (void)std::ranges::fill(span(), value);
+    }
 
     /// Zeroize the reserved tail elements [\c size(), \c max_size()); \c size() is unchanged.
     /**
