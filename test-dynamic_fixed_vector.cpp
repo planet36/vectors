@@ -176,6 +176,13 @@ test_copy_assign()
     CHECK(b.capacity() == 5); // capacity replaced too
     CHECK(to_ivec(b) == to_ivec(a));
     CHECK(a.data() != b.data());
+
+    // Self-assignment must be a no-op, not a use-after-free from copy-and-swap.
+    const int* const c_buf = b.data();
+    auto& c_ref = b;
+    b = c_ref;
+    CHECK(b.data() == c_buf);
+    CHECK(to_ivec(b) == std::vector({1, 2, 3, 4, 5}));
 }
 
 static void
