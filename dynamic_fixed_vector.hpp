@@ -202,14 +202,20 @@ private:
     static void zero_explicit_(P const p, const std::size_t n) noexcept
     {
         if constexpr (requires { memset_explicit(p, 0, n); })
+        {
             memset_explicit(p, 0, n);
+        }
         else if constexpr (requires { explicit_bzero(p, n); })
+        {
             explicit_bzero(p, n);
+        }
         else
         {
             volatile unsigned char* const q = static_cast<volatile unsigned char*>(p);
             for (std::size_t i = 0; i < n; ++i)
+            {
                 q[i] = 0;
+            }
         }
     }
 
