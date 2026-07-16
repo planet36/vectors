@@ -98,7 +98,7 @@ private:
 
         // sizeof(std::byte) == 1, so the byte count is exactly cap -- no overflow is possible.
         void* const raw = ::operator new(cap, std::align_val_t{Align});
-        std::byte* const p = std::start_lifetime_as_array<std::byte>(raw, cap);
+        auto* const p = std::start_lifetime_as_array<std::byte>(raw, cap);
         return storage_ptr{p};
     }
 
