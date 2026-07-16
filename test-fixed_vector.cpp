@@ -596,7 +596,7 @@ test_std_algorithms()
     fixed_vector<int, 10> v{5, 2, 8, 1, 9, 3};
     std::ranges::sort(v);
     CHECK(to_ivec(v) == std::vector({1, 2, 3, 5, 8, 9}));
-    const auto it = std::ranges::find(v, 8);
+    auto* const it = std::ranges::find(v, 8);
     CHECK(it != v.end());
     CHECK(std::distance(v.begin(), it) == 4);
     CHECK(std::accumulate(v.begin(), v.end(), 0) == 28);
