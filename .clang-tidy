@@ -1,0 +1,68 @@
+# vim: set expandtab filetype=yaml shiftwidth=2 softtabstop=2 tabstop=2:
+# https://clang.llvm.org/extra/clang-tidy/#using-clang-tidy
+---
+Checks:
+  - bugprone-*
+  - cert-*
+  - clang-analyzer-*
+  - cppcoreguidelines-*
+  - google-*
+  - hicpp-*
+  - llvm-*
+  - modernize-*
+  - performance-*
+  - portability-*
+  - readability-*
+  - -bugprone-easily-swappable-parameters
+  - -bugprone-implicit-widening-of-multiplication-result
+  - -bugprone-narrowing-conversions
+  - -bugprone-signed-char-misuse
+  - -cert-dcl58-cpp
+  - -cert-dcl59-cpp
+  - -cert-str34-c
+  - -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling
+  - -cppcoreguidelines-avoid-const-or-ref-data-members
+  - -cppcoreguidelines-avoid-do-while
+  - -cppcoreguidelines-avoid-magic-numbers
+  - -cppcoreguidelines-avoid-non-const-global-variables
+  - -cppcoreguidelines-macro-to-enum
+  - -cppcoreguidelines-no-malloc
+  - -cppcoreguidelines-non-private-member-variables-in-classes
+  - -cppcoreguidelines-owning-memory
+  - -cppcoreguidelines-pro-bounds-avoid-unchecked-container-access
+  - -cppcoreguidelines-pro-bounds-constant-array-index
+  - -cppcoreguidelines-pro-bounds-pointer-arithmetic
+  - -cppcoreguidelines-pro-type-reinterpret-cast
+  - -cppcoreguidelines-pro-type-vararg
+  - -google-build-namespaces
+  - -google-readability-braces-around-statements
+  - -google-readability-namespace-comments
+  - -google-readability-todo
+  - -google-runtime-float
+  - -google-runtime-int
+  - -hicpp-avoid-c-arrays
+  - -hicpp-braces-around-statements
+  - -hicpp-named-parameter
+  - -hicpp-no-malloc
+  - -hicpp-signed-bitwise
+  - -hicpp-vararg
+  - -llvm-else-after-return
+  - -llvm-header-guard
+  - -llvm-namespace-comment
+  - -modernize-avoid-c-arrays
+  - -modernize-macro-to-enum
+  - -modernize-use-trailing-return-type
+  - -portability-avoid-pragma-once
+  - -readability-avoid-unconditional-preprocessor-if
+  - -readability-braces-around-statements
+  - -readability-else-after-return
+  - -readability-function-cognitive-complexity
+  - -readability-identifier-length
+  - -readability-implicit-bool-conversion
+  - -readability-isolate-declaration
+  - -readability-magic-numbers
+  - -readability-math-missing-parentheses
+  - -readability-named-parameter
+  - -readability-use-concise-preprocessor-directives
+HeaderFilterRegex: '.*'
+...
