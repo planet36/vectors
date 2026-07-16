@@ -687,7 +687,7 @@ test_overflow_throws_bad_alloc()
 }
 
 int
-main()
+main() // NOLINT(bugprone-exception-escape)
 {
     return run_tests([] {
         test_ctor_default();
