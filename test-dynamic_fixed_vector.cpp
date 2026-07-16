@@ -23,8 +23,11 @@ constexpr_empty_ok()
 {
     dynamic_fixed_vector<int> a;    // default ctor (no allocation)
     dynamic_fixed_vector<int> b(0); // zero-capacity ctor (no allocation)
+
+    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     if (!(a.is_empty() && a.size() == 0 && a.remaining_space() == 0))
         return false;
+    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     if (!(b.capacity() == 0 && b.is_full()))
         return false;
     if (a.try_push_back(1)) // capacity 0 -> full -> false, must not throw

@@ -26,6 +26,7 @@ constexpr bool
 constexpr_api_ok()
 {
     fixed_vector<int, 8> v;
+    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     if (!(v.is_empty() && v.size() == 0 && v.remaining_space() == 8))
         return false;
 
@@ -37,34 +38,41 @@ constexpr_api_ok()
     if (!v.try_emplace_back(7))
         return false;
     v.unchecked_push_back(8);
+    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     if (!(v.is_full() && v.size() == 8))
         return false;
     if (v.try_push_back(9)) // full -> false, must not throw
         return false;
 
+    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     if (!(v.front() == 1 && v.back() == 8 && v.at(2) == 3 && v[7] == 8))
         return false;
 
     v.assign_range({9, 9});
     v.resize(4, 7);
+    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     if (!(v.size() == 4 && v[0] == 9 && v[1] == 9 && v[2] == 7 && v[3] == 7))
         return false;
 
     v.pop_back();
     v.fill_size(1);
+    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     if (!(v.size() == 3 && v[0] == 1 && v[2] == 1))
         return false;
 
     v.clear();
     // Never destroyed: clear() only reset size(), so the elements still read back.
+    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     if (!(v.is_empty() && v[0] == 1))
         return false;
 
     fixed_vector<int, 8> w{4, 5, 6};
     swap(v, w); // hidden friend
+    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     if (!(v.size() == 3 && w.is_empty()))
         return false;
     v.swap(w); // member
+    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     if (!(w.size() == 3 && v.is_empty()))
         return false;
 
