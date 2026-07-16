@@ -411,12 +411,14 @@ test_zeroize_remaining_space()
     CHECK(v.size() == 2);
     CHECK(to_ivec(v) == std::vector({9, 9}));
     // operator[] is capacity-based: the tail is now zero
+    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
     for (std::size_t i = v.size(); i < v.max_size(); ++i)
         CHECK(v[i] == 0);
     // Scrub the whole array: clear() + zeroize_remaining_space() (non-elidable stores).
     v.clear();
     v.zeroize_remaining_space();
     CHECK(v.is_empty());
+    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
     for (std::size_t i = 0; i < v.max_size(); ++i)
         CHECK(v[i] == 0);
 }
