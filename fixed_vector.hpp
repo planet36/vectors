@@ -145,7 +145,7 @@ private:
         }
         else
         {
-            volatile unsigned char* const q = static_cast<volatile unsigned char*>(p);
+            volatile auto* const q = static_cast<volatile unsigned char*>(p);
             for (std::size_t i = 0; i < n; ++i)
             {
                 q[i] = 0;
