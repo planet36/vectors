@@ -212,6 +212,10 @@ public:
 
     constexpr aligned_byte_buffer& operator=(const aligned_byte_buffer& other)
     {
+        if (this == &other)
+        {
+            return *this;
+        }
         aligned_byte_buffer tmp{other};
         swap(tmp);
         return *this;

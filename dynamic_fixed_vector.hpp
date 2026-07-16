@@ -251,6 +251,10 @@ public:
 
     constexpr dynamic_fixed_vector& operator=(const dynamic_fixed_vector& other)
     {
+        if (this == &other)
+        {
+            return *this;
+        }
         dynamic_fixed_vector tmp{other};
         swap(tmp);
         return *this;
