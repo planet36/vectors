@@ -161,6 +161,7 @@ test_move_ctor()
     CHECK(to_ivec(b) == std::vector({1, 2, 3}));
     // Move construction leaves the source empty -- unlike fixed_vector, whose defaulted
     // member-wise move leaves a trivially copyable source unchanged.
+    // NOLINTNEXTLINE(bugprone-use-after-move,hicpp-invalid-access-moved,clang-analyzer-cplusplus.Move)
     CHECK(a.size() == 0);
     CHECK(a.capacity() == 0);
     CHECK(a.data() == nullptr);
@@ -190,6 +191,7 @@ test_move_assign()
     CHECK(to_ivec(b) == std::vector({4, 5, 6}));
     // Move assignment swaps: the source keeps the target's former buffer until it is destroyed,
     // rather than being left empty as after move construction.
+    // NOLINTNEXTLINE(bugprone-use-after-move,hicpp-invalid-access-moved,clang-analyzer-cplusplus.Move)
     CHECK(a.data() == b_buf);
     CHECK(a.capacity() == 1);
 }
@@ -234,6 +236,7 @@ test_data_null_iff_capacity_zero()
     {
         dynamic_fixed_vector<int> a(3);
         const dynamic_fixed_vector<int> b = std::move(a);
+        // NOLINTNEXTLINE(bugprone-use-after-move,hicpp-invalid-access-moved)
         CHECK(data_null_iff_empty(a)); // moved-from: null unique_ptr, capacity 0
         CHECK(data_null_iff_empty(b));
     }
@@ -241,6 +244,7 @@ test_data_null_iff_capacity_zero()
         dynamic_fixed_vector<int> a(3);
         dynamic_fixed_vector<int> b; // capacity 0
         b = std::move(a);
+        // NOLINTNEXTLINE(bugprone-use-after-move,hicpp-invalid-access-moved)
         CHECK(data_null_iff_empty(a)); // swap gave the source the target's former (empty) state
         CHECK(data_null_iff_empty(b));
     }

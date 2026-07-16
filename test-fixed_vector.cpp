@@ -216,6 +216,7 @@ test_move_ctor()
     // Copy and move are member-wise (defaulted): for a trivially copyable T a moved-from
     // fixed_vector is left unchanged -- unlike the heap-backed siblings, where move
     // construction transfers the buffer and leaves the source empty.
+    // NOLINTNEXTLINE(bugprone-use-after-move,hicpp-invalid-access-moved,clang-analyzer-cplusplus.Move)
     CHECK(a.size() == 3);
     CHECK(to_ivec(a) == std::vector({1, 2, 3}));
 }

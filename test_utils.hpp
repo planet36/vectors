@@ -149,5 +149,7 @@ template <typename V>
 [[nodiscard]] bool
 data_null_iff_empty(const V& v) noexcept
 {
+    // Deliberately called on moved-from objects to check the class invariant survives the move.
+    // NOLINTNEXTLINE(clang-analyzer-cplusplus.Move)
     return (v.data() == nullptr) == (v.capacity() == 0);
 }
