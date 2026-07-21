@@ -76,8 +76,8 @@ test_fail(const std::string_view file, const int line, const std::string_view fu
 
 /// Run \a tests and return the value \c main should return.
 /**
-* An exception escaping \c main would call \c terminate -> \c abort and dump core; report it and
-* exit non-zero instead.
+* An exception propagating out of \c main would call \c terminate -> \c abort and dump core; report
+* it and exit non-zero instead.
 */
 template <std::invocable Fn>
 [[nodiscard]] int
@@ -90,11 +90,11 @@ run_tests(Fn&& tests)
     }
     catch (const std::exception& ex)
     {
-        std::println(stderr, "unexpected exception escaped: {}", ex.what());
+        std::println(stderr, "unexpected exception propagated: {}", ex.what());
     }
     catch (...)
     {
-        std::println(stderr, "unexpected exception of unknown type escaped");
+        std::println(stderr, "unexpected exception of unknown type propagated");
     }
     return EXIT_FAILURE;
 }
