@@ -239,8 +239,8 @@ public:
     {
         // Copy the entire capacity buffer (faithful to beyond-size operator[] reads),
         // beginning each element's lifetime directly -- no value-init-then-overwrite.
-        if (capacity_ != 0)
-            std::uninitialized_copy_n(other.data(), capacity_, data());
+        if (this->capacity() != 0)
+            std::uninitialized_copy_n(other.data(), this->capacity(), data());
     }
 
     constexpr dynamic_fixed_vector(dynamic_fixed_vector&& other) noexcept
@@ -278,16 +278,16 @@ public:
     constexpr explicit dynamic_fixed_vector(const std::size_t capacity, const T& value)
         : dynamic_fixed_vector(raw_alloc_t{}, capacity)
     {
-        if (capacity_ != 0)
-            std::uninitialized_fill_n(data(), capacity_, value);
+        if (this->capacity() != 0)
+            std::uninitialized_fill_n(data(), this->capacity(), value);
     }
 
     /// Capacity is the size of \a spn.
     constexpr explicit dynamic_fixed_vector(const std::span<const T> spn)
         : dynamic_fixed_vector(raw_alloc_t{}, std::size(spn))
     {
-        if (capacity_ != 0)
-            std::uninitialized_copy_n(std::data(spn), capacity_, data());
+        if (capacity() != 0)
+            std::uninitialized_copy_n(std::data(spn), capacity(), data());
     }
 
     /// Capacity is the distance between \a first and \a last (forward iterators required).
@@ -359,12 +359,12 @@ public:
 
     [[nodiscard]] constexpr std::size_t remaining_space() const noexcept
     {
-        return capacity_ - size_;
+        return capacity() - size();
     }
 
-    [[nodiscard]] constexpr bool is_empty() const noexcept { return size_ == 0; }
+    [[nodiscard]] constexpr bool is_empty() const noexcept { return size() == 0; }
 
-    [[nodiscard]] constexpr bool is_full() const noexcept { return size_ == capacity_; }
+    [[nodiscard]] constexpr bool is_full() const noexcept { return size() == capacity(); }
 
     /// \note Does not destroy elements.
     constexpr void clear() noexcept { size_ = 0; }
@@ -376,7 +376,7 @@ public:
     */
     constexpr void resize(const std::size_t count, const T& value)
     {
-        if (count > capacity_)
+        if (count > capacity())
             throw std::bad_alloc{};
 
         if (count > size())
@@ -471,8 +471,8 @@ public:
     constexpr void fill_capacity(const T& value)
         noexcept(std::is_nothrow_copy_assignable_v<T>)
     {
-        (void)std::ranges::fill(std::span<T>{data(), capacity_}, value);
-        size_ = capacity_;
+        (void)std::ranges::fill(std::span<T>{data(), capacity()}, value);
+        size_ = capacity();
     }
 
     /// Fill the live elements [0, \c size()) with \a value; \c size() is unchanged.

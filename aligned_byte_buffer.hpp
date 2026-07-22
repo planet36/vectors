@@ -112,7 +112,7 @@ private:
     constexpr void common_append_range_(const std::span<const std::byte> spn) noexcept
     {
         if (!spn.empty())
-            std::memcpy(data() + size_, spn.data(), spn.size());
+            std::memcpy(data() + size(), spn.data(), spn.size());
         size_ += spn.size();
     }
 
@@ -200,8 +200,8 @@ public:
         : size_{other.size_}, capacity_{other.capacity_}, data_{allocate_(other.capacity_)}
     {
         // The reserved tail is unspecified, so only the live [0,size) bytes are copied.
-        if (size_ != 0)
-            std::memcpy(data(), other.data(), size_);
+        if (size() != 0)
+            std::memcpy(data(), other.data(), size());
     }
 
     constexpr aligned_byte_buffer(aligned_byte_buffer&& other) noexcept
@@ -239,8 +239,8 @@ public:
     constexpr explicit aligned_byte_buffer(const std::size_t capacity, const std::byte value)
         : size_{capacity}, capacity_{capacity}, data_{allocate_(capacity)}
     {
-        if (capacity != 0)
-            std::memset(data(), std::to_integer<int>(value), capacity);
+        if (this->capacity() != 0)
+            std::memset(data(), std::to_integer<int>(value), this->capacity());
     }
 
     /// Capacity is the size of \a spn.
@@ -306,12 +306,12 @@ public:
 
     [[nodiscard]] constexpr std::size_t remaining_space() const noexcept
     {
-        return capacity_ - size_;
+        return capacity() - size();
     }
 
-    [[nodiscard]] constexpr bool is_empty() const noexcept { return size_ == 0; }
+    [[nodiscard]] constexpr bool is_empty() const noexcept { return size() == 0; }
 
-    [[nodiscard]] constexpr bool is_full() const noexcept { return size_ == capacity_; }
+    [[nodiscard]] constexpr bool is_full() const noexcept { return size() == capacity(); }
 
     /// \note Does not zero the bytes: they stay in the buffer, readable through \c operator[]
     /// as the now-reserved tail.  \c clear() followed by \c zeroize_remaining_space() scrubs
@@ -324,11 +324,11 @@ public:
     */
     constexpr void resize(const std::size_t count, const std::byte value)
     {
-        if (count > capacity_)
+        if (count > capacity())
             throw std::bad_alloc{};
 
-        if (count > size_)
-            std::memset(data() + size_, std::to_integer<int>(value), count - size_);
+        if (count > size())
+            std::memset(data() + size(), std::to_integer<int>(value), count - size());
 
         size_ = count;
     }
@@ -413,8 +413,8 @@ public:
     /// Fill the live bytes [0, \c size()) with \a value; \c size() is unchanged.
     constexpr void fill_size(const std::byte value) noexcept
     {
-        if (size_ != 0)
-            std::memset(data(), std::to_integer<int>(value), size_);
+        if (size() != 0)
+            std::memset(data(), std::to_integer<int>(value), size());
     }
 
     /// Zero the reserved tail [\c size(), \c capacity()); \c size() is unchanged.
@@ -428,7 +428,7 @@ public:
     constexpr void zeroize_remaining_space() noexcept
     {
         if (remaining_space() != 0)
-            zero_explicit_(static_cast<void*>(data() + size_), remaining_space());
+            zero_explicit_(static_cast<void*>(data() + size()), remaining_space());
     }
 
     /// \pre \a spn does not overlap this buffer's storage.
