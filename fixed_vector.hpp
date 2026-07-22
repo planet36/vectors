@@ -525,6 +525,7 @@ public:
     * \sa https://cppreference.com/w/cpp/container/inplace_vector/try_append_range.html
     */
     [[nodiscard]] constexpr bool try_append_range(const std::span<const T> spn)
+        noexcept(std::is_nothrow_copy_assignable_v<T>)
     {
         if (std::size(spn) > remaining_space())
             return false;
@@ -570,6 +571,7 @@ public:
     }
 
     [[nodiscard]] constexpr bool try_append_range(const std::initializer_list<T> il)
+        noexcept(std::is_nothrow_copy_assignable_v<T>)
     {
         return try_append_range(std::span<const T>{std::data(il), std::size(il)});
     }
@@ -793,12 +795,14 @@ public:
     }
 
     [[nodiscard]] constexpr bool operator==(const fixed_vector& rhs) const
+        noexcept(noexcept(std::declval<const T&>() == std::declval<const T&>()))
     requires std::equality_comparable<T>
     {
         return std::ranges::equal(span(), rhs.span());
     }
 
     [[nodiscard]] constexpr auto operator<=>(const fixed_vector& rhs) const
+        noexcept(noexcept(std::declval<const T&>() <=> std::declval<const T&>()))
     requires std::three_way_comparable<T>
     {
         return std::lexicographical_compare_three_way(begin(), end(), rhs.begin(), rhs.end());
