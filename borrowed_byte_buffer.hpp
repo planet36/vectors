@@ -172,7 +172,7 @@ private:
     requires is_writable_borrow_<R>
     [[nodiscard]] static constexpr std::size_t range_size_bytes_(R&& r) noexcept
     {
-        return std::ranges::size(r) * sizeof(std::ranges::range_value_t<R>);
+        return std::span{r}.size_bytes();
     }
 
     /// True if \a P is a pointer to a single writable, trivially-copyable object.
