@@ -165,7 +165,7 @@ private:
         }
     }
 
-    /// True if \a R is a sized, contiguous range of exactly \c T.
+    /// True if \a R is a sized, contiguous range of \c T.
     /**
     * Such a range is handed to the \c std::span overload for its bulk copy.  Overload
     * resolution will not do this on its own: for e.g. \c std::vector<T> the \c R&& template is

@@ -113,7 +113,7 @@ private:
         }
     }
 
-    /// True if \a R is a sized, contiguous range of exactly \c std::byte.
+    /// True if \a R is a sized, contiguous range of \c std::byte.
     /**
     * Such a range is handed to the \c std::span overload for its \c std::memcpy.  Overload
     * resolution will not do this on its own: for e.g. \c std::vector<std::byte> the \c R&&
