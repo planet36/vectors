@@ -169,6 +169,7 @@ private:
 
     /// Byte size of a contiguous range accepted by \c is_writable_borrow_.
     template <typename R>
+    requires is_writable_borrow_<R>
     [[nodiscard]] static constexpr std::size_t range_size_bytes_(R&& r) noexcept
     {
         return std::ranges::size(r) * sizeof(std::ranges::range_value_t<R>);
