@@ -202,7 +202,7 @@ public:
         size_ = count;
     }
 
-    /// Copy the elements of \a spn (\c size()==spn.size()).
+    /// Copy the elements of \a spn (\c size()==std::size(spn)).
     /// \throws std::bad_alloc if \a spn does not fit in \c max_size().
     constexpr explicit fixed_vector(const std::span<const T> spn) { append_range(spn); }
 

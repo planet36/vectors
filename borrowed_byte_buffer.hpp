@@ -99,8 +99,8 @@ private:
     constexpr void common_append_range_(const std::span<const std::byte> spn) noexcept
     {
         if (!spn.empty())
-            std::memcpy(end(), spn.data(), spn.size());
-        size_ += spn.size();
+            std::memcpy(end(), std::data(spn), std::size(spn));
+        size_ += std::size(spn);
     }
 
     template <std::input_iterator It>
