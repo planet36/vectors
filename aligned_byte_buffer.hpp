@@ -806,7 +806,7 @@ public:
         return std::ranges::equal(span(), rhs.span());
     }
 
-    [[nodiscard]] constexpr std::strong_ordering
+    [[nodiscard]] constexpr auto
     operator<=>(const aligned_byte_buffer& rhs) const noexcept
     {
         return std::lexicographical_compare_three_way(begin(), end(), rhs.begin(), rhs.end());
