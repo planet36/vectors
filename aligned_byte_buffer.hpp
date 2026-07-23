@@ -271,7 +271,7 @@ public:
     }
 
     constexpr aligned_byte_buffer(const std::initializer_list<std::byte> il)
-        : aligned_byte_buffer(std::span<const std::byte>{std::data(il), std::size(il)})
+        : aligned_byte_buffer(std::span{std::data(il), std::size(il)})
     {}
 
     /// Capacity is the size of \a rg (forward range required).
@@ -472,7 +472,7 @@ public:
 
     constexpr void append_range(const std::initializer_list<std::byte> il)
     {
-        append_range(std::span<const std::byte>{std::data(il), std::size(il)});
+        append_range(std::span{std::data(il), std::size(il)});
     }
 
     /// \note Sized sources are checked up front (all-or-nothing); unsized sources append
@@ -549,7 +549,7 @@ public:
     [[nodiscard]] constexpr bool
     try_append_range(const std::initializer_list<std::byte> il) noexcept
     {
-        return try_append_range(std::span<const std::byte>{std::data(il), std::size(il)});
+        return try_append_range(std::span{std::data(il), std::size(il)});
     }
 
     /// \note Sized sources are checked up front (nothing appended on \c false); unsized

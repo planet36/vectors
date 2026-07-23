@@ -131,7 +131,7 @@ private:
     requires is_bulk_appendable_<R>
     [[nodiscard]] static constexpr std::span<const std::byte> as_span_(R& rg)
     {
-        return std::span<const std::byte>{std::ranges::data(rg),
+        return std::span{std::ranges::data(rg),
                                           static_cast<std::size_t>(std::ranges::size(rg))};
     }
 
@@ -520,7 +520,7 @@ public:
 
     constexpr void append_range(const std::initializer_list<std::byte> il)
     {
-        append_range(std::span<const std::byte>{std::data(il), std::size(il)});
+        append_range(std::span{std::data(il), std::size(il)});
     }
 
     /// \note Sized sources are checked up front (all-or-nothing); unsized sources append
@@ -597,7 +597,7 @@ public:
     [[nodiscard]] constexpr bool
     try_append_range(const std::initializer_list<std::byte> il) noexcept
     {
-        return try_append_range(std::span<const std::byte>{std::data(il), std::size(il)});
+        return try_append_range(std::span{std::data(il), std::size(il)});
     }
 
     /// \note Sized sources are checked up front (nothing appended on \c false); unsized
