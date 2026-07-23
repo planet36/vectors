@@ -168,7 +168,7 @@ Common to all four types:
 
 | Group | Members |
 |---|---|
-| Capacity | `size`, `capacity`, `max_size`, `remaining_space`, `is_empty`, `is_full` |
+| Capacity | `size`, `capacity`, `max_size`, `reserved_unused`, `is_empty`, `is_full` |
 | Access | `operator[]` (unchecked), `at` (throws), `front`, `back`, `data`, `span` |
 | Iterators | `begin` / `end` / `rbegin` / `rend` and the `c`-prefixed forms |
 | Add | `push_back`, `emplace_back`, `append_range` |

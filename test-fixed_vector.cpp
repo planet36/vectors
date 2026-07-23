@@ -27,7 +27,7 @@ constexpr_api_ok()
 {
     fixed_vector<int, 8> v;
     // NOLINTNEXTLINE(readability-simplify-boolean-expr)
-    if (!(v.is_empty() && v.size() == 0 && v.remaining_space() == 8))
+    if (!(v.is_empty() && v.size() == 0 && v.reserved_unused() == 8))
         return false;
 
     v.append_range({1, 2, 3});
@@ -281,23 +281,23 @@ test_capacity_max_size()
 }
 
 static void
-test_size_remaining_space_is_empty_is_full()
+test_size_reserved_unused_is_empty_is_full()
 {
     fixed_vector<int, 3> v;
     CHECK(v.is_empty());
     CHECK(!v.is_full());
     CHECK(v.size() == 0);
-    CHECK(v.remaining_space() == 3);
+    CHECK(v.reserved_unused() == 3);
     v.push_back(1);
     CHECK(!v.is_empty());
     CHECK(!v.is_full());
     CHECK(v.size() == 1);
-    CHECK(v.remaining_space() == 2);
+    CHECK(v.reserved_unused() == 2);
     v.push_back(2);
     v.push_back(3);
     CHECK(v.is_full());
     CHECK(v.size() == 3);
-    CHECK(v.remaining_space() == 0);
+    CHECK(v.reserved_unused() == 0);
 }
 
 // ---- Modifiers ----
@@ -714,7 +714,7 @@ main() // NOLINT(bugprone-exception-escape)
         test_swap_exchanges_all_slots();
 
         test_capacity_max_size();
-        test_size_remaining_space_is_empty_is_full();
+        test_size_reserved_unused_is_empty_is_full();
 
         test_clear();
         test_resize();

@@ -29,7 +29,7 @@ constexpr_empty_ok()
     borrowed_byte_buffer a; // default ctor: null, capacity 0
 
     // NOLINTNEXTLINE(readability-simplify-boolean-expr)
-    if (!(a.is_empty() && a.size() == 0 && a.capacity() == 0 && a.remaining_space() == 0))
+    if (!(a.is_empty() && a.size() == 0 && a.capacity() == 0 && a.reserved_unused() == 0))
         return false;
     if (a.data() != nullptr)
         return false;
@@ -302,24 +302,24 @@ test_capacity_max_size()
 }
 
 static void
-test_size_remaining_space_is_empty_is_full()
+test_size_reserved_unused_is_empty_is_full()
 {
     std::array<std::byte, 3> s{};
     borrowed_byte_buffer v{s};
     CHECK(v.is_empty());
     CHECK(!v.is_full());
     CHECK(v.size() == 0);
-    CHECK(v.remaining_space() == 3);
+    CHECK(v.reserved_unused() == 3);
     v.push_back(1_b);
     CHECK(!v.is_empty());
     CHECK(!v.is_full());
     CHECK(v.size() == 1);
-    CHECK(v.remaining_space() == 2);
+    CHECK(v.reserved_unused() == 2);
     v.push_back(2_b);
     v.push_back(3_b);
     CHECK(v.is_full());
     CHECK(v.size() == 3);
-    CHECK(v.remaining_space() == 0);
+    CHECK(v.reserved_unused() == 0);
 }
 
 // ---- Modifiers ----
@@ -722,7 +722,7 @@ main() // NOLINT(bugprone-exception-escape)
         test_swap();
 
         test_capacity_max_size();
-        test_size_remaining_space_is_empty_is_full();
+        test_size_reserved_unused_is_empty_is_full();
 
         test_clear();
         test_resize();

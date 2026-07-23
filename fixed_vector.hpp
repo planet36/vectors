@@ -279,7 +279,7 @@ public:
 
     [[nodiscard]] constexpr std::size_t size() const noexcept { return size_; }
 
-    [[nodiscard]] constexpr std::size_t remaining_space() const noexcept
+    [[nodiscard]] constexpr std::size_t reserved_unused() const noexcept
     {
         return capacity() - size();
     }
@@ -456,8 +456,8 @@ public:
         }
         else
         {
-            if (remaining_space() != 0)
-                zero_explicit_(static_cast<void*>(end()), remaining_space() * sizeof(T));
+            if (reserved_unused() != 0)
+                zero_explicit_(static_cast<void*>(end()), reserved_unused() * sizeof(T));
         }
     }
 
@@ -467,7 +467,7 @@ public:
     */
     constexpr void append_range(const std::span<const T> spn)
     {
-        if (std::size(spn) > remaining_space())
+        if (std::size(spn) > reserved_unused())
             throw std::bad_alloc{};
 
         common_append_range_(spn);
@@ -485,7 +485,7 @@ public:
     {
         if constexpr (std::sized_sentinel_for<S, It>)
         {
-            if (static_cast<std::size_t>(last - first) > remaining_space())
+            if (static_cast<std::size_t>(last - first) > reserved_unused())
                 throw std::bad_alloc{};
         }
 
@@ -498,7 +498,7 @@ public:
     template <std::input_iterator It>
     constexpr void append_range(It first, const std::size_t count)
     {
-        if (count > remaining_space())
+        if (count > reserved_unused())
             throw std::bad_alloc{};
 
         common_append_range_(first, count);
@@ -524,7 +524,7 @@ public:
         }
         else if constexpr (std::ranges::sized_range<R>)
         {
-            if (std::ranges::size(rg) > remaining_space())
+            if (std::ranges::size(rg) > reserved_unused())
                 throw std::bad_alloc{};
 
             // The size check above covers every element, so skip the per-element repeat.
@@ -549,7 +549,7 @@ public:
     [[nodiscard]] constexpr bool try_append_range(const std::span<const T> spn)
         noexcept(std::is_nothrow_copy_assignable_v<T>)
     {
-        if (std::size(spn) > remaining_space())
+        if (std::size(spn) > reserved_unused())
             return false;
 
         common_append_range_(spn);
@@ -569,7 +569,7 @@ public:
     {
         if constexpr (std::sized_sentinel_for<S, It>)
         {
-            if (static_cast<std::size_t>(last - first) > remaining_space())
+            if (static_cast<std::size_t>(last - first) > reserved_unused())
                 return false;
         }
 
@@ -585,7 +585,7 @@ public:
     template <std::input_iterator It>
     [[nodiscard]] constexpr bool try_append_range(It first, const std::size_t count)
     {
-        if (count > remaining_space())
+        if (count > reserved_unused())
             return false;
 
         common_append_range_(first, count);
@@ -614,7 +614,7 @@ public:
         }
         else if constexpr (std::ranges::sized_range<R>)
         {
-            if (std::ranges::size(rg) > remaining_space())
+            if (std::ranges::size(rg) > reserved_unused())
                 return false;
 
             // The size check above covers every element, so skip the per-element repeat.

@@ -24,7 +24,7 @@ constexpr_empty_ok()
     aligned_byte_buffer<16> b(0); // zero-capacity ctor (no allocation)
 
     // NOLINTNEXTLINE(readability-simplify-boolean-expr)
-    if (!(a.is_empty() && a.size() == 0 && a.remaining_space() == 0))
+    if (!(a.is_empty() && a.size() == 0 && a.reserved_unused() == 0))
         return false;
     // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     if (!(b.capacity() == 0 && b.is_full()))
@@ -88,7 +88,7 @@ test_ctor_capacity()
     const aligned_byte_buffer<16> v(64);
     CHECK(v.size() == 0);
     CHECK(v.capacity() == 64);
-    CHECK(v.remaining_space() == 64);
+    CHECK(v.reserved_unused() == 64);
     CHECK(v.is_empty());
     CHECK(!v.is_full());
 }
@@ -318,23 +318,23 @@ test_capacity_max_size()
 }
 
 static void
-test_size_remaining_space_is_empty_is_full()
+test_size_reserved_unused_is_empty_is_full()
 {
     aligned_byte_buffer<16> v(3);
     CHECK(v.is_empty());
     CHECK(!v.is_full());
     CHECK(v.size() == 0);
-    CHECK(v.remaining_space() == 3);
+    CHECK(v.reserved_unused() == 3);
     v.push_back(1_b);
     CHECK(!v.is_empty());
     CHECK(!v.is_full());
     CHECK(v.size() == 1);
-    CHECK(v.remaining_space() == 2);
+    CHECK(v.reserved_unused() == 2);
     v.push_back(2_b);
     v.push_back(3_b);
     CHECK(v.is_full());
     CHECK(v.size() == 3);
-    CHECK(v.remaining_space() == 0);
+    CHECK(v.reserved_unused() == 0);
 }
 
 // ---- Modifiers ----
@@ -709,7 +709,7 @@ main() // NOLINT(bugprone-exception-escape)
 
         test_data_null_iff_capacity_zero();
         test_capacity_max_size();
-        test_size_remaining_space_is_empty_is_full();
+        test_size_reserved_unused_is_empty_is_full();
 
         test_clear();
         test_resize();
