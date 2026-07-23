@@ -193,6 +193,7 @@ private:
 
     /// The pointee size of a \c P accepted by \c is_object_ptr_ (the single-object capacity).
     template <typename P>
+    requires is_object_ptr_<P>
     static constexpr std::size_t object_ptr_size_ =
         sizeof(std::remove_pointer_t<std::remove_cvref_t<P>>);
 
