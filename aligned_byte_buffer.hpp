@@ -143,6 +143,7 @@ private:
 
     /// \pre \a rg satisfies \c is_bulk_appendable_.
     template <typename R>
+    requires is_bulk_appendable_<R>
     [[nodiscard]] static constexpr std::span<const std::byte> as_span_(R& rg)
     {
         return std::span<const std::byte>{std::ranges::data(rg),
