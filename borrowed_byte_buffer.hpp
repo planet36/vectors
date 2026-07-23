@@ -131,8 +131,7 @@ private:
     requires is_bulk_appendable_<R>
     [[nodiscard]] static constexpr std::span<const std::byte> as_span_(R& rg)
     {
-        return std::span{std::ranges::data(rg),
-                                          static_cast<std::size_t>(std::ranges::size(rg))};
+        return std::span{rg};
     }
 
     /// True if a \b contiguous range \a R is one this buffer may safely borrow and write through.

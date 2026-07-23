@@ -116,8 +116,7 @@ private:
     requires is_bulk_appendable_<R>
     [[nodiscard]] static constexpr std::span<const T> as_span_(R& rg)
     {
-        return std::span<const T>{std::ranges::data(rg),
-                                  static_cast<std::size_t>(std::ranges::size(rg))};
+        return std::span{rg};
     }
 
     /// Zero \a n bytes at \a p with stores the compiler must not optimize away.
