@@ -649,6 +649,9 @@ test_constant_time_equal()
 static void
 test_overlay_object()
 {
+    // This test is endianness-agnostic: each scalar is copied in as its native object
+    // representation and read back through the same-typed member, so the byte order cancels.
+    // It never inspects a byte at a fixed offset, which is the only thing that would care.
     struct Header
     {
         std::uint32_t magic;

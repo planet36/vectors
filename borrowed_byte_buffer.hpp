@@ -33,10 +33,10 @@
 
 /// A non-owning, run-time-capacity buffer of \c std::byte overlaying borrowed storage.
 /**
-* Same append/cursor interface as \c aligned_byte_buffer (\c is_full, \c remaining_space,
+* Same append interface as \c aligned_byte_buffer (\c is_full, \c remaining_space,
 * \c append_range, \c push_back, ...), but it \b borrows the bytes it operates on instead of
-* owning them: construction takes a pointer/span to memory whose lifetime the caller manages, and
-* the buffer never allocates or frees.  It is the run-time-capacity, non-owning counterpart to
+* owning them: construction takes a pointer or a contiguous range whose lifetime the caller
+* manages, and the buffer never allocates or frees.  It is the run-time-capacity, non-owning counterpart to
 * \c fixed_vector<std::byte, N>.
 *
 * Differences from \c aligned_byte_buffer:
@@ -50,7 +50,7 @@
 *     \c aligned_byte_buffer to size and fill owned storage).  A borrowed buffer is instead built
 *     directly over existing memory -- a pointer, or a contiguous range whose storage it
 *     \e overlays rather than copies -- then filled via \c append_range / \c assign_range.
-*   - \b Construction leaves \c size()==0 -- the region is treated as empty scratch to build into.
+*   - \b Construction leaves \c size()==0 -- the region is treated as empty space to build into.
 *     To instead adopt bytes already present in the region (for reading, iterating, or comparing),
 *     use the \c adopting named constructors, which start \c size()==capacity().
 *   - \b No \a Align parameter.  \c aligned_byte_buffer over-aligns its own allocation and applies
@@ -289,7 +289,7 @@ public:
     * The \c adopting family mirrors the value constructors' source forms but starts the buffer
     * \e full, so \c span(), the iterators and \c operator== immediately see the bytes already in
     * the region -- for reading, iterating, or comparing memory that is already populated (a
-    * header, a received packet, a key), rather than building into empty scratch.
+    * header, a received packet, a key), rather than building into an empty region.
     * \pre The source points to at least \c capacity() readable bytes.
     */
     [[nodiscard]] static borrowed_byte_buffer
