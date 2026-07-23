@@ -168,7 +168,7 @@ private:
     /// True if \a R is a sized, contiguous range of \c T.
     /**
     * Such a range is handed to the \c std::span overload for its bulk copy.  Overload
-    * resolution will not do this on its own: for e.g. \c std::vector<T> the \c R&& template is
+    * resolution will not do this on its own: for example \c std::vector<T> the \c R&& template is
     * an exact match while the \c std::span overload needs a user-defined conversion, so the
     * template wins and the bulk path is dead code for callers who do not hand-write a span.
     */

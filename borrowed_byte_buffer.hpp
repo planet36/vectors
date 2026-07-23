@@ -116,7 +116,7 @@ private:
     /// True if \a R is a sized, contiguous range of \c std::byte.
     /**
     * Such a range is handed to the \c std::span overload for its \c std::memcpy.  Overload
-    * resolution will not do this on its own: for e.g. \c std::vector<std::byte> the \c R&&
+    * resolution will not do this on its own: for example \c std::vector<std::byte> the \c R&&
     * template is an exact match while the \c std::span overload needs a user-defined
     * conversion, so the template wins and the \c memcpy is dead code for callers who do not
     * hand-write a span.
