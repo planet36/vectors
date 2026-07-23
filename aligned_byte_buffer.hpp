@@ -310,6 +310,7 @@ public:
 
     [[nodiscard]] constexpr std::size_t size() const noexcept { return size_; }
 
+    /// Get the amount of reserved unused space (i.e., between \c size() and \c capacity())
     [[nodiscard]] constexpr std::size_t reserved_unused() const noexcept
     {
         return capacity() - size();
