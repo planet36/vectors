@@ -82,7 +82,9 @@ private:
             throw std::out_of_range("fixed_vector: index >= size");
     }
 
-    /// \pre \a spn does not overlap this vector's storage.
+    /**
+    * \pre \a spn does not overlap this vector's storage.
+    */
     constexpr void common_append_range_(const std::span<const T> spn)
     {
         (void)std::ranges::copy(spn, end());
@@ -111,7 +113,9 @@ private:
         std::ranges::contiguous_range<R> && std::ranges::sized_range<R> &&
         std::same_as<std::ranges::range_value_t<R>, T>;
 
-    /// \pre \a rg satisfies \c is_bulk_appendable_.
+    /**
+    * \pre \a rg satisfies \c is_bulk_appendable_.
+    */
     template <typename R>
     requires is_bulk_appendable_<R>
     [[nodiscard]] static constexpr std::span<const T> as_span_(R& rg)
@@ -166,13 +170,17 @@ public:
     using reverse_iterator = std::reverse_iterator<iterator>;
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-    /// \note Not unconditionally \c noexcept: the in-place \c std::array<T, N> member
-    /// value-initializes all \a N elements on this path, and \c std::default_initializable<T>
-    /// does not require that construction be non-throwing.
+    /**
+    * \note Not unconditionally \c noexcept: the in-place \c std::array<T, N> member
+    * value-initializes all \a N elements on this path, and \c std::default_initializable<T>
+    * does not require that construction be non-throwing.
+    */
     constexpr fixed_vector() noexcept(std::is_nothrow_default_constructible_v<T>) = default;
-    /// \note Copy and move are member-wise (defaulted): moving a trivially copyable \c T leaves
-    /// the source unchanged, \b not emptied -- unlike the heap-backed siblings, whose move
-    /// construction empties it.
+    /**
+    * \note Copy and move are member-wise (defaulted): moving a trivially copyable \c T leaves
+    * the source unchanged, \b not emptied -- unlike the heap-backed siblings, whose move
+    * construction empties it.
+    */
     fixed_vector(const fixed_vector&) noexcept(std::is_nothrow_copy_constructible_v<T>) = default;
     fixed_vector(fixed_vector&&) noexcept(std::is_nothrow_move_constructible_v<T>) = default;
     fixed_vector& operator=(const fixed_vector&) noexcept(std::is_nothrow_copy_assignable_v<T>) = default;
@@ -180,7 +188,9 @@ public:
     ~fixed_vector() = default;
 
     /// Create \a count elements equal to \a value (\c size()==count).
-    /// \throws std::bad_alloc if \a count > \c max_size().
+    /**
+    * \throws std::bad_alloc if \a count > \c max_size().
+    */
     constexpr explicit fixed_vector(const std::size_t count, const T& value)
     {
         resize(count, value);
@@ -203,11 +213,15 @@ public:
     }
 
     /// Copy the elements of \a spn (\c size()==std::size(spn)).
-    /// \throws std::bad_alloc if \a spn does not fit in \c max_size().
+    /**
+    * \throws std::bad_alloc if \a spn does not fit in \c max_size().
+    */
     constexpr explicit fixed_vector(const std::span<const T> spn) { append_range(spn); }
 
     /// Copy the elements of <code>[first, last)</code>.
-    /// \throws std::bad_alloc if the source does not fit in \c max_size().
+    /**
+    * \throws std::bad_alloc if the source does not fit in \c max_size().
+    */
     template <std::input_iterator It, std::sentinel_for<It> S>
     constexpr explicit fixed_vector(It first, S last)
     {
@@ -215,7 +229,9 @@ public:
     }
 
     /// Copy \a count elements starting at \a first (\c size()==count).
-    /// \throws std::bad_alloc if \a count > \c max_size().
+    /**
+    * \throws std::bad_alloc if \a count > \c max_size().
+    */
     template <std::input_iterator It>
     constexpr explicit fixed_vector(It first, const std::size_t count)
     {
@@ -223,11 +239,15 @@ public:
     }
 
     /// Copy the elements of \a il (\c size()==il.size()).
-    /// \throws std::bad_alloc if \a il does not fit in \c max_size().
+    /**
+    * \throws std::bad_alloc if \a il does not fit in \c max_size().
+    */
     constexpr fixed_vector(const std::initializer_list<T> il) { append_range(il); }
 
     /// Copy the elements of \a rg.
-    /// \throws std::bad_alloc if the source does not fit in \c max_size().
+    /**
+    * \throws std::bad_alloc if the source does not fit in \c max_size().
+    */
     template <std::ranges::input_range R>
     constexpr explicit fixed_vector(std::from_range_t, R&& rg)
     {
@@ -339,7 +359,9 @@ public:
         unchecked_emplace_back(std::forward<Args>(args)...);
     }
 
-    /// \sa https://cppreference.com/w/cpp/container/inplace_vector/try_emplace_back.html
+    /**
+    * \sa https://cppreference.com/w/cpp/container/inplace_vector/try_emplace_back.html
+    */
     template <class... Args>
     requires std::constructible_from<T, Args...> && std::assignable_from<T&, T>
     [[nodiscard]] constexpr bool try_emplace_back(Args&&... args)
@@ -667,8 +689,10 @@ public:
         return span();
     }
 
-    /// \note No \c std::assume_aligned<Align> is needed, unlike the heap-backed siblings: the
-    /// array is a member of an \c alignas(Align) object, so the compiler derives the alignment.
+    /**
+    * \note No \c std::assume_aligned<Align> is needed, unlike the heap-backed siblings: the
+    * array is a member of an \c alignas(Align) object, so the compiler derives the alignment.
+    */
     [[nodiscard]] constexpr T* data() noexcept { return std::data(data_); }
 
     [[nodiscard]] constexpr const T* data() const noexcept { return std::data(data_); }

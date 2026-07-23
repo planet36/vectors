@@ -95,7 +95,9 @@ private:
             throw std::out_of_range("borrowed_byte_buffer: index >= size");
     }
 
-    /// \pre \a spn does not overlap this buffer's storage.
+    /**
+    * \pre \a spn does not overlap this buffer's storage.
+    */
     constexpr void common_append_range_(const std::span<const std::byte> spn) noexcept
     {
         if (!spn.empty())
@@ -126,7 +128,9 @@ private:
         std::ranges::contiguous_range<R> && std::ranges::sized_range<R> &&
         std::same_as<std::ranges::range_value_t<R>, std::byte>;
 
-    /// \pre \a rg satisfies \c is_bulk_appendable_.
+    /**
+    * \pre \a rg satisfies \c is_bulk_appendable_.
+    */
     template <typename R>
     requires is_bulk_appendable_<R>
     [[nodiscard]] static constexpr std::span<const std::byte> as_span_(R& rg)
@@ -244,7 +248,9 @@ public:
     ~borrowed_byte_buffer() = default;
 
     /// Borrow \a capacity bytes at \a data; the buffer starts empty (\c size()==0).
-    /// \pre \a data points to at least \a capacity writable bytes.
+    /**
+    * \pre \a data points to at least \a capacity writable bytes.
+    */
     borrowed_byte_buffer(void* const data, const std::size_t capacity) noexcept
         : data_{static_cast<std::byte*>(data)}, capacity_{capacity}
     {}
@@ -267,7 +273,9 @@ public:
     }
 
     /// Borrow all of the range \a r; capacity is its byte size, the buffer starts empty.
-    /// \copydetails borrowed_byte_buffer(R&&, std::size_t)
+    /**
+    * \copydetails borrowed_byte_buffer(R&&, std::size_t)
+    */
     template <std::ranges::contiguous_range R>
     requires is_writable_borrow_<R>
     explicit borrowed_byte_buffer(R&& r) noexcept
@@ -275,9 +283,11 @@ public:
           capacity_{std::span{r}.size_bytes()}
     {}
 
-    /// Overlay a single object \a data; capacity is the pointee's \c sizeof, the buffer starts
-    /// empty.  Accepts a genuine object pointer (e.g. \c &obj), not an array (which the range
-    /// constructor handles).
+    /**
+    * Overlay a single object \a data; capacity is the pointee's \c sizeof, the buffer starts
+    * empty.  Accepts a genuine object pointer (e.g. \c &obj), not an array (which the range
+    * constructor handles).
+    */
     template <typename P>
     requires is_object_ptr_<P>
     explicit borrowed_byte_buffer(P&& data) noexcept
@@ -357,9 +367,11 @@ public:
 
     [[nodiscard]] constexpr bool is_full() const noexcept { return size() == capacity(); }
 
-    /// \note Does not zero the bytes: they stay in the borrowed region, readable through
-    /// \c operator[] as the now-reserved tail.  \c clear() followed by
-    /// \c zeroize_remaining_space() scrubs them.
+    /**
+    * \note Does not zero the bytes: they stay in the borrowed region, readable through
+    * \c operator[] as the now-reserved tail.  \c clear() followed by
+    * \c zeroize_remaining_space() scrubs them.
+    */
     constexpr void clear() noexcept { size_ = 0; }
 
     /// Resize to \a count bytes
@@ -379,7 +391,9 @@ public:
 
     constexpr void resize(const std::size_t count) { resize(count, std::byte{}); }
 
-    /// \note No-op if empty (unlike \c std::inplace_vector::pop_back, where that is UB).
+    /**
+    * \note No-op if empty (unlike \c std::inplace_vector::pop_back, where that is UB).
+    */
     constexpr void pop_back() noexcept
     {
         if (is_empty())
@@ -388,13 +402,15 @@ public:
         --size_;
     }
 
-    /// \pre \c !is_full()
-    /// \note Accepts no argument (appends \c std::byte{}) or one \c std::byte / integral
-    /// argument, converted as by \c static_cast (out-of-range integers truncate mod 256).
-    /// Floating-point and other enumeration arguments are rejected; cast explicitly if
-    /// intended.
-    /// \note "Emplace" is assignment here: the slot already holds a live byte, so this is
-    /// equivalent to \c push_back(std::byte(args...)).
+    /**
+    * \pre \c !is_full()
+    * \note Accepts no argument (appends \c std::byte{}) or one \c std::byte / integral
+    * argument, converted as by \c static_cast (out-of-range integers truncate mod 256).
+    * Floating-point and other enumeration arguments are rejected; cast explicitly if
+    * intended.
+    * \note "Emplace" is assignment here: the slot already holds a live byte, so this is
+    * equivalent to \c push_back(std::byte(args...)).
+    */
     template <class... Args>
     requires (sizeof...(Args) <= 1) &&
              ((std::same_as<std::remove_cvref_t<Args>, std::byte> ||
@@ -433,7 +449,9 @@ public:
         return true;
     }
 
-    /// \pre \c !is_full()
+    /**
+    * \pre \c !is_full()
+    */
     constexpr void unchecked_push_back(const std::byte value) noexcept
     {
         unchecked_emplace_back(value);
@@ -475,7 +493,9 @@ public:
             zero_explicit_(static_cast<void*>(end()), remaining_space());
     }
 
-    /// \pre \a spn does not overlap this buffer's storage.
+    /**
+    * \pre \a spn does not overlap this buffer's storage.
+    */
     constexpr void append_range(const std::span<const std::byte> spn)
     {
         if (std::size(spn) > remaining_space())
@@ -484,11 +504,13 @@ public:
         common_append_range_(spn);
     }
 
-    /// \pre <code>[first, last)</code> is a valid range.  For a \c std::sized_sentinel_for this
-    /// keeps <code>last - first</code> non-negative, so the size check's cast to \c std::size_t
-    /// is well-defined.
-    /// \note A \c std::sized_sentinel_for source is checked up front (all-or-nothing);
-    /// otherwise the bytes that fit are appended before \c std::bad_alloc is thrown.
+    /**
+    * \pre <code>[first, last)</code> is a valid range.  For a \c std::sized_sentinel_for this
+    * keeps <code>last - first</code> non-negative, so the size check's cast to \c std::size_t
+    * is well-defined.
+    * \note A \c std::sized_sentinel_for source is checked up front (all-or-nothing);
+    * otherwise the bytes that fit are appended before \c std::bad_alloc is thrown.
+    */
     template <std::input_iterator It, std::sentinel_for<It> S>
     constexpr void append_range(It first, S last)
     {
@@ -516,10 +538,12 @@ public:
         append_range(std::span{std::data(il), std::size(il)});
     }
 
-    /// \note Sized sources are checked up front (all-or-nothing); unsized sources append
-    /// element-wise and may partially append before throwing \c std::bad_alloc.
-    /// \pre If \a rg is a contiguous range of \c std::byte, it does not overlap this buffer's
-    /// storage: that case is forwarded to the \c std::span overload, which carries the same tag.
+    /**
+    * \note Sized sources are checked up front (all-or-nothing); unsized sources append
+    * element-wise and may partially append before throwing \c std::bad_alloc.
+    * \pre If \a rg is a contiguous range of \c std::byte, it does not overlap this buffer's
+    * storage: that case is forwarded to the \c std::span overload, which carries the same tag.
+    */
     template <std::ranges::input_range R>
     constexpr void append_range(R&& rg)
     {
@@ -543,7 +567,9 @@ public:
         }
     }
 
-    /// \pre \a spn does not overlap this buffer's storage.
+    /**
+    * \pre \a spn does not overlap this buffer's storage.
+    */
     [[nodiscard]] constexpr bool try_append_range(const std::span<const std::byte> spn) noexcept
     {
         if (std::size(spn) > remaining_space())
@@ -553,12 +579,14 @@ public:
         return true;
     }
 
-    /// \pre <code>[first, last)</code> is a valid range.  For a \c std::sized_sentinel_for this
-    /// keeps <code>last - first</code> non-negative, so the size check's cast to \c std::size_t
-    /// is well-defined.
-    /// \note A \c std::sized_sentinel_for source is checked up front (nothing appended on
-    /// \c false); otherwise the bytes that fit have already been appended when \c false is
-    /// returned (observe \c size()).
+    /**
+    * \pre <code>[first, last)</code> is a valid range.  For a \c std::sized_sentinel_for this
+    * keeps <code>last - first</code> non-negative, so the size check's cast to \c std::size_t
+    * is well-defined.
+    * \note A \c std::sized_sentinel_for source is checked up front (nothing appended on
+    * \c false); otherwise the bytes that fit have already been appended when \c false is
+    * returned (observe \c size()).
+    */
     template <std::input_iterator It, std::sentinel_for<It> S>
     [[nodiscard]] constexpr bool try_append_range(It first, S last)
     {
@@ -593,11 +621,13 @@ public:
         return try_append_range(std::span{std::data(il), std::size(il)});
     }
 
-    /// \note Sized sources are checked up front (nothing appended on \c false); unsized
-    /// sources append element-wise, so on \c false the bytes that fit have already been
-    /// appended (observe \c size()).
-    /// \pre If \a rg is a contiguous range of \c std::byte, it does not overlap this buffer's
-    /// storage: that case is forwarded to the \c std::span overload, which carries the same tag.
+    /**
+    * \note Sized sources are checked up front (nothing appended on \c false); unsized
+    * sources append element-wise, so on \c false the bytes that fit have already been
+    * appended (observe \c size()).
+    * \pre If \a rg is a contiguous range of \c std::byte, it does not overlap this buffer's
+    * storage: that case is forwarded to the \c std::span overload, which carries the same tag.
+    */
     template <std::ranges::input_range R>
     [[nodiscard]] constexpr bool try_append_range(R&& rg)
     {
@@ -628,8 +658,10 @@ public:
         }
     }
 
-    /// Throws if the source exceeds \c capacity().
-    /// \pre \a spn does not overlap this buffer's storage.
+    /**
+    * Throws if the source exceeds \c capacity().
+    * \pre \a spn does not overlap this buffer's storage.
+    */
     constexpr void assign_range(const std::span<const std::byte> spn)
     {
         clear();
@@ -677,13 +709,17 @@ public:
         return span();
     }
 
-    /// \returns The borrowed pointer (raw; no alignment is assumed, unlike \c aligned_byte_buffer).
+    /**
+    * \returns The borrowed pointer (raw; no alignment is assumed, unlike \c aligned_byte_buffer).
+    */
     [[nodiscard]] constexpr std::byte* data() noexcept { return data_; }
 
     /// \copydoc data()
     [[nodiscard]] constexpr const std::byte* data() const noexcept { return data_; }
 
-    /// \pre \c !is_empty()
+    /**
+    * \pre \c !is_empty()
+    */
     [[nodiscard]] constexpr std::byte& front() noexcept
     {
 #if defined(DEBUG)
@@ -700,7 +736,9 @@ public:
         return *begin();
     }
 
-    /// \pre \c !is_empty()
+    /**
+    * \pre \c !is_empty()
+    */
     [[nodiscard]] constexpr std::byte& back() noexcept
     {
 #if defined(DEBUG)
@@ -717,10 +755,12 @@ public:
         return *rbegin();
     }
 
-    /// \pre \a i < \c capacity()
-    /// \note Unchecked and capacity-based: reading an index in [size(), capacity()) is valid
-    /// but yields an unspecified (not indeterminate) byte.  \c at() is the bounds-checked
-    /// accessor.
+    /**
+    * \pre \a i < \c capacity()
+    * \note Unchecked and capacity-based: reading an index in [size(), capacity()) is valid
+    * but yields an unspecified (not indeterminate) byte.  \c at() is the bounds-checked
+    * accessor.
+    */
     [[nodiscard]] constexpr std::byte& operator[](const std::size_t i) noexcept
     {
 #if defined(DEBUG)
@@ -737,11 +777,13 @@ public:
         return data()[i];
     }
 
-    /// \returns A reference to the byte at index \a i.
-    /// \note The only bounds-checked accessor, and checked against \c size(), not
-    /// \c capacity(): \c operator[] reads an index in [size(), capacity()) and yields an
-    /// unspecified byte, but this rejects that index.
-    /// \throws std::out_of_range if \a i >= \c size().
+    /**
+    * \returns A reference to the byte at index \a i.
+    * \note The only bounds-checked accessor, and checked against \c size(), not
+    * \c capacity(): \c operator[] reads an index in [size(), capacity()) and yields an
+    * unspecified byte, but this rejects that index.
+    * \throws std::out_of_range if \a i >= \c size().
+    */
     [[nodiscard]] constexpr std::byte& at(const std::size_t i)
     {
         check_idx_(i);
@@ -796,8 +838,10 @@ public:
         return std::reverse_iterator(cbegin());
     }
 
-    /// \note Compares the live [0, \c size()) bytes by value (variable-time, per ordinary
-    /// container semantics); use the free \c constant_time_equal for secret-dependent data.
+    /**
+    * \note Compares the live [0, \c size()) bytes by value (variable-time, per ordinary
+    * container semantics); use the free \c constant_time_equal for secret-dependent data.
+    */
     [[nodiscard]] constexpr bool operator==(const borrowed_byte_buffer& rhs) const noexcept
     {
         return std::ranges::equal(span(), rhs.span());
