@@ -281,12 +281,12 @@ public:
 
     [[nodiscard]] constexpr std::size_t remaining_space() const noexcept
     {
-        return max_size() - size();
+        return capacity() - size();
     }
 
     [[nodiscard]] constexpr bool is_empty() const noexcept { return size() == 0; }
 
-    [[nodiscard]] constexpr bool is_full() const noexcept { return size() == max_size(); }
+    [[nodiscard]] constexpr bool is_full() const noexcept { return size() == capacity(); }
 
     /**
     * \note Does not destroy elements.
@@ -418,14 +418,14 @@ public:
     }
 
     /**
-    * Fill all \c max_size() elements with \a value and set \c size() to \c max_size().
+    * Fill all \c capacity() elements with \a value and set \c size() to \c capacity().
     * \sa https://cppreference.com/w/cpp/container/array/fill.html
     */
     constexpr void fill_capacity(const T& value)
         noexcept(std::is_nothrow_copy_assignable_v<T>)
     {
         data_.fill(value);
-        size_ = max_size();
+        size_ = capacity();
     }
 
     /**
@@ -438,7 +438,7 @@ public:
         (void)std::ranges::fill(span(), value);
     }
 
-    /// Zeroize the reserved tail elements [\c size(), \c max_size()); \c size() is unchanged.
+    /// Zeroize the reserved tail elements [\c size(), \c capacity()); \c size() is unchanged.
     /**
     * Each tail element stays alive; its object representation is set to all-zero bytes (for
     * scalar \c T, the value-initialized value).  At run time the stores happen even if nothing
@@ -451,7 +451,7 @@ public:
     {
         if consteval
         {
-            for (std::size_t i = size(); i < max_size(); ++i)
+            for (std::size_t i = size(); i < capacity(); ++i)
                 data_[i] = T{};
         }
         else
