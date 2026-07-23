@@ -10,6 +10,8 @@ core
 core.*
 test-aligned_byte_buffer
 test-aligned_byte_buffer.debug
+test-borrowed_byte_buffer
+test-borrowed_byte_buffer.debug
 test-dynamic_fixed_vector
 test-dynamic_fixed_vector.debug
 test-fixed_vector
