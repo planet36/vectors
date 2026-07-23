@@ -68,7 +68,7 @@ so reads past `size()` are *unspecified*, as in `aligned_byte_buffer`):
   sources append through `unchecked_emplace_back`, the up-front size check having already covered
   every element, so a `sized_range` that misreports its size trips that family's `!is_full()`
   assert under `-DDEBUG` rather than throwing.
-- **`zeroize_remaining_space()`** (trivially copyable element types only) sets the object
+- **`zeroize_reserved_unused()`** (trivially copyable element types only) sets the object
   representation of the reserved tail `[size(), capacity())` to all-zero bytes without changing
   `size()`; `clear()` followed by it scrubs the whole container. The stores are guaranteed to
   happen even when nothing reads the tail afterward — a plain fill before deallocation is a dead
@@ -218,7 +218,7 @@ types. The API and conventions are unchanged; the element type enables these dif
   behind an emptiness guard, so the `constexpr` annotation still holds for the empty case.
 
 - **Explicit zeroization** (see shared invariants): for the byte buffer,
-  `zeroize_remaining_space()` also turns the otherwise *unspecified* reserved tail into
+  `zeroize_reserved_unused()` also turns the otherwise *unspecified* reserved tail into
   determinate zeros — pad to an alignment boundary before whole-lane SIMD reads past `size()`,
   and stale heap bytes cannot leak through beyond-size reads.
 
@@ -235,7 +235,7 @@ types. The API and conventions are unchanged; the element type enables these dif
   The guarantee is *unenforced*, which is a real limitation and not an oversight. Branch-freedom
   holds in the source, but the standard has no notion of timing, so nothing forbids a compiler
   from proving the accumulator is monotone and short-circuiting the loop. Note this cuts the
-  opposite way from `zeroize_remaining_space()`, which distrusts the optimizer and pays for
+  opposite way from `zeroize_reserved_unused()`, which distrusts the optimizer and pays for
   `memset_explicit` to defeat it. The difference is that a dead-store elision is *routine* —
   compilers do it constantly, so the mitigation earns its cost — whereas short-circuiting an
   OR-accumulation is a transformation no production compiler is known to make, and the available
@@ -392,7 +392,7 @@ describes are deliberate rather than incidental; this is the reasoning behind th
 - **`fixed_vector`'s suite drives the container at compile time.** Nearly its whole interface is
   `constexpr`, so a `static_assert` block ahead of `main()` runs a vector through `append_range`,
   `push_back`, `emplace_back`, `try_push_back`, `assign_range`, `resize`, `swap` and
-  `zeroize_remaining_space` during constant evaluation. That moves a regression from a failed run
+  `zeroize_reserved_unused` during constant evaluation. That moves a regression from a failed run
   to a failed build, and buys one check the run-time net cannot: an index outside the storage is
   rejected outright there. `operator[]` is unchecked by design, so at run time `v[10]` on a
   `fixed_vector<int, 5>` reads whatever is past the array and every `CHECK` still passes; in a

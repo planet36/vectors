@@ -505,7 +505,7 @@ public:
     * tail afterward, so \c clear() followed by this scrubs the whole buffer -- for sensitive
     * contents, where a plain fill is a dead store the optimizer may elide.
     */
-    constexpr void zeroize_remaining_space() noexcept
+    constexpr void zeroize_reserved_unused() noexcept
     requires std::is_trivially_copyable_v<T>
     {
         if (reserved_unused() != 0)

@@ -34,7 +34,7 @@ constexpr_empty_ok()
         return false;
     b.clear();
     b.pop_back();
-    b.zeroize_remaining_space(); // no reserved tail on a zero-capacity vector -> no-op
+    b.zeroize_reserved_unused(); // no reserved tail on a zero-capacity vector -> no-op
     dynamic_fixed_vector<int> c;
     swap(b, c);
     return b.size() == 0 && b == c;
@@ -424,21 +424,21 @@ test_fill_capacity_fill_size()
 }
 
 static void
-test_zeroize_remaining_space()
+test_zeroize_reserved_unused()
 {
     dynamic_fixed_vector<int> v(5);
     v.fill_capacity(9);
     v.resize(2); // the tail slots [2, 5) still hold 9
-    v.zeroize_remaining_space();
+    v.zeroize_reserved_unused();
     CHECK(v.size() == 2);
     CHECK(v.capacity() == 5);
     CHECK(to_ivec(v) == std::vector({9, 9}));
     // operator[] is capacity-based: the tail is now zero
     for (std::size_t i = v.size(); i < v.capacity(); ++i)
         CHECK(v[i] == 0);
-    // Scrub the whole buffer: clear() + zeroize_remaining_space() (non-elidable stores).
+    // Scrub the whole buffer: clear() + zeroize_reserved_unused() (non-elidable stores).
     v.clear();
-    v.zeroize_remaining_space();
+    v.zeroize_reserved_unused();
     CHECK(v.is_empty());
     for (std::size_t i = 0; i < v.capacity(); ++i)
         CHECK(v[i] == 0);
@@ -714,7 +714,7 @@ main() // NOLINT(bugprone-exception-escape)
         test_unchecked_push_back_unchecked_emplace_back();
         test_try_push_back_try_emplace_back();
         test_fill_capacity_fill_size();
-        test_zeroize_remaining_space();
+        test_zeroize_reserved_unused();
 
         test_append_range();
         test_append_range_input_iterators();

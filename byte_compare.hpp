@@ -28,7 +28,7 @@
 * semantics, and does \b not use this.
 * \note Branch-freedom is a property of this source, not one the language guarantees: nothing
 * forbids a compiler from proving \c diff can only accumulate and exiting the loop early.  Note
-* the asymmetry with \c zeroize_remaining_space(), which defeats the optimizer outright, whereas
+* the asymmetry with \c zeroize_reserved_unused(), which defeats the optimizer outright, whereas
 * this relies on it declining a transformation it is permitted to make.  Verified for GCC 16 at
 * \c -O3 \c -march=native: the loop vectorizes to a \c vpxor / \c vpor accumulation with a
 * horizontal reduce, and every surviving conditional branch tests a size, not a content byte.

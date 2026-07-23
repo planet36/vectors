@@ -37,7 +37,7 @@ constexpr_empty_ok()
         return false;
     a.clear();
     a.pop_back();
-    a.zeroize_remaining_space(); // no reserved tail on a capacity-0 buffer -> no-op
+    a.zeroize_reserved_unused(); // no reserved tail on a capacity-0 buffer -> no-op
     borrowed_byte_buffer c;
     swap(a, c);
     return a.size() == 0 && a == c;
@@ -419,21 +419,21 @@ test_fill_capacity_fill_size()
 }
 
 static void
-test_zeroize_remaining_space()
+test_zeroize_reserved_unused()
 {
     std::array<std::byte, 8> s{};
     s.fill(0xEE_b); // pre-dirty the borrowed region to prove the tail is really zeroed
     borrowed_byte_buffer v{s};
     v.append_range({1_b, 2_b, 3_b});
-    v.zeroize_remaining_space(); // [size, capacity) is now zero; size unchanged
+    v.zeroize_reserved_unused(); // [size, capacity) is now zero; size unchanged
     CHECK(v.size() == 3);
     CHECK(v.capacity() == 8);
     CHECK(to_ivec(v) == std::vector({1, 2, 3}));
     for (std::size_t i = v.size(); i < v.capacity(); ++i)
         CHECK(v[i] == 0_b);
-    // Scrub the whole region: clear() + zeroize_remaining_space() (non-elidable stores).
+    // Scrub the whole region: clear() + zeroize_reserved_unused() (non-elidable stores).
     v.clear();
-    v.zeroize_remaining_space();
+    v.zeroize_reserved_unused();
     CHECK(v.is_empty());
     CHECK(v.capacity() == 8);
     for (std::size_t i = 0; i < v.capacity(); ++i)
@@ -731,7 +731,7 @@ main() // NOLINT(bugprone-exception-escape)
         test_unchecked_push_back_unchecked_emplace_back();
         test_try_push_back_try_emplace_back();
         test_fill_capacity_fill_size();
-        test_zeroize_remaining_space();
+        test_zeroize_reserved_unused();
 
         test_append_range();
         test_try_append_range();

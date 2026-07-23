@@ -67,7 +67,7 @@
 * (borrowed bytes are neither zeroed nor read on construction; reading one back via \c operator[]
 * yields an \e unspecified -- not indeterminate -- \c std::byte), \c operator[] is unchecked and
 * capacity-based, \c at() is bounds-checked, capacity overflow throws \c std::bad_alloc, and the
-* \c try_* family returns \c bool.  \c zeroize_remaining_space() and the free \c constant_time_equal
+* \c try_* family returns \c bool.  \c zeroize_reserved_unused() and the free \c constant_time_equal
 * (from \c byte_compare.hpp) are available.  Nearly the whole interface is \c constexpr, but forming
 * a byte view over an object needs a \c reinterpret_cast, which is barred in constant evaluation,
 * so only the default (empty) instance is usable in constant expressions.
@@ -370,7 +370,7 @@ public:
     /**
     * \note Does not zero the bytes: they stay in the borrowed region, readable through
     * \c operator[] as the now-reserved tail.  \c clear() followed by
-    * \c zeroize_remaining_space() scrubs them.
+    * \c zeroize_reserved_unused() scrubs them.
     */
     constexpr void clear() noexcept { size_ = 0; }
 
@@ -487,7 +487,7 @@ public:
     * \c clear() followed by this scrubs the whole borrowed region -- for sensitive contents,
     * where a plain \c memset is a dead store the optimizer may elide.
     */
-    constexpr void zeroize_remaining_space() noexcept
+    constexpr void zeroize_reserved_unused() noexcept
     {
         if (reserved_unused() != 0)
             zero_explicit_(static_cast<void*>(end()), reserved_unused());

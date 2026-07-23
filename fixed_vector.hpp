@@ -446,7 +446,7 @@ public:
     * sensitive contents, where a plain fill is a dead store the optimizer may elide.  During
     * constant evaluation, where there is no memory to scrub, the tail is value-assigned.
     */
-    constexpr void zeroize_remaining_space() noexcept
+    constexpr void zeroize_reserved_unused() noexcept
     requires std::is_trivially_copyable_v<T>
     {
         if consteval

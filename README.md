@@ -100,9 +100,9 @@ buf.append_range(chunk);             // memcpy fast path
 buf.push_back(std::byte{0xFF});
 process(buf.span());                 // hand off to intrinsics
 
-buf.zeroize_remaining_space();       // make the tail determinate zeros (lane padding)
+buf.zeroize_reserved_unused();       // make the tail determinate zeros (lane padding)
 buf.clear();
-buf.zeroize_remaining_space();       // clear() + zeroize = scrub everything
+buf.zeroize_reserved_unused();       // clear() + zeroize = scrub everything
 ```
 
 For secret-dependent data, compare with the free function rather than `operator==`, whose
@@ -175,7 +175,7 @@ Common to all four types:
 | Add without throwing | `try_push_back`, `try_emplace_back`, `try_append_range` — `[[nodiscard]] bool` |
 | Add without checking | `unchecked_push_back`, `unchecked_emplace_back` — assume `!is_full()` |
 | Remove / resize | `clear`, `pop_back`, `resize` — none destroy elements |
-| Bulk | `fill_capacity`, `fill_size`, `assign_range`, `zeroize_remaining_space` |
+| Bulk | `fill_capacity`, `fill_size`, `assign_range`, `zeroize_reserved_unused` |
 | Compare | `operator==`, `operator<=>` — gated on the element type supporting them |
 
 The three owning types build and fill their storage through the same constructors (reserve,
@@ -195,7 +195,7 @@ span — gets the bulk copy (`memcpy` in the byte buffer) without the call site 
 special; the source must not overlap the container's own storage. Anything else appends
 element-wise.
 
-`zeroize_remaining_space()` zeroizes `[size(), capacity())` with stores the optimizer may not
+`zeroize_reserved_unused()` zeroizes `[size(), capacity())` with stores the optimizer may not
 elide — `memset_explicit` / `explicit_bzero` when the C library declares one, otherwise volatile
 writes.
 

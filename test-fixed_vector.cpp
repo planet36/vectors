@@ -80,7 +80,7 @@ constexpr_api_ok()
 }
 static_assert(constexpr_api_ok());
 
-// Compile-time check: zeroize_remaining_space() is usable in constant expressions (the
+// Compile-time check: zeroize_reserved_unused() is usable in constant expressions (the
 // runtime explicit-zeroing path is replaced by value-assignment during constant evaluation).
 constexpr bool
 constexpr_zeroize_ok()
@@ -88,7 +88,7 @@ constexpr_zeroize_ok()
     fixed_vector<int, 5> v;
     v.fill_capacity(9);
     v.resize(2); // the tail slots [2, 5) still hold 9
-    v.zeroize_remaining_space();
+    v.zeroize_reserved_unused();
     // operator[] is capacity-based: the tail is now zero
     return v.size() == 2 && v[0] == 9 && v[1] == 9 && v[2] == 0 && v[3] == 0 && v[4] == 0;
 }
@@ -405,21 +405,21 @@ test_fill_capacity_fill_size()
 }
 
 static void
-test_zeroize_remaining_space()
+test_zeroize_reserved_unused()
 {
     fixed_vector<int, 5> v;
     v.fill_capacity(9);
     v.resize(2); // the tail slots [2, 5) still hold 9
-    v.zeroize_remaining_space();
+    v.zeroize_reserved_unused();
     CHECK(v.size() == 2);
     CHECK(to_ivec(v) == std::vector({9, 9}));
     // operator[] is capacity-based: the tail is now zero
     // NOLINTNEXTLINE(readability-static-accessed-through-instance)
     for (std::size_t i = v.size(); i < v.max_size(); ++i)
         CHECK(v[i] == 0);
-    // Scrub the whole array: clear() + zeroize_remaining_space() (non-elidable stores).
+    // Scrub the whole array: clear() + zeroize_reserved_unused() (non-elidable stores).
     v.clear();
-    v.zeroize_remaining_space();
+    v.zeroize_reserved_unused();
     CHECK(v.is_empty());
     // NOLINTNEXTLINE(readability-static-accessed-through-instance)
     for (std::size_t i = 0; i < v.max_size(); ++i)
@@ -724,7 +724,7 @@ main() // NOLINT(bugprone-exception-escape)
         test_unchecked_push_back_unchecked_emplace_back();
         test_try_push_back_try_emplace_back();
         test_fill_capacity_fill_size();
-        test_zeroize_remaining_space();
+        test_zeroize_reserved_unused();
 
         test_append_range();
         test_append_range_unsized_partial();

@@ -52,7 +52,7 @@
 *     integral type (floating-point and other enumeration arguments are rejected).
 *
 * Like \c dynamic_fixed_vector: \c data() applies \c std::assume_aligned<Align> so caller loops
-* can vectorize, \c zeroize_remaining_space() zeros the reserved tail with non-elidable stores
+* can vectorize, \c zeroize_reserved_unused() zeros the reserved tail with non-elidable stores
 * (\c clear() followed by it scrubs the whole buffer), capacity is fixed at construction,
 * \c operator[] is unchecked and capacity-based, \c at() is bounds-checked, capacity overflow
 * throws \c std::bad_alloc, and the \c try_* family returns \c bool.  The interface is annotated
@@ -321,7 +321,7 @@ public:
 
     /**
     * \note Does not zero the bytes: they stay in the buffer, readable through \c operator[]
-    * as the now-reserved tail.  \c clear() followed by \c zeroize_remaining_space() scrubs
+    * as the now-reserved tail.  \c clear() followed by \c zeroize_reserved_unused() scrubs
     * them.
     */
     constexpr void clear() noexcept { size_ = 0; }
@@ -439,7 +439,7 @@ public:
     * afterward, so \c clear() followed by this scrubs the whole buffer -- for sensitive
     * contents, where a plain \c memset is a dead store the optimizer may elide.
     */
-    constexpr void zeroize_remaining_space() noexcept
+    constexpr void zeroize_reserved_unused() noexcept
     {
         if (reserved_unused() != 0)
             zero_explicit_(static_cast<void*>(end()), reserved_unused());

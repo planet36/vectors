@@ -215,7 +215,7 @@ the fixed element type:
 - **Byte-grained bulk ops:** `std::memcpy` for the span append fast path (non-overlap assumed),
   `std::memset` for `fill_*` / `resize`-grow; the copy ctor copies only the live `[0,size)`
   bytes; `operator==` / `operator<=>` are unconditional (`std::byte` is always comparable).
-- **Zeroization, emplace constraint, constant-time compare:** `zeroize_remaining_space()` (see
+- **Zeroization, emplace constraint, constant-time compare:** `zeroize_reserved_unused()` (see
   API conventions) additionally turns the *unspecified* reserved tail into determinate zeros
   (lane padding). `emplace_back` accepts at most one `std::byte`/integral argument (floats and
   other enums rejected). The free function `constant_time_equal(span, span)` compares with no
@@ -267,10 +267,10 @@ it, which removes the ownership machinery and changes construction:
 - Append overloads that can know the source size up front (span, iterator+count,
   `initializer_list`, sized ranges/sentinels) are all-or-nothing; truly unsized sources append
   element-wise and may partially append before throwing / returning `false`.
-- `zeroize_remaining_space()` (all four; trivially copyable element types only) zeroizes the
+- `zeroize_reserved_unused()` (all four; trivially copyable element types only) zeroizes the
   reserved tail with non-elidable stores (`memset_explicit`/`explicit_bzero` when the libc
   declares one — detected by name lookup, there is no feature-test macro — else a volatile-write
-  fallback); `clear()` + `zeroize_remaining_space()` scrubs the whole container. In
+  fallback); `clear()` + `zeroize_reserved_unused()` scrubs the whole container. In
   `fixed_vector` it also works in constant evaluation (value-assigns the tail).
 - Nearly the entire interface is `constexpr`. `operator==` / `operator<=>` are gated on
   `std::equality_comparable` / `std::three_way_comparable`.

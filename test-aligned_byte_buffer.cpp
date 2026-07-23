@@ -33,7 +33,7 @@ constexpr_empty_ok()
         return false;
     b.clear();
     b.pop_back();
-    b.zeroize_remaining_space(); // no reserved tail on a zero-capacity buffer -> no-op
+    b.zeroize_reserved_unused(); // no reserved tail on a zero-capacity buffer -> no-op
     aligned_byte_buffer<16> c;
     swap(b, c);
     return b.size() == 0 && b == c;
@@ -427,11 +427,11 @@ test_fill_capacity_fill_size()
 }
 
 static void
-test_zeroize_remaining_space()
+test_zeroize_reserved_unused()
 {
     aligned_byte_buffer<16> v(8);
     v.append_range({1_b, 2_b, 3_b});
-    v.zeroize_remaining_space(); // [size, capacity) is now zero; size unchanged
+    v.zeroize_reserved_unused(); // [size, capacity) is now zero; size unchanged
     CHECK(v.size() == 3);
     CHECK(v.capacity() == 8);
     CHECK(to_ivec(v) == std::vector({1, 2, 3}));
@@ -439,9 +439,9 @@ test_zeroize_remaining_space()
     // those bytes be checked for a value.
     for (std::size_t i = v.size(); i < v.capacity(); ++i)
         CHECK(v[i] == 0_b);
-    // Scrub the whole buffer: clear() + zeroize_remaining_space() (non-elidable stores).
+    // Scrub the whole buffer: clear() + zeroize_reserved_unused() (non-elidable stores).
     v.clear();
-    v.zeroize_remaining_space();
+    v.zeroize_reserved_unused();
     CHECK(v.is_empty());
     CHECK(v.capacity() == 8);
     for (std::size_t i = 0; i < v.capacity(); ++i)
@@ -718,7 +718,7 @@ main() // NOLINT(bugprone-exception-escape)
         test_unchecked_push_back_unchecked_emplace_back();
         test_try_push_back_try_emplace_back();
         test_fill_capacity_fill_size();
-        test_zeroize_remaining_space();
+        test_zeroize_reserved_unused();
 
         test_append_range();
         test_try_append_range();
