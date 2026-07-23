@@ -114,7 +114,7 @@ private:
     constexpr void common_append_range_(const std::span<const std::byte> spn) noexcept
     {
         if (!spn.empty())
-            std::memcpy(data() + size(), spn.data(), spn.size());
+            std::memcpy(end(), spn.data(), spn.size());
         size_ += spn.size();
     }
 
@@ -330,7 +330,7 @@ public:
             throw std::bad_alloc{};
 
         if (count > size())
-            std::memset(data() + size(), std::to_integer<int>(value), count - size());
+            std::memset(end(), std::to_integer<int>(value), count - size());
 
         size_ = count;
     }
@@ -430,7 +430,7 @@ public:
     constexpr void zeroize_remaining_space() noexcept
     {
         if (remaining_space() != 0)
-            zero_explicit_(static_cast<void*>(data() + size()), remaining_space());
+            zero_explicit_(static_cast<void*>(end()), remaining_space());
     }
 
     /// \pre \a spn does not overlap this buffer's storage.

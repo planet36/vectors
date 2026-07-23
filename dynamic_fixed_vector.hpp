@@ -380,7 +380,7 @@ public:
             throw std::bad_alloc{};
 
         if (count > size())
-            (void)std::ranges::fill(data() + size(), data() + count, value);
+            (void)std::ranges::fill(end(), data() + count, value);
 
         size_ = count;
     }
@@ -493,7 +493,7 @@ public:
     requires std::is_trivially_copyable_v<T>
     {
         if (remaining_space() != 0)
-            zero_explicit_(static_cast<void*>(data() + size()), remaining_space() * sizeof(T));
+            zero_explicit_(static_cast<void*>(end()), remaining_space() * sizeof(T));
     }
 
     /// \pre \a spn does not overlap this vector's storage.
