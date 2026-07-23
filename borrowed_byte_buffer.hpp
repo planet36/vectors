@@ -167,14 +167,6 @@ private:
         !std::is_const_v<std::remove_reference_t<std::ranges::range_reference_t<R>>> &&
         (std::ranges::borrowed_range<R> || std::is_lvalue_reference_v<R>);
 
-    /// Byte size of a contiguous range accepted by \c is_writable_borrow_.
-    template <typename R>
-    requires is_writable_borrow_<R>
-    [[nodiscard]] static constexpr std::size_t range_size_bytes_(R&& r) noexcept
-    {
-        return std::span{r}.size_bytes();
-    }
-
     /// True if \a P is a pointer to a single writable, trivially-copyable object.
     /**
     * Constrains the single-object constructor, which takes a \e forwarding reference rather than
@@ -270,7 +262,7 @@ public:
         : data_{reinterpret_cast<std::byte*>(std::ranges::data(r))}, capacity_{capacity}
     {
 #if defined(DEBUG)
-        assert(this->capacity() <= range_size_bytes_(r));
+        assert(this->capacity() <= std::span{r}.size_bytes());
 #endif
     }
 
@@ -280,7 +272,7 @@ public:
     requires is_writable_borrow_<R>
     explicit borrowed_byte_buffer(R&& r) noexcept
         : data_{reinterpret_cast<std::byte*>(std::ranges::data(r))},
-          capacity_{range_size_bytes_(r)}
+          capacity_{std::span{r}.size_bytes()}
     {}
 
     /// Overlay a single object \a data; capacity is the pointee's \c sizeof, the buffer starts
