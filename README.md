@@ -15,13 +15,19 @@ the tests.
 | `fixed_vector.hpp` | `fixed_vector<T, N, Align>` | compile time (`N`) | in-place `std::array<T, N>`, no heap |
 | `dynamic_fixed_vector.hpp` | `dynamic_fixed_vector<T, Align>` | run time (constructor) | one over-alignable heap block |
 | `aligned_byte_buffer.hpp` | `aligned_byte_buffer<Align>` | run time (constructor) | one over-alignable heap block |
+| `borrowed_byte_buffer.hpp` | `borrowed_byte_buffer` | run time (constructor) | **borrowed** — overlays storage it does not own |
 
 `dynamic_fixed_vector` is the runtime-capacity analogue of `fixed_vector`. `aligned_byte_buffer`
 is its `std::byte` specialization, kept as a separate type so it can be simpler and faster: the
 element type is fixed, so only the alignment is a template parameter, bulk operations drop to
 `memcpy` / `memset`, and the reserved tail is left uninitialized rather than zeroed.
+`borrowed_byte_buffer` is the **non-owning** counterpart to `aligned_byte_buffer`: the same
+byte-buffer API over memory the caller owns — it overlays an array, object, or span, never
+allocates or frees, and copies shallowly (a second view of the same bytes). It has no `Align`
+parameter, since it makes no promise about borrowed memory's alignment.
 
-All three share one API. Learn one and you know the others.
+All four share one append/access API. Learn one and you know the others; the two byte buffers add
+a free `constant_time_equal` (in `byte_compare.hpp`, which they both include).
 
 ## Requirements
 
@@ -107,15 +113,43 @@ if (constant_time_equal(tag, expected))   // no data-dependent branch or early e
     accept();
 ```
 
+### `borrowed_byte_buffer` — a byte buffer over memory it does not own
+
+```cpp
+#include "borrowed_byte_buffer.hpp"
+
+std::array<std::byte, 64> storage;      // memory owned elsewhere
+
+borrowed_byte_buffer buf{storage};      // overlays it: size 0, capacity 64
+buf.append_range(header);               // the writes land in `storage`
+buf.push_back(std::byte{0xFF});
+process(buf.span());                    // hand the live bytes to intrinsics
+```
+
+Construction borrows a pointer or any writable contiguous range (`std::array`, `std::vector`,
+`std::span`, a C array, `std::string`) — passed bare, no `std::span{...}` wrapper — and starts
+**empty**, treating the region as scratch to build into. To instead read bytes *already present*
+in the region, use the `adopting` named constructors, which start full (`size() == capacity()`):
+
+```cpp
+const auto view = borrowed_byte_buffer::adopting(storage);   // size == capacity
+if (constant_time_equal(view.span(), expected))
+    accept();
+```
+
+It owns nothing, so copy and move are shallow — the copy views the same bytes, and a moved-from
+buffer is left pointing at the same storage, not emptied. The caller keeps the borrowed storage
+alive for the buffer's lifetime.
+
 ## What makes these different from `std::inplace_vector`
 
 These are deliberate departures from standard-container semantics, not oversights. The short
 version:
 
 - **Every capacity slot holds a live element from construction onward.** Capacity is not raw
-  storage awaiting placement-new. (The exception: `aligned_byte_buffer` leaves its reserved tail
-  uninitialized, which is well-defined for `std::byte` — reads past `size()` give an *unspecified*
-  byte, not UB.)
+  storage awaiting placement-new. (The exception is the byte buffers: `aligned_byte_buffer` leaves
+  its reserved tail uninitialized and `borrowed_byte_buffer` inherits whatever the borrowed region
+  held — either way a read past `size()` gives an *unspecified* `std::byte`, well-defined, not UB.)
 - **Elements are never individually destroyed.** `clear()`, `pop_back()`, and `resize()` only
   adjust the size counter, so the element type must be trivially destructible (enforced by a
   `requires` clause). A consequence: `emplace_back` cannot construct in place — the slot is already
@@ -130,7 +164,7 @@ knowing (zero capacity is both empty and full; `append_range(span)` assumes no a
 
 ## API at a glance
 
-Common to all three types:
+Common to all four types:
 
 | Group | Members |
 |---|---|
@@ -143,6 +177,12 @@ Common to all three types:
 | Remove / resize | `clear`, `pop_back`, `resize` — none destroy elements |
 | Bulk | `fill_capacity`, `fill_size`, `assign_range`, `zeroize_remaining_space` |
 | Compare | `operator==`, `operator<=>` — gated on the element type supporting them |
+
+The three owning types build and fill their storage through the same constructors (reserve,
+fill, span, iterator pair, `initializer_list`, range). `borrowed_byte_buffer` differs only in
+construction: it has no reserve/fill/range *element-copying* constructors — it is built over
+existing memory (a pointer or a contiguous range) and its `adopting` named constructors start it
+full — but every member above behaves identically once constructed.
 
 `append_range` and `assign_range` are each overloaded for a span, iterator + sentinel,
 iterator + count, `initializer_list`, and an arbitrary input range; `assign_range` is `clear()`
@@ -189,8 +229,9 @@ g++ -std=c++23 test-fixed_vector.cpp -o test-fixed_vector && ./test-fixed_vector
 | `test-fixed_vector.cpp` | `fixed_vector` |
 | `test-dynamic_fixed_vector.cpp` | `dynamic_fixed_vector` |
 | `test-aligned_byte_buffer.cpp` | `aligned_byte_buffer` |
+| `test-borrowed_byte_buffer.cpp` | `borrowed_byte_buffer` |
 
-All three share `test_utils.hpp`, which holds `CHECK` / `CHECK_THROWS` / `run_tests` and a few
+All four share `test_utils.hpp`, which holds `CHECK` / `CHECK_THROWS` / `run_tests` and a few
 helpers. Each program is a list of `test_<member>()` functions called from `main()`, one per
 member, so `main()` doubles as the coverage checklist. Nothing calls `abort()` — a failing test
 exits, it does not dump core.
@@ -209,7 +250,8 @@ sets of binaries rather than two targets — `make` builds both, `make test` run
   and ASan/UBSan.
 
 The **debug** build catches what the release build hides. The two heap-backed types hand-manage
-aligned memory and the byte buffer intentionally reads partially-uninitialized storage, so the
+aligned memory, the byte buffers intentionally read partially-uninitialized (or borrowed)
+storage, and `borrowed_byte_buffer` forms its view through a `reinterpret_cast`, so the
 sanitizers have real work to do — and the asserts check preconditions the release build ignores
 outright.
 

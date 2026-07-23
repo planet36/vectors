@@ -7,7 +7,7 @@ instructions — this file covers only the *why*.
 
 ## The family
 
-Three related containers, each a resizable sequence with a **fixed capacity** and
+Four related containers, each a resizable sequence with a **fixed capacity** and
 trivially-destructible elements. They share an API and a set of invariants; they differ in *when*
 the capacity is fixed and *how* storage is obtained.
 
@@ -16,14 +16,22 @@ the capacity is fixed and *how* storage is obtained.
 | `fixed_vector<T, N, Align>` | compile time (`N`) | in-place `std::array<T, N>` | template param |
 | `dynamic_fixed_vector<T, Align>` | run time (constructor) | one aligned heap block | template param |
 | `aligned_byte_buffer<Align>` | run time (constructor) | one aligned heap block | template param, element type fixed to `std::byte` |
+| `borrowed_byte_buffer` | run time (constructor) | borrowed — non-owning view | none (borrowed memory carries no promise) |
 
 `dynamic_fixed_vector` is the runtime-capacity analogue of `fixed_vector`; `aligned_byte_buffer` is
 the `std::byte` specialization of `dynamic_fixed_vector`, kept as a separate type so it can be
-simpler and faster.
+simpler and faster. `borrowed_byte_buffer` is the **non-owning** counterpart to
+`aligned_byte_buffer`: the same byte-buffer interface over storage it does not own. It allocates
+nothing, so it drops the whole ownership apparatus (aligned `new`/`delete`, the `unique_ptr`,
+deep copy, the `Align` parameter) and keeps only the size-cursor logic. The two byte buffers
+share `constant_time_equal`, factored into `byte_compare.hpp`.
 
 ## Shared invariants
 
-These are deliberate and hold across all three types:
+These are deliberate and hold across all four types, except where the `borrowed_byte_buffer`
+section notes otherwise — being non-owning, it departs on storage lifetime, copy/move semantics,
+and the "all slots alive up front" point (it inherits whatever the borrowed region already held,
+so reads past `size()` are *unspecified*, as in `aligned_byte_buffer`):
 
 - **All capacity slots are alive up front.** Capacity storage is not raw bytes waiting for placement
   construction; every slot holds a live element from the moment the container exists.
@@ -214,8 +222,11 @@ types. The API and conventions are unchanged; the element type enables these dif
   determinate zeros — pad to an alignment boundary before whole-lane SIMD reads past `size()`,
   and stale heap bytes cannot leak through beyond-size reads.
 
-- **`constant_time_equal(span, span)`** — a namespace-scope helper, deliberately *not* used by the
-  container: it OR-accumulates the XORed byte pairs with no data-dependent branch or early exit,
+- **`constant_time_equal(span, span)`** — a namespace-scope helper in `byte_compare.hpp` (shared
+  with `borrowed_byte_buffer`, so it is defined once rather than in each byte header — a
+  `constexpr` free function is `inline`, so two definitions reachable in one translation unit
+  would violate the ODR), deliberately *not* used by the container: it OR-accumulates the XORed
+  byte pairs with no data-dependent branch or early exit,
   so its timing depends only on the (normally public) lengths. Use it for secret-dependent
   comparisons — e.g. MAC/tag verification — where `operator==`'s first-mismatch early exit leaks
   the position of the first differing byte through timing; the container's own comparisons stay
@@ -241,6 +252,92 @@ types. The API and conventions are unchanged; the element type enables these dif
 - **Motivating use.** A contiguous `std::byte` buffer aligned like a SIMD lane (e.g. 16 bytes),
   filled incrementally, then read as `std::span<const std::byte>` and handed to intrinsics.
 
+## `borrowed_byte_buffer`
+
+The non-owning byte buffer. It overlays storage the caller owns — a stack array, a member object,
+a slice of a larger buffer — and offers the same append/cursor interface without ever allocating.
+The whole object is `{ std::byte* data_, std::size_t capacity_, std::size_t size_ }`.
+
+- **Non-owning, so the ownership machinery is simply gone.** No aligned `::operator new`/`delete`,
+  no `unique_ptr`, no deleter, no overflow guard (nothing is allocated), and a trivial destructor.
+  The caller is responsible for keeping the borrowed storage alive for the buffer's lifetime; a
+  destroyed source leaves a dangling view, exactly as with `std::span` / `std::string_view`.
+
+- **Copy and move are shallow, and all six special members are defaulted.** The type is a pointer
+  and two integers, hence trivially copyable — cheap to pass by value. A copy is a second view of
+  the *same* bytes (both observe writes through either), and move is the same member-wise copy: a
+  moved-from `borrowed_byte_buffer` still points at its storage rather than being emptied. This is
+  the opposite of the heap-backed siblings (whose move *construction* empties the source), and it
+  is the correct default for a view — there is nothing to transfer, and a view type that nulled
+  itself on move would surprise. The `swap` remains as a member + hidden friend for API parity.
+
+- **No `Align` parameter.** `aligned_byte_buffer`'s `Align` exists to over-align *its own*
+  allocation and then cash that in through `std::assume_aligned` for vectorized caller loops.
+  `borrowed_byte_buffer` allocates nothing and cannot vouch for a caller's alignment, so promising
+  one would be unfounded; `data()` returns the borrowed pointer unadorned. (A future opt-in
+  `Align` — a caller-*asserted* precondition rather than a guarantee — could restore the
+  `assume_aligned`, but is out of scope until a caller needs it.)
+
+- **Construction starts empty; `adopting` starts full.** The value constructors leave `size() == 0`
+  and treat the region as scratch to build into, matching `aligned_byte_buffer(capacity)`. Because
+  an overlay sits on memory that *already holds a value*, a second mode is genuinely useful:
+  reading bytes already present (a header, a received packet, a key). That is the `adopting` named
+  constructor family, which starts `size() == capacity()`. The two differ only in where the size
+  cursor begins — the bytes are identical — so this is an ergonomic default, not a capability
+  split (`resize(capacity())` reveals the tail from write mode; `clear()` empties from adopt mode).
+  Named constructors were chosen over a tag type for call-site clarity
+  (`borrowed_byte_buffer::adopting(header)`).
+
+- **The borrowing constructor takes a contiguous range, not a `std::span<T>`.** A `std::span<T>`
+  *parameter* forces the caller to write `std::span{arr}`: implicit array→span conversion does not
+  happen during template argument deduction, and even a CTAD'd `std::span{arr}` has a *static*
+  extent that will not bind a `std::span<T, dynamic_extent>` parameter. A `contiguous_range`
+  parameter binds `borrowed_byte_buffer{arr}` bare, for any `std::array` / `std::vector` /
+  `std::span` / C array / `std::string`. It is constrained (`is_writable_borrow_`) to reject what
+  would be unsound:
+  - **`contiguous_range` sits on the template parameter, the rest in the `bool` trait.** The split
+    is what keeps the `T*` overload compiling: a `constexpr bool` variable template instantiates
+    *every* operand of its initializer (it is one expression, not a short-circuiting constraint),
+    so `range_value_t<R>` would hard-error for a non-range `R`. Concept conjunction on the
+    *template parameter* does
+    short-circuit, so gating on `contiguous_range` there means the trait — and its `range_value_t`
+    — is only ever instantiated for actual ranges. (A concept would read better than a `bool`
+    trait, but a concept cannot be a class member.)
+  - **The source must not be `borrowed_byte_buffer` itself** — required for correctness, not
+    cosmetics. Without the exclusion, constructing from a *non-`const`* `borrowed_byte_buffer`
+    lvalue would prefer the range template over the copy constructor (it binds a less-cv-qualified
+    reference, [over.ics.rank]) and reinterpret the source's own bytes. The exclusion makes
+    copy/move win.
+  - **Trivially-copyable, non-`const` elements** — the object representation is what is written and
+    later read back, and the view writes through it (a `const` source cannot back a mutable byte
+    view).
+  - **A `borrowed_range` *or* an lvalue** — an rvalue owning container (a temporary `std::vector`)
+    would leave a dangling view, so only non-owning rvalues (`std::span`) and lvalues are accepted.
+
+- **The single-object constructor takes a forwarding reference, not `T*`.** Overlaying one object
+  (`borrowed_byte_buffer{&obj}`, capacity `sizeof(*&obj)`) needs a pointer constructor, but a plain
+  `T*` parameter is, by partial ordering, *more specialized* than the range constructor's `R&&` —
+  so a C array would decay to it and overlay only its first element. Deducing the parameter from
+  the un-decayed argument and requiring `std::is_pointer` (`is_object_ptr_`) rejects arrays (they
+  reach only the range constructor) while still accepting a genuine object pointer. Unlike
+  `is_writable_borrow_`, its traits (`remove_pointer`, `is_trivially_copyable`, `is_const`) are
+  total, so it can be a plain `bool` variable template.
+
+- **`data()` is not guaranteed null exactly when `capacity()` is 0.** `aligned_byte_buffer`
+  guarantees that (its `allocate_` returns null for capacity 0); a caller can instead borrow a
+  zero-length region at a non-null address. The mutating members still index `data()` only under
+  `!is_full()` / `!is_empty()` / `i < capacity()`, each of which implies `capacity() > 0` and
+  therefore — by the constructor precondition that the source points to at least `capacity()`
+  writable bytes — a non-null, indexable block. So the reasoning the members rely on holds; it
+  just rests on the constructor's precondition rather than on an allocation guarantee.
+
+- **`constexpr` limits.** Forming a byte view over an object requires a `reinterpret_cast`, which is
+  barred in constant evaluation, so the borrowing constructors are not `constexpr`-usable and are
+  left un-annotated; only the default (empty) instance and the non-borrowing members work in
+  constant expressions, verified by a `static_assert(constexpr_empty_ok())` as with the heap types.
+  The members are `noexcept` where the heap types' are, plus the borrowing constructors themselves
+  (they cannot throw — no allocation).
+
 ## Edge cases and gotchas
 
 - **Zero capacity is both empty and full.** For the runtime types a default-constructed (or
@@ -262,6 +359,12 @@ types. The API and conventions are unchanged; the element type enables these dif
   buffer). Appending a view over the buffer's own storage into itself is unsupported. The
   assumption reaches past the span overloads themselves: a contiguous range of the element type is
   forwarded to them (see above), so `append_range(rg)` carries the same tag for that case.
+
+- **A `borrowed_byte_buffer` outliving its storage dangles.** It owns nothing, so it is the
+  caller's job to keep the borrowed region alive — the same contract as `std::span`. Construction
+  rejects the one case it *can* catch (an rvalue owning container, which would dangle immediately),
+  but cannot see a later-freed source. The shallow copy compounds this: every copy views the same
+  storage, so all of them dangle together.
 
 ## Testing
 
@@ -307,3 +410,13 @@ describes are deliberate rather than incidental; this is the reasoning behind th
   naming the allocated and the deallocated alignment. `aligned_byte_buffer` adds a wrinkle: it
   reads beyond `size()` on purpose, which is legitimate inside the allocation and must not be
   allowed to shade into straying outside it. Both suites are expected to be clean.
+
+- **`borrowed_byte_buffer` needs the sanitizers for different reasons.** It never allocates, so
+  there is no leak or bad-free to find, but it reads beyond `size()` into the borrowed tail (ASan
+  confirms those reads stay inside the backing object) and forms its view through a
+  `reinterpret_cast` to `std::byte*` (the release build's `-fstrict-aliasing`, off at `-Og`,
+  exercises that path under optimization). Its suite also carries the type's view-specific
+  behavior — shallow-copy aliasing, non-emptying move, overlaying a typed object — and, because
+  its construction is heavily constrained, a block of `static_assert`s that pin the construction
+  contract at compile time (rvalue owners, `const` elements, and non-pointer non-ranges rejected;
+  bare containers and object pointers accepted).

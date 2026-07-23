@@ -17,10 +17,17 @@ package manifest — the headers are standalone. A `Makefile` builds and runs th
 - `aligned_byte_buffer.hpp` — `aligned_byte_buffer<Align>`: the `std::byte` specialization of
   `dynamic_fixed_vector` (element type fixed to `std::byte`, so only `Align` is a template
   parameter, default 16). Same API, simpler and faster — see its differences below.
+- `borrowed_byte_buffer.hpp` — `borrowed_byte_buffer`: a **non-owning**, run-time-capacity byte
+  view. Same byte-buffer API as `aligned_byte_buffer` but over storage it does **not** own (a
+  pointer or a contiguous range) — no allocation, shallow copy/move, no `Align` parameter, plus
+  `adopting` named constructors. See its own "differences" note below.
+- `byte_compare.hpp` — the shared `constant_time_equal(span, span)` free function, `#include`d by
+  both byte buffers. It lives in its own header so it is defined once: a `constexpr` free function
+  is `inline`, so two definitions reachable in one TU would violate the ODR.
 
 Two documents accompany the headers; an API change should update both:
 
-- `README.md` — the entry point for a human reader: what the three containers are, a quick
+- `README.md` — the entry point for a human reader: what the four containers are, a quick
   start for each, an API summary, and the build commands. Its snippets and commands are
   verified to compile and run as written — keep them that way rather than sketching pseudocode.
 - `DESIGN.md` — the rationale behind the invariants below (why each was chosen, the allocation
@@ -43,7 +50,7 @@ Notes:
   that exit status is the whole contract. On the first failed check the program prints one line
   to stderr (`file:line: function: CHECK failed: <expr>`) and exits `EXIT_FAILURE` immediately,
   leaving the remaining checks unrun.
-- `make test` is that contract applied to all three programs in both variants: a passing run
+- `make test` is that contract applied to all four programs in both variants: a passing run
   prints nothing at all. `set -e` stops at the first program that fails, and make names the
   target it was under. A single program still builds and runs by hand — `g++ -std=c++23
   test-fixed_vector.cpp -o test-fixed_vector && ./test-fixed_vector` — since nothing in the
@@ -91,6 +98,11 @@ Notes:
   hand-manage aligned heap memory (and the byte buffer reads partially-uninitialized storage),
   they need a sanitizer run — `make test` covers it via the debug variant, and both are expected
   to be clean.
+- `test-borrowed_byte_buffer.cpp` covers `borrowed_byte_buffer` (every member). It allocates
+  nothing, but reads the borrowed tail past `size()` and forms its view via `reinterpret_cast`, so
+  it wants the same sanitizer run; it also carries the view-specific behavior (shallow-copy
+  aliasing, non-emptying move, overlaying a typed object) and a `static_assert` block pinning the
+  construction constraints (rvalue owners / `const` elements / non-pointer non-ranges rejected).
 
 ### `DEBUG` assertions in the headers
 
@@ -210,6 +222,41 @@ the fixed element type:
   data-dependent branches, for secret-dependent data (e.g. tag verification); the container's
   `operator==` stays variable-time.
 
+### `borrowed_byte_buffer` differences (the non-owning byte buffer)
+
+Same API and conventions as `aligned_byte_buffer`, but it **borrows** storage rather than owning
+it, which removes the ownership machinery and changes construction:
+
+- **Non-owning:** `{std::byte* data_, capacity_, size_}`. No aligned `new`/`delete`, no
+  `unique_ptr`, no overflow guard, trivial destructor, all special members defaulted. Copy/move are
+  **shallow** — a copy aliases the same bytes, and move does **not** empty the source (the opposite
+  of the heap types' move). The type is trivially copyable. The caller keeps the borrowed storage
+  alive; a dangling source is UB the container cannot detect.
+- **No `Align` parameter** — borrowed memory carries no alignment promise, so `data()` returns the
+  raw pointer. Do **not** add `assume_aligned`.
+- **Construction is over existing memory, not the shared owning constructors.** Value constructors
+  start empty (`size()==0`, scratch to build into); the `adopting(...)` named constructors start
+  full (`size()==capacity()`) to read bytes already present. The range constructor takes a
+  `contiguous_range` (bare `std::array` / `vector` / `span` / C array / `string`), **not**
+  `std::span<T>` — deduction will not convert an array to a span. The single-object constructor
+  takes a **forwarding reference** (`is_object_ptr_`), so a C array reaches the range constructor
+  instead of decaying to a one-element `T*` view.
+- **Two constraints are subtle — do not "simplify" them.** `is_writable_borrow_` puts
+  `contiguous_range` on the *template parameter* (so `range_value_t` is not instantiated, and does
+  not hard-error, for the non-range `T*` path) and excludes `borrowed_byte_buffer` itself (else a
+  non-`const` buffer lvalue binds the range constructor over the copy constructor — less-cv-qualified
+  reference — and reinterprets its own bytes). It also rejects rvalue owning containers (would
+  dangle) and `const` elements (unwritable).
+- **`data()` is *not* null-iff-capacity-0** here (a caller may borrow a zero-length region at a
+  non-null address); the mutating members' `!is_full()` / `!is_empty()` / `i < capacity()`
+  preconditions still reach a non-null block via the constructor precondition that the source has
+  at least `capacity()` writable bytes.
+- **`constexpr`:** the borrowing constructors use `reinterpret_cast` (not usable in constant
+  evaluation), so only the default instance is usable in constant expressions —
+  `static_assert(constexpr_empty_ok())`.
+- **`constant_time_equal`** comes from `byte_compare.hpp` (shared with `aligned_byte_buffer`), not
+  redefined here.
+
 ## API / error-handling conventions
 
 - Capacity overflow throws **`std::bad_alloc`** (not `length_error`); `at()` throws
@@ -220,7 +267,7 @@ the fixed element type:
 - Append overloads that can know the source size up front (span, iterator+count,
   `initializer_list`, sized ranges/sentinels) are all-or-nothing; truly unsized sources append
   element-wise and may partially append before throwing / returning `false`.
-- `zeroize_remaining_space()` (all three; trivially copyable element types only) zeroizes the
+- `zeroize_remaining_space()` (all four; trivially copyable element types only) zeroizes the
   reserved tail with non-elidable stores (`memset_explicit`/`explicit_bzero` when the libc
   declares one — detected by name lookup, there is no feature-test macro — else a volatile-write
   fallback); `clear()` + `zeroize_remaining_space()` scrubs the whole container. In
