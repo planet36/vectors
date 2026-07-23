@@ -407,9 +407,9 @@ public:
     /// Fill all \c capacity() bytes with \a value and set \c size() to \c capacity().
     constexpr void fill_capacity(const std::byte value) noexcept
     {
-        if (capacity_ != 0)
-            std::memset(data(), std::to_integer<int>(value), capacity_);
-        size_ = capacity_;
+        if (capacity() != 0)
+            std::memset(data(), std::to_integer<int>(value), capacity());
+        size_ = capacity();
     }
 
     /// Fill the live bytes [0, \c size()) with \a value; \c size() is unchanged.

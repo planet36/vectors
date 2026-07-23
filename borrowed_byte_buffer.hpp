@@ -270,7 +270,7 @@ public:
         : data_{reinterpret_cast<std::byte*>(std::ranges::data(r))}, capacity_{capacity}
     {
 #if defined(DEBUG)
-        assert(capacity_ <= range_size_bytes_(r));
+        assert(this->capacity() <= range_size_bytes_(r));
 #endif
     }
 
@@ -304,7 +304,7 @@ public:
     adopting(void* const data, const std::size_t capacity) noexcept
     {
         borrowed_byte_buffer b{data, capacity};
-        b.size_ = b.capacity_;
+        b.size_ = b.capacity();
         return b;
     }
 
@@ -314,7 +314,7 @@ public:
     [[nodiscard]] static borrowed_byte_buffer adopting(R&& r, const std::size_t capacity) noexcept
     {
         borrowed_byte_buffer b{std::forward<R>(r), capacity};
-        b.size_ = b.capacity_;
+        b.size_ = b.capacity();
         return b;
     }
 
@@ -324,7 +324,7 @@ public:
     [[nodiscard]] static borrowed_byte_buffer adopting(R&& r) noexcept
     {
         borrowed_byte_buffer b{std::forward<R>(r)};
-        b.size_ = b.capacity_;
+        b.size_ = b.capacity();
         return b;
     }
 
@@ -334,7 +334,7 @@ public:
     [[nodiscard]] static borrowed_byte_buffer adopting(P&& data) noexcept
     {
         borrowed_byte_buffer b{std::forward<P>(data)};
-        b.size_ = b.capacity_;
+        b.size_ = b.capacity();
         return b;
     }
 
@@ -457,9 +457,9 @@ public:
     /// Fill all \c capacity() bytes with \a value and set \c size() to \c capacity().
     constexpr void fill_capacity(const std::byte value) noexcept
     {
-        if (capacity_ != 0)
-            std::memset(data(), std::to_integer<int>(value), capacity_);
-        size_ = capacity_;
+        if (capacity() != 0)
+            std::memset(data(), std::to_integer<int>(value), capacity());
+        size_ = capacity();
     }
 
     /// Fill the live bytes [0, \c size()) with \a value; \c size() is unchanged.
