@@ -94,9 +94,38 @@ constexpr_zeroize_ok()
 }
 static_assert(constexpr_zeroize_ok());
 
-// capacity()/max_size() are static here -- callable with no object, unlike the heap-backed
-// siblings, where they are non-static and report the runtime capacity.
-static_assert(fixed_vector<int, 5>::capacity() == 5);
+// Compile-time check: reserve() and the capacity observers work in constant expressions too.
+constexpr bool
+constexpr_capacity_ok()
+{
+    fixed_vector<int, 5> v{1, 2, 3, 4};
+    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
+    if (!(v.capacity() == 5 && v.unreserved() == 0 && v.reserved_unused() == 1))
+        return false;
+
+    v.reserve(2); // below size(): truncates size(), destroys nothing
+    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
+    if (!(v.capacity() == 2 && v.size() == 2 && v.is_full() && v.unreserved() == 3))
+        return false;
+
+    v.reserve(5); // growing leaves the regained slots as they were
+    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
+    if (!(v.capacity() == 5 && v.size() == 2 && v[2] == 3 && v[3] == 4 && v[4] == 0))
+        return false;
+
+    v.reserve(0); // both empty and full
+    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
+    if (!(v.is_empty() && v.is_full() && v.reserved_unused() == 0 && v.unreserved() == 5))
+        return false;
+
+    v.reserve(5);
+    v.zeroize_unreserved(); // no-op: nothing is unreserved
+    return v[0] == 1 && v[4] == 0;
+}
+static_assert(constexpr_capacity_ok());
+
+// max_size() is static here -- callable with no object.  capacity() is not: it reports the
+// current, run-time capacity, as in the heap-backed siblings.
 static_assert(fixed_vector<int, 5>::max_size() == 5);
 
 // Align defaults to max(alignof(std::size_t), alignof(T)) and is honored by the storage.
@@ -265,6 +294,12 @@ test_swap_exchanges_all_slots()
     swap(a, b);
     CHECK(b[4] == 4); // b received a's tail slot
     CHECK(a[4] == 0); // a received b's value-initialized tail
+
+    // The capacities are exchanged too, not just the sizes and the slots.
+    a.reserve(2);
+    swap(a, b);
+    CHECK(a.capacity() == 5);
+    CHECK(b.capacity() == 2);
 }
 
 // ---- Observers ----
@@ -273,10 +308,10 @@ static void
 test_capacity_max_size()
 {
     const fixed_vector<int, 5> v{1, 2, 3};
-    CHECK(v.capacity() == 5);
-    CHECK(v.max_size() == 5);
-    // Static: callable with no object.
-    CHECK(fixed_vector<int, 5>::capacity() == 5);
+    CHECK(v.capacity() == 5); // capacity starts at N ...
+    CHECK(v.max_size() == 5); // ... and max_size() stays N forever
+    // max_size() is static: callable with no object.  capacity() is not -- it is a run-time
+    // value that reserve() moves.
     CHECK(fixed_vector<int, 5>::max_size() == 5);
 }
 
@@ -288,6 +323,7 @@ test_size_reserved_unused_is_empty_is_full()
     CHECK(!v.is_full());
     CHECK(v.size() == 0);
     CHECK(v.reserved_unused() == 3);
+    CHECK(v.unreserved() == 0);
     v.push_back(1);
     CHECK(!v.is_empty());
     CHECK(!v.is_full());
@@ -298,6 +334,62 @@ test_size_reserved_unused_is_empty_is_full()
     CHECK(v.is_full());
     CHECK(v.size() == 3);
     CHECK(v.reserved_unused() == 0);
+    CHECK(v.unreserved() == 0);
+    // reserved_unused() and unreserved() split [size(), max_size()) at capacity().
+    v.reserve(2);
+    CHECK(v.size() == 2);
+    CHECK(v.reserved_unused() == 0);
+    CHECK(v.unreserved() == 1);
+    v.pop_back();
+    CHECK(v.reserved_unused() == 1);
+    CHECK(v.unreserved() == 1);
+}
+
+static void
+test_reserve()
+{
+    fixed_vector<int, 5> v{1, 2, 3, 4};
+
+    // Shrinking above size(): capacity is the limit every space check consults.
+    v.reserve(4);
+    CHECK(v.capacity() == 4);
+    CHECK(v.max_size() == 5); // max_size() is unaffected
+    CHECK(v.is_full());
+    CHECK(v.reserved_unused() == 0);
+    CHECK(v.unreserved() == 1);
+    CHECK_THROWS(std::bad_alloc, v.push_back(5));
+    CHECK_THROWS(std::bad_alloc, v.emplace_back(5));
+    CHECK_THROWS(std::bad_alloc, v.append_range({5}));
+    CHECK(!v.try_push_back(5));
+    CHECK(to_ivec(v) == std::vector({1, 2, 3, 4}));
+
+    // Shrinking below size() truncates size(); nothing is destroyed.
+    v.reserve(2);
+    CHECK(v.capacity() == 2);
+    CHECK(v.size() == 2);
+    CHECK(to_ivec(v) == std::vector({1, 2}));
+
+    // Growing leaves the regained slots untouched -- 3 and 4 are still there.
+    v.reserve(5);
+    CHECK(v.capacity() == 5);
+    CHECK(v.size() == 2);
+    CHECK(v[2] == 3);
+    CHECK(v[3] == 4);
+    CHECK(v[4] == 0); // never written
+    v.push_back(30);
+    CHECK(to_ivec(v) == std::vector({1, 2, 30}));
+
+    // Zero capacity is both empty and full, as in the heap-backed siblings.
+    v.reserve(0);
+    CHECK(v.is_empty());
+    CHECK(v.is_full());
+    CHECK(v.reserved_unused() == 0);
+    CHECK(v.unreserved() == 5);
+    CHECK(!v.try_push_back(1));
+
+    // Past max_size() is capacity overflow, like every other space failure.
+    CHECK_THROWS(std::bad_alloc, v.reserve(6));
+    CHECK(v.capacity() == 0); // unchanged by the failed call
 }
 
 // ---- Modifiers ----
@@ -326,6 +418,14 @@ test_resize()
     CHECK(to_ivec(v) == std::vector({7}));
     v.resize(4); // grow with T{} == 0
     CHECK(to_ivec(v) == std::vector({7, 0, 0, 0}));
+
+    // Bounded by capacity(), not max_size(): resize does not implicitly reserve.
+    v.reserve(4);
+    CHECK_THROWS(std::bad_alloc, v.resize(5));
+    CHECK(v.size() == 4);
+    v.reserve(5);
+    v.resize(5); // now it fits
+    CHECK(v.size() == 5);
 }
 
 static void
@@ -402,6 +502,15 @@ test_fill_capacity_fill_size()
     v.fill_capacity(4); // whole capacity, size := max_size()
     CHECK(to_ivec(v) == std::vector({4, 4, 4, 4, 4}));
     CHECK(v.is_full());
+
+    // fill_capacity() stops at capacity(), not max_size(): the unreserved slots keep their 4s.
+    v.reserve(3);
+    v.fill_capacity(7);
+    CHECK(v.size() == 3);
+    CHECK(to_ivec(v) == std::vector({7, 7, 7}));
+    v.reserve(5);
+    CHECK(v[3] == 4);
+    CHECK(v[4] == 4);
 }
 
 static void
@@ -417,10 +526,40 @@ test_zeroize_reserved_unused()
     // NOLINTNEXTLINE(readability-static-accessed-through-instance)
     for (std::size_t i = v.size(); i < v.max_size(); ++i)
         CHECK(v[i] == 0);
-    // Scrub the whole array: clear() + zeroize_reserved_unused() (non-elidable stores).
+    // Scrub the whole array: clear() + zeroize_reserved_unused() (non-elidable stores).  This
+    // reaches every slot only because capacity() is still max_size(); see the test below.
     v.clear();
     v.zeroize_reserved_unused();
     CHECK(v.is_empty());
+    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
+    for (std::size_t i = 0; i < v.max_size(); ++i)
+        CHECK(v[i] == 0);
+}
+
+static void
+test_zeroize_unreserved()
+{
+    fixed_vector<int, 5> v;
+    v.fill_capacity(9); // every slot holds 9
+    v.reserve(3);       // slots [3, 5) are now unreserved, still holding 9
+    CHECK(v.size() == 3);
+    v.zeroize_unreserved();
+    CHECK(to_ivec(v) == std::vector({9, 9, 9})); // the reserved half is untouched
+    v.reserve(5);                                // regain the slots to read them
+    CHECK(v[3] == 0);
+    CHECK(v[4] == 0);
+
+    // A no-op while nothing is unreserved.
+    v.fill_capacity(8);
+    v.zeroize_unreserved();
+    CHECK(to_ivec(v) == std::vector({8, 8, 8, 8, 8}));
+
+    // The whole array, capacity reduced: clear() + both halves.
+    v.reserve(2);
+    v.clear();
+    v.zeroize_reserved_unused();
+    v.zeroize_unreserved();
+    v.reserve(5);
     // NOLINTNEXTLINE(readability-static-accessed-through-instance)
     for (std::size_t i = 0; i < v.max_size(); ++i)
         CHECK(v[i] == 0);
@@ -688,6 +827,9 @@ test_overflow_throws_bad_alloc()
     CHECK_THROWS(std::bad_alloc, fixed_vector<int, 1> v{1}; v.emplace_back(2));
     CHECK_THROWS(std::bad_alloc, fixed_vector<int, 2> v; v.append_range(std::span<const int>{too_many}));
     CHECK_THROWS(std::bad_alloc, fixed_vector<int, 2> v; v.resize(3));
+    CHECK_THROWS(std::bad_alloc, fixed_vector<int, 2> v; v.reserve(3));
+    // Capacity, not max_size(), is what resize() may not exceed.
+    CHECK_THROWS(std::bad_alloc, fixed_vector<int, 2> v; v.reserve(1); v.resize(2));
     CHECK_THROWS(std::bad_alloc, fixed_vector<int, 2> v; v.assign_range({1, 2, 3}));
 }
 
@@ -717,6 +859,7 @@ main() // NOLINT(bugprone-exception-escape)
         test_size_reserved_unused_is_empty_is_full();
 
         test_clear();
+        test_reserve();
         test_resize();
         test_pop_back();
         test_push_back();
@@ -725,6 +868,7 @@ main() // NOLINT(bugprone-exception-escape)
         test_try_push_back_try_emplace_back();
         test_fill_capacity_fill_size();
         test_zeroize_reserved_unused();
+        test_zeroize_unreserved();
 
         test_append_range();
         test_append_range_unsized_partial();

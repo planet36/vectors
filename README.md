@@ -1,8 +1,8 @@
 # vectors
 
 A header-only C++ library of **fixed-capacity vectors**: resizable sequences that never
-reallocate, never grow past a capacity fixed when the container is created, and never
-individually destroy an element.
+reallocate, never grow past their capacity, and never individually destroy an element. The
+storage is sized once — at compile time or at construction — and is never resized after that.
 
 Each header is standalone — drop it in an include path and `#include` it. There is no package
 manifest, and using the library needs no build system; the `Makefile` here only builds and runs
@@ -10,14 +10,18 @@ the tests.
 
 ## The containers
 
-| Header | Type | Capacity fixed at | Storage |
+| Header | Type | Storage sized at | Storage |
 |---|---|---|---|
 | `fixed_vector.hpp` | `fixed_vector<T, N, Align>` | compile time (`N`) | in-place `std::array<T, N>`, no heap |
 | `dynamic_fixed_vector.hpp` | `dynamic_fixed_vector<T, Align>` | run time (constructor) | one over-alignable heap block |
 | `aligned_byte_buffer.hpp` | `aligned_byte_buffer<Align>` | run time (constructor) | one over-alignable heap block |
 | `borrowed_byte_buffer.hpp` | `borrowed_byte_buffer` | run time (constructor) | **borrowed** — overlays storage it does not own |
 
-`dynamic_fixed_vector` is the runtime-capacity analogue of `fixed_vector`. `aligned_byte_buffer`
+All four report a run-time `capacity()`. Only `fixed_vector` lets you move it after construction
+(`reserve()`, within its `N` slots); for the other three the constructor argument settles it,
+since changing it there would mean reallocating.
+
+`dynamic_fixed_vector` is the heap-allocating analogue of `fixed_vector`. `aligned_byte_buffer`
 is its `std::byte` specialization, kept as a separate type so it can be simpler and faster: the
 element type is fixed, so only the alignment is a template parameter, bulk operations drop to
 `memcpy` / `memset`, and the reserved tail is left uninitialized rather than zeroed.
@@ -37,12 +41,12 @@ a free `constant_time_equal` (in `byte_compare.hpp`, which they both include).
 
 ## Quick start
 
-### `fixed_vector` — capacity known at compile time
+### `fixed_vector` — storage sized at compile time
 
 ```cpp
 #include "fixed_vector.hpp"
 
-fixed_vector<int, 8> v{1, 2, 3};   // size 3, capacity 8
+fixed_vector<int, 8> v{1, 2, 3};   // size 3, capacity 8, max_size 8
 
 v.push_back(4);                    // throws std::bad_alloc if full
 if (!v.try_push_back(5))           // returns false instead of throwing
@@ -54,6 +58,21 @@ assert(v.at(6) == 7);              // at() throws std::out_of_range
 
 v.clear();                         // size becomes 0; the elements stay alive
 assert(v[0] == 1);                 // still readable — operator[] is capacity-based
+```
+
+`N` is the number of slots, reported by `max_size()`. The *capacity* — the limit every space
+check consults — starts at `N` and moves at run time:
+
+```cpp
+v.assign_range({1, 2, 3, 4, 5, 6}); // size 6 again
+
+v.reserve(4);                      // work within a 4-slot window; nothing is (de)allocated
+assert(v.capacity() == 4);
+assert(v.size() == 4);             // shrinking below size() truncates size(), destroys nothing
+assert(v.unreserved() == 4);       // the slots [4, 8) are outside the window
+
+v.reserve(8);                      // grow back: the regained slots hold what they held before
+assert(v[4] == 5);
 ```
 
 Essentially the whole interface is `constexpr`, so a `fixed_vector` works as compile-time scratch
@@ -157,6 +176,11 @@ version:
 - **`operator[]` is unchecked and capacity-based.** An index in `[size(), capacity())` legitimately
   reads a live element. `at()` is the only bounds-checked accessor.
 - **Capacity overflow throws `std::bad_alloc`**, not `std::length_error`.
+- **`fixed_vector::reserve()` shrinks as well as grows, and never (de)allocates.** Its storage is
+  always the whole `std::array<T, N>`; capacity is just the limit the space checks consult, so
+  `reserve()` is O(1), shrinking below `size()` truncates `size()` (destroying nothing), and
+  growing back exposes the slots exactly as they were left. `std::vector::reserve` can do none of
+  those things.
 
 `DESIGN.md` explains the reasoning behind each of these, plus the allocation strategy, the
 alignment defaults, the `constexpr` limits of the heap-backed types, and the edge cases worth
@@ -178,6 +202,9 @@ Common to all four types:
 | Bulk | `fill_capacity`, `fill_size`, `assign_range`, `zeroize_reserved_unused` |
 | Compare | `operator==`, `operator<=>` — gated on the element type supporting them |
 
+`fixed_vector` adds three members for the capacity it alone can move: `reserve`, `unreserved`
+(the slots between `capacity()` and `max_size()`), and `zeroize_unreserved`.
+
 The three owning types build and fill their storage through the same constructors (reserve,
 fill, span, iterator pair, `initializer_list`, range). `borrowed_byte_buffer` differs only in
 construction: it has no reserve/fill/range *element-copying* constructors — it is built over
@@ -197,7 +224,9 @@ element-wise.
 
 `zeroize_reserved_unused()` zeroizes `[size(), capacity())` with stores the optimizer may not
 elide — `memset_explicit` / `explicit_bzero` when the C library declares one, otherwise volatile
-writes.
+writes. `clear()` followed by it scrubs everything up to `capacity()`; in a `fixed_vector` whose
+capacity has been reduced, `zeroize_unreserved()` covers the rest (`[capacity(), max_size())`),
+which is otherwise still holding whatever it held while reserved.
 
 ## Building and running the tests
 
@@ -269,7 +298,9 @@ rather than shadowing each other and neither build ever silently serves the othe
 can check cheaply — `!is_full()` for the `unchecked_*` family, `!is_empty()` for `front`/`back`,
 `i < capacity()` for `operator[]` — becomes an `assert` that aborts on a violation. They check
 the *documented* contract, not `std::vector`'s: `operator[]` asserts `i < capacity()`, so
-reading a live element past `size()` stays legal. Each assert is inside `#if defined(DEBUG)`,
+reading a live element past `size()` stays legal — and in a `fixed_vector` that bound is the
+*current* capacity, so an index the container's window no longer covers trips it even though the
+slot is still alive. Each assert is inside `#if defined(DEBUG)`,
 so a release build has no trace of one.
 
 The headers sit next to the tests, so the commands above work as written.

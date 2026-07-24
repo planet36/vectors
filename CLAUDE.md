@@ -7,8 +7,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 A header-only C++ library of fixed-capacity vectors. Consuming it needs no build system or
 package manifest — the headers are standalone. A `Makefile` builds and runs the test programs.
 
-- `fixed_vector.hpp` — `fixed_vector<T, N, Align>`: capacity `N` is a **compile-time**
-  template parameter, backed by in-place `std::array<T, N>` storage (no heap allocation).
+- `fixed_vector.hpp` — `fixed_vector<T, N, Align>`: storage is an in-place `std::array<T, N>`
+  (no heap allocation), so `N` is a **compile-time** bound — but `capacity()` is a run-time
+  value in `[0, N]` that `reserve()` moves; `max_size()` is the `static` one reporting `N`.
   Fully `constexpr`.
 - `dynamic_fixed_vector.hpp` — `dynamic_fixed_vector<T, Align>`: the same container shape
   with capacity chosen at **run time** (constructor argument) and heap storage that may be
@@ -161,6 +162,25 @@ The header's class docstring lists the intended differences from `std::inplace_v
 - **`operator[]` is capacity-based and unchecked** — it can legitimately read an initialized
   element at an index `>= size()` (this is tested intentionally). `at()` is the only
   bounds-checked accessor.
+- **`capacity()` is a run-time window over the `N` slots, moved by `reserve()`; `max_size()` is
+  `N`.** `capacity_` starts at `N`, so nothing changes for a caller who never calls `reserve()` —
+  that equivalence is what keeps the feature invisible, so keep the default. Rules, all of them
+  reasoned out in DESIGN.md; do not "improve" one without it:
+  - `reserve()` never (de)allocates, constructs, or destroys — the whole `std::array<T, N>` is
+    the storage regardless. Growing therefore leaves the regained slots holding whatever they
+    last held (scrubbing is `zeroize_*`'s job, always explicit); shrinking below `size()`
+    truncates `size()` the same non-destructive way `clear()` / `pop_back()` / `resize()` do.
+  - **`capacity()` is the single limit every mutator honors.** `resize(count)` with
+    `count > capacity()` throws `std::bad_alloc` — it does **not** implicitly reserve, or
+    `is_full()` / `reserved_unused()` would stop bounding every path in. `reserve()` is the only
+    member that changes the capacity.
+  - `unreserved()` and `zeroize_unreserved()` cover `[capacity(), max_size())`, the half that
+    `reserved_unused()` / `zeroize_reserved_unused()` do not; a full scrub is `clear()` plus both
+    zeroize calls. `fill_capacity()` stops at `capacity()`, not `max_size()`.
+  - `operator[]`'s `\pre` (and `-DDEBUG` assert) is the *current* `capacity()`, so a shrink puts
+    the slots beyond it out of contract even though they are alive.
+  - These four members are `fixed_vector`-only. The heap-backed siblings' capacity is settled by
+    the constructor, since moving it there would mean reallocating.
 
 ### `dynamic_fixed_vector` differences from `fixed_vector`
 
@@ -181,8 +201,10 @@ capacity + heap storage:
   `::operator new`, so nothing but the constraint prevents a smaller `Align` from under-aligning
   the elements → UB. Vacuous for `aligned_byte_buffer` (`alignof(std::byte) == 1`), which is why
   its clause is only `has_single_bit(Align)`.
-- **`capacity()` / `max_size()` are non-static** and return the runtime capacity (deliberately
-  **not** a `SIZE_MAX`-ish value like `std::vector::max_size()`).
+- **`max_size()` is non-static** and equals `capacity()` — the runtime capacity, deliberately
+  **not** a `SIZE_MAX`-ish value like `std::vector::max_size()`. (In `fixed_vector`, `max_size()`
+  is `static` and returns `N`, which `capacity()` may now be below.) There is **no `reserve()`**
+  here: capacity is fixed at construction, so moving it would mean reallocating.
 - **`data()` applies `std::assume_aligned<Align>`** (guarded for the null/empty case) so caller
   loops can vectorize.
 - **`X(n)` reserves capacity `n` and starts empty** (`size()==0`) — unlike `fixed_vector`
@@ -270,8 +292,9 @@ it, which removes the ownership machinery and changes construction:
 - `zeroize_reserved_unused()` (all four; trivially copyable element types only) zeroizes the
   reserved tail with non-elidable stores (`memset_explicit`/`explicit_bzero` when the libc
   declares one — detected by name lookup, there is no feature-test macro — else a volatile-write
-  fallback); `clear()` + `zeroize_reserved_unused()` scrubs the whole container. In
-  `fixed_vector` it also works in constant evaluation (value-assigns the tail).
+  fallback); `clear()` + `zeroize_reserved_unused()` scrubs everything up to `capacity()`. In
+  `fixed_vector` it also works in constant evaluation (value-assigns the tail), and covering the
+  whole container after a `reserve()` shrink additionally needs `zeroize_unreserved()`.
 - Nearly the entire interface is `constexpr`. `operator==` / `operator<=>` are gated on
   `std::equality_comparable` / `std::three_way_comparable`.
 - `append_range` / `assign_range` are overloaded for span, iterator+sentinel, iterator+count,

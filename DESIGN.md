@@ -48,8 +48,11 @@ so reads past `size()` are *unspecified*, as in `aligned_byte_buffer`):
   - checked (`push_back` / `emplace_back` / `append_range`) — validate, then throw on overflow;
   - `try_*` (`[[nodiscard]] bool`) — validate, return `false` on overflow instead of throwing;
   - `unchecked_*` — assume `!is_full()` / sufficient space; the checked forms delegate to these.
-- **`capacity()` / `max_size()` report the fixed capacity.** For the runtime types this is the value
-  passed to the constructor — intentionally *not* a `SIZE_MAX`-style theoretical maximum.
+- **`capacity()` reports a real capacity, not a theoretical one.** For the runtime types it is the
+  value passed to the constructor — intentionally *not* a `SIZE_MAX`-style maximum, which is what
+  `std::vector::max_size()` reports. `max_size()` equals `capacity()` in three of the four types;
+  in `fixed_vector` it is `N`, the number of slots, and `capacity()` is a run-time window within
+  it that `reserve()` moves (see that section).
 - **`append_range` / `assign_range`** are overloaded for span, iterator+sentinel, iterator+count,
   `initializer_list`, and input ranges; `assign_range` is `clear()` followed by `append_range`.
   Overloads that can know the source size up front (span, iterator+count, `initializer_list`,
@@ -122,6 +125,58 @@ silently at any warning level (Clang rejects it), so without the constraint
 the container cannot honor, expressed with no diagnostic, in code that builds on only one
 compiler. The constraint turns that into a named constraint failure, and makes the family's three
 `requires` clauses consistent.
+
+### Capacity is a run-time window over the `N` slots
+
+`N` sizes the storage; it is *not* the capacity. `capacity_` is a `std::size_t` member starting at
+`N`, and `reserve()` moves it anywhere in `[0, N]`. Every space check — `is_full()`,
+`reserved_unused()`, the whole append family, `resize()` — already consulted `capacity()`, so
+lowering it narrows the window the container will use, while the storage stays the same
+`std::array<T, N>`. `max_size()` remains `static constexpr` and reports `N`.
+
+Why this is nearly free, and why the decisions below fall out of it:
+
+- **`reserve()` never (de)allocates and is O(1).** There is no reallocation to perform and no
+  element to construct or destroy — the slots on both sides of the capacity line are alive either
+  way. That is what makes it reasonable for `reserve()` to *shrink*, which `std::vector::reserve`
+  cannot do (it would have to reallocate; `shrink_to_fit` exists for that and is non-binding).
+- **Growing leaves the regained slots untouched.** A slot's value is whatever was last written to
+  it, `T{}` if never written — exactly the rule that already governs the reserved tail
+  (`fill_capacity(9); resize(2)` leaves `9`s in `[2, capacity())`, which the tests check). Nothing
+  is gained by re-value-initializing on grow: it would cost O(delta) on a member whose entire
+  point is that it moves a cursor, and it would half-do a job `zeroize_reserved_unused()` /
+  `fill_capacity()` already do properly and on request. Scrubbing is an explicit, separately named
+  operation in this library, not a side effect.
+- **Shrinking below `size()` truncates `size()`.** The alternative — throwing — would make
+  `reserve()` the only capacity operation with a precondition on `size()`, and the container
+  already shrinks non-destructively everywhere else (`clear()`, `pop_back()`, `resize()` all just
+  move the size counter and leave the elements alive). Truncation is that same move. The elements
+  are not lost, only outside the window, and growing the capacity back exposes them again — which
+  is precisely what makes "growing leaves the slots untouched" observable, and is how the tests
+  observe it.
+- **`resize()` throws instead of implicitly reserving.** `capacity()` is the single limit every
+  mutator honors; if `resize(count)` quietly raised it, `is_full()` and `reserved_unused()` would
+  no longer bound every path into the container, and there would be two members that change the
+  capacity, one of them by accident. So `resize(count)` with `count > capacity()` throws
+  `std::bad_alloc`, like every other capacity overflow, and `reserve()` stays the only way to move
+  the line.
+- **`zeroize_unreserved()` is a separate member from `zeroize_reserved_unused()`**, covering
+  `[capacity(), max_size())` rather than `[size(), capacity())`. Each name states exactly the
+  region it scrubs, and the split is real: after a shrink, the unreserved slots may still hold
+  what they held while they were reserved. The full scrub is `clear()`, then both calls. Folding
+  them into one member covering `[size(), max_size())` would give the byte-level cost of the whole
+  array to every caller who only wanted the tail.
+- **`fill_capacity()` stops at `capacity()`**, not `max_size()` — it fills the window, as its name
+  says, which is why it is `std::ranges::fill` over `[0, capacity())` rather than
+  `std::array::fill`.
+
+`operator[]`'s `\pre i < capacity()` therefore tightens when the capacity is lowered: a slot in
+`[capacity(), max_size())` is alive but out of contract, and the `-DDEBUG` assert says so. That is
+the point of stating the precondition in terms of `capacity()` rather than `N`.
+
+The default capacity is `N`, and this is what keeps the feature invisible to existing code: a
+program that never calls `reserve()` sees exactly the previous behavior, because every check that
+used to read `N` now reads a value that is still `N`.
 
 ## `dynamic_fixed_vector<T, Align>`
 
@@ -342,7 +397,8 @@ The whole object is `{ std::byte* data_, std::size_t capacity_, std::size_t size
 
 - **Zero capacity is both empty and full.** For the runtime types a default-constructed (or
   zero-capacity) instance satisfies `is_empty()` and `is_full()` simultaneously — correct, since there
-  is no element and no remaining space. (`fixed_vector` cannot reach this state; it requires `N > 0`.)
+  is no element and no remaining space. `fixed_vector` cannot be *constructed* that way (it requires
+  `N > 0`), but `reserve(0)` reaches the same state, with all `N` slots alive and unreserved.
 
 - **`std::byte` is not `std::constructible_from` an `int`.** Direct-initialization of a scoped
   enumeration from an integer (`std::byte b(42)`) is ill-formed, so a `constructible_from`
