@@ -729,6 +729,7 @@ public:
         return *begin();
     }
 
+    /// \copydoc front()
     [[nodiscard]] constexpr const std::byte& front() const noexcept
     {
 #if defined(DEBUG)
@@ -748,6 +749,7 @@ public:
         return *rbegin();
     }
 
+    /// \copydoc back()
     [[nodiscard]] constexpr const std::byte& back() const noexcept
     {
 #if defined(DEBUG)
@@ -770,6 +772,7 @@ public:
         return data()[i];
     }
 
+    /// \copydoc operator[](std::size_t)
     [[nodiscard]] constexpr const std::byte& operator[](const std::size_t i) const noexcept
     {
 #if defined(DEBUG)
