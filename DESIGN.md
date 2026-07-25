@@ -386,6 +386,15 @@ The whole object is `{ std::byte* data_, std::size_t capacity_, std::size_t size
   writable bytes — a non-null, indexable block. So the reasoning the members rely on holds; it
   just rests on the constructor's precondition rather than on an allocation guarantee.
 
+- **Only one of the four construction preconditions is checkable.** The constructors all require
+  that the source really provide `capacity()` bytes, but only the range constructor is handed
+  something that knows its own extent, so only it can assert
+  `capacity() <= std::span{r}.size_bytes()` under `-DDEBUG` — and `adopting(R&&, capacity)`
+  inherits that check by delegating to it. A `void*` plus a count, and the single-object pointer,
+  carry no size the container can compare against; their tags stay promises, and a caller who
+  overstates the capacity gets a heap overflow that ASan reports instead. This is the only
+  `-DDEBUG` assert in the family that guards a constructor rather than an accessor or a mutator.
+
 - **`constexpr` limits.** Forming a byte view over an object requires a `reinterpret_cast`, which is
   barred in constant evaluation, so the borrowing constructors are not `constexpr`-usable and are
   left un-annotated; only the default (empty) instance and the non-borrowing members work in

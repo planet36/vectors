@@ -110,13 +110,21 @@ Notes:
 `-DDEBUG` (set by the Makefile's `DEBUG_CXXFLAGS`, so it reaches only the `test-*.debug`
 binaries) enables an `assert` for each precondition the headers already
 document with a `\pre` tag *and* can check cheaply: `!is_full()` on the `unchecked_*` family,
-`!is_empty()` on `front`/`back`, and `i < capacity()` on `operator[]`. Each sits in a
-`#if defined(DEBUG)` block, so a release build contains no `__assert_fail` at all.
+`!is_empty()` on `front`/`back`, `i < capacity()` on `operator[]`, and — in
+`borrowed_byte_buffer` only — `capacity() <= std::span{r}.size_bytes()` on the range constructor.
+Each sits in a `#if defined(DEBUG)` block, so a release build contains no `__assert_fail` at all.
+That is the whole list; 29 asserts across the four headers.
 
 - **The `\pre` tags are the spec; the asserts only enforce them.** Adding an assert without a
   matching `\pre`, or asserting something stricter than the tag says, is how this drifts into
   contradicting the design. In particular `operator[]` asserts `i < capacity()`, **not**
   `i < size()` — reading a live element at an index `>= size()` is intended, and the tests do it.
+  All four suites read past `size()` through `operator[]` on purpose, so tightening the assert
+  would fail them.
+- **Every `\pre` is on both overloads' docs, not just the first.** `front`, `back`, and
+  `operator[]` state the tag once on the non-const overload; the `const` twin gets a
+  `/// \copydoc front()` (etc.) so the precondition it asserts is not blank in the generated
+  docs. Same convention as `data()` and the `adopting` family.
 - The remaining `\pre` tags are unasserted: the non-overlap tags on the `span` overloads — and on
   the range overloads, which carry them for the contiguous case they forward to the `span`
   overload — would need a runtime aliasing check that these paths exist to avoid, and
@@ -127,8 +135,13 @@ document with a `\pre` tag *and* can check cheaply: `!is_full()` on the `uncheck
   which the up-front capacity check reports as **`std::bad_alloc`**, sending you after a
   phantom capacity bug. Debug mode names the real one instead ("attempt to copy a singular
   iterator", "iterators from different sequences"), and plain ASan does not catch it at all.
+  `borrowed_byte_buffer`'s pointer-based construction tags are unasserted for the same reason:
+  "\a data points to at least \a capacity writable bytes" and `adopting`'s readable-bytes tag
+  are promises about memory the container cannot measure. Only the range constructor's version is
+  checkable, because a range carries its own size — see DESIGN.md.
 - `unchecked_push_back` delegates to `unchecked_emplace_back`, which is where its `!is_full()`
   assert lives — one check at the leaf, and violations through either overload still trip it.
+  `adopting(R&&, capacity)` inherits the range constructor's assert the same way.
 - The asserts are `constexpr`-clean: an assert whose condition holds is fine in constant
   evaluation, so `test-fixed_vector.cpp`'s `static_assert` block still compiles under `-DDEBUG`.
 - Standard `NDEBUG` caveat: `DEBUG` changes the definition of inline/template functions, so

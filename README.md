@@ -296,7 +296,8 @@ rather than shadowing each other and neither build ever silently serves the othe
 
 `-DDEBUG` turns on the headers' own precondition checks: every `\pre` the headers document and
 can check cheaply — `!is_full()` for the `unchecked_*` family, `!is_empty()` for `front`/`back`,
-`i < capacity()` for `operator[]` — becomes an `assert` that aborts on a violation. They check
+`i < capacity()` for `operator[]`, and the source-size check on `borrowed_byte_buffer`'s range
+constructor — becomes an `assert` that aborts on a violation. They check
 the *documented* contract, not `std::vector`'s: `operator[]` asserts `i < capacity()`, so
 reading a live element past `size()` stays legal — and in a `fixed_vector` that bound is the
 *current* capacity, so an index the container's window no longer covers trips it even though the
