@@ -378,6 +378,9 @@ public:
     /// Resize to \a count bytes
     /**
     * Growing sets the new bytes to \a value; shrinking leaves the removed ones unchanged.
+    * \note \c resize(capacity(), \a value) is how to fill only the reserved-unused tail
+    * [\c size(), \c capacity()) and grow into it; \c fill_capacity() overwrites the live bytes
+    * as well.
     */
     constexpr void resize(const std::size_t count, const std::byte value)
     {
@@ -466,6 +469,12 @@ public:
     }
 
     /// Fill all \c capacity() bytes with \a value and set \c size() to \c capacity().
+    /**
+    * The range filled is [0, \c capacity()) -- the live bytes are overwritten too, not only the
+    * reserved-unused tail.  To leave [0, \c size()) alone and fill just the tail, growing into
+    * it, call \c resize(capacity(), \a value) instead; to fill just the live bytes without
+    * changing \c size(), call \c fill_size().
+    */
     constexpr void fill_capacity(const std::byte value) noexcept
     {
         if (capacity() != 0)
@@ -474,6 +483,10 @@ public:
     }
 
     /// Fill the live bytes [0, \c size()) with \a value; \c size() is unchanged.
+    /**
+    * The complement of \c resize(capacity(), \a value), which fills the reserved-unused tail;
+    * \c fill_capacity() does both.
+    */
     constexpr void fill_size(const std::byte value) noexcept
     {
         if (size() != 0)

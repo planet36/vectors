@@ -169,6 +169,16 @@ Why this is nearly free, and why the decisions below fall out of it:
 - **`fill_capacity()` stops at `capacity()`**, not `max_size()` — it fills the window, as its name
   says, which is why it is `std::ranges::fill` over `[0, capacity())` rather than
   `std::array::fill`.
+- **`fill_capacity()` fills `[0, capacity())`, not `[size(), capacity())`** — the live elements are
+  overwritten too. The name says how far it fills, not where it starts, and that has been misread
+  as "fill the unused part"; the docs on all four types now say the range outright. The
+  tail-only operation already exists and is spelled `resize(capacity(), value)`: it assigns
+  `value` to `[size(), capacity())` and sets `size()` to `capacity()`, which is precisely what a
+  `resize_capacity(value)` member would do. Adding that member would be a second name for an
+  existing one-liner — and a name that reads like a capacity *changer*, next to `reserve()`, which
+  is the member that actually is one. The three fill regions are covered without it:
+  `fill_size()` for `[0, size())`, `resize(capacity(), value)` for `[size(), capacity())`, and
+  `fill_capacity()` for both.
 
 `operator[]`'s `\pre i < capacity()` therefore tightens when the capacity is lowered: a slot in
 `[capacity(), max_size())` is alive but out of contract, and the `-DDEBUG` assert says so. That is

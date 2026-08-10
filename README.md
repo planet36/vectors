@@ -202,6 +202,12 @@ Common to all four types:
 | Bulk | `fill_capacity`, `fill_size`, `assign_range`, `zeroize_reserved_unused` |
 | Compare | `operator==`, `operator<=>` — gated on the element type supporting them |
 
+Note which range each fill covers: `fill_capacity(value)` fills **`[0, capacity())`** — the live
+elements included — and sets `size()` to `capacity()`. To fill only the reserved-unused tail
+`[size(), capacity())` and grow into it, leaving `[0, size())` as it is, call
+`resize(capacity(), value)`; to fill only the live elements without changing `size()`, call
+`fill_size(value)`.
+
 `fixed_vector` adds three members for the capacity it alone can move: `reserve`, `unreserved`
 (the slots between `capacity()` and `max_size()`), and `zeroize_unreserved`.
 

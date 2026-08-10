@@ -424,6 +424,14 @@ test_fill_capacity_fill_size()
     v.fill_capacity(4_b); // whole capacity, size := capacity
     CHECK(to_ivec(v) == std::vector({4, 4, 4, 4, 4}));
     CHECK(v.is_full());
+
+    // resize(capacity(), value) is the tail-only counterpart of fill_capacity(): it fills
+    // [size(), capacity()) and grows into it, leaving the live bytes as they are.
+    v.resize(3);
+    v.fill_size(7_b);
+    v.resize(v.capacity(), 6_b);
+    CHECK(to_ivec(v) == std::vector({7, 7, 7, 6, 6}));
+    CHECK(v.is_full());
 }
 
 static void

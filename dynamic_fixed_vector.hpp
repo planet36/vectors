@@ -382,6 +382,9 @@ public:
     /**
     * Growing assigns \a value to the new elements; shrinking leaves the removed ones alive and
     * unchanged (nothing is destroyed).
+    * \note \c resize(capacity(), \a value) is how to fill only the reserved-unused tail
+    * [\c size(), \c capacity()) and grow into it; \c fill_capacity() overwrites the live
+    * elements as well.
     */
     constexpr void resize(const std::size_t count, const T& value)
     {
@@ -485,6 +488,12 @@ public:
     }
 
     /// Fill all \c capacity() elements with \a value and set \c size() to \c capacity().
+    /**
+    * The range filled is [0, \c capacity()) -- the live elements are overwritten too, not only
+    * the reserved-unused tail.  To leave [0, \c size()) alone and fill just the tail, growing
+    * into it, call \c resize(capacity(), \a value) instead; to fill just the live elements
+    * without changing \c size(), call \c fill_size().
+    */
     constexpr void fill_capacity(const T& value)
         noexcept(std::is_nothrow_copy_assignable_v<T>)
     {
@@ -493,6 +502,10 @@ public:
     }
 
     /// Fill the live elements [0, \c size()) with \a value; \c size() is unchanged.
+    /**
+    * The complement of \c resize(capacity(), \a value), which fills the reserved-unused tail;
+    * \c fill_capacity() does both.
+    */
     constexpr void fill_size(const T& value)
         noexcept(std::is_nothrow_copy_assignable_v<T>)
     {

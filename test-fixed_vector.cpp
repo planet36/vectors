@@ -511,6 +511,12 @@ test_fill_capacity_fill_size()
     v.reserve(5);
     CHECK(v[3] == 4);
     CHECK(v[4] == 4);
+
+    // resize(capacity(), value) is the tail-only counterpart of fill_capacity(): it fills
+    // [size(), capacity()) and grows into it, leaving the live elements as they are.
+    v.resize(v.capacity(), 6);
+    CHECK(to_ivec(v) == std::vector({7, 7, 7, 6, 6}));
+    CHECK(v.is_full());
 }
 
 static void

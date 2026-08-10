@@ -341,6 +341,9 @@ public:
     * unchanged (nothing is destroyed).
     * \note Bounded by \c capacity(), like every other space check -- growing past it throws
     * rather than reserving; \c reserve() is the only member that changes the capacity.
+    * \note \c resize(capacity(), \a value) is how to fill only the reserved-unused tail
+    * [\c size(), \c capacity()) and grow into it; \c fill_capacity() overwrites the live
+    * elements as well.
     * \throws std::bad_alloc if \a count > \c capacity().
     * \sa https://cppreference.com/w/cpp/container/inplace_vector/resize.html
     */
@@ -461,8 +464,12 @@ public:
         return try_emplace_back(std::move(value));
     }
 
+    /// Fill all \c capacity() elements with \a value and set \c size() to \c capacity().
     /**
-    * Fill all \c capacity() elements with \a value and set \c size() to \c capacity().
+    * The range filled is [0, \c capacity()) -- the live elements are overwritten too, not only
+    * the reserved-unused tail.  To leave [0, \c size()) alone and fill just the tail, growing
+    * into it, call \c resize(capacity(), \a value) instead; to fill just the live elements
+    * without changing \c size(), call \c fill_size().
     * \note Stops at \c capacity(), not \c max_size(): the unreserved slots are outside the
     * container's window and are left alone.
     * \sa https://cppreference.com/w/cpp/algorithm/ranges/fill
@@ -474,8 +481,10 @@ public:
         size_ = capacity();
     }
 
+    /// Fill the live elements [0, \c size()) with \a value; \c size() is unchanged.
     /**
-    * Fill the live elements [0, \c size()) with \a value; \c size() is unchanged.
+    * The complement of \c resize(capacity(), \a value), which fills the reserved-unused tail;
+    * \c fill_capacity() does both.
     * \sa https://cppreference.com/w/cpp/algorithm/ranges/fill
     */
     constexpr void fill_size(const T& value)
