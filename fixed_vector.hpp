@@ -30,8 +30,12 @@
 #include <type_traits>
 #include <utility>
 
-/// A resizable array container with fixed capacity.
+/// A resizable array container with in-place storage and a compile-time capacity bound.
 /**
+* \a N bounds the capacity; it does not fix it.  Of the four containers here this is the only one
+* whose \c capacity() moves after construction (via \c reserve()) -- the heap-backed siblings
+* settle theirs in the constructor, since moving it there would mean reallocating.
+*
 * This is similar to \c std::inplace_vector and \c boost::container::static_vector,
 * except for these important differences:
 *   - The data is stored in a `std::array<T, N>`.

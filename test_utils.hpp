@@ -39,8 +39,9 @@ test_fail(const std::string_view file, const int line, const std::string_view fu
 /// Fail unless the expression is true.
 /**
 * Variadic so that an expression containing an unparenthesized comma -- e.g.
-* \c CHECK(fixed_vector<int,5>::capacity()==5) -- does not need the extra parens \c assert
-* required.
+* \c CHECK(fixed_vector<int,5>::max_size()==5) -- does not need the extra parens \c assert
+* required.  (\c max_size() is the \c static one; \c capacity() is a run-time value and needs an
+* object.)
 */
 #define CHECK(...)                                                                  \
     do {                                                                            \

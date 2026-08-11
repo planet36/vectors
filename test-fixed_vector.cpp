@@ -499,7 +499,7 @@ test_fill_capacity_fill_size()
     v.fill_size(9); // only the live [0,size)
     CHECK(to_ivec(v) == std::vector({9, 9, 9}));
     CHECK(!v.is_full());
-    v.fill_capacity(4); // whole capacity, size := max_size()
+    v.fill_capacity(4); // whole capacity, size := capacity()
     CHECK(to_ivec(v) == std::vector({4, 4, 4, 4, 4}));
     CHECK(v.is_full());
 
