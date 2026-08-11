@@ -739,7 +739,7 @@ public:
     /// \c clear() followed by \c append_range(), so the source is bounded by \c capacity().
     /**
     * \note Does not destroy elements.
-    * \pre \a spn does not overlap this vector's storage.
+    * \pre The source does not overlap this vector's storage.
     * \throws std::bad_alloc if the source does not fit in \c capacity().  The \c clear() has
     * already happened by then, so a failed assign never leaves the previous contents in place:
     * a sized source (checked up front) leaves the vector empty, while an unsized one leaves the
