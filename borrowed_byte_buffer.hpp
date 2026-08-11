@@ -127,7 +127,7 @@ private:
     /// True if \a R is a sized, contiguous range of \c std::byte.
     /**
     * Such a range is handed to the \c std::span overload for its \c std::memcpy.  Overload
-    * resolution will not do this on its own: for example \c std::vector<std::byte> the \c R&&
+    * resolution will not do this on its own: for \c std::vector<std::byte>, say, the \c R&&
     * template is an exact match while the \c std::span overload needs a user-defined
     * conversion, so the template wins and the \c memcpy is dead code for callers who do not
     * hand-write a span.
@@ -137,9 +137,7 @@ private:
         std::ranges::contiguous_range<R> && std::ranges::sized_range<R> &&
         std::same_as<std::ranges::range_value_t<R>, std::byte>;
 
-    /**
-    * \pre \a rg satisfies \c is_bulk_appendable_.
-    */
+    /// \a rg as a \c std::span of \c const \c std::byte, the form the \c memcpy overload takes.
     template <typename R>
     requires is_bulk_appendable_<R>
     [[nodiscard]] static constexpr std::span<const std::byte> as_span_(R& rg)
