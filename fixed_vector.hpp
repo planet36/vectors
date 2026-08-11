@@ -398,6 +398,7 @@ public:
     }
 
     /**
+    * \throws std::bad_alloc if \c is_full().
     * \sa https://cppreference.com/w/cpp/container/inplace_vector/emplace_back.html
     */
     template <class... Args>
@@ -447,10 +448,12 @@ public:
     }
 
     /**
+    * \throws std::bad_alloc if \c is_full().
     * \sa https://cppreference.com/w/cpp/container/inplace_vector/push_back.html
     */
     constexpr void push_back(const T& value) { emplace_back(value); }
 
+    /// \copydoc push_back(const T&)
     constexpr void push_back(T&& value) { emplace_back(std::move(value)); }
 
     /**
@@ -549,6 +552,7 @@ public:
 
     /**
     * \pre \a spn does not overlap this vector's storage.
+    * \throws std::bad_alloc if \a spn does not fit in \c reserved_unused() (nothing is appended).
     * \sa https://cppreference.com/w/cpp/container/inplace_vector/append_range.html
     */
     constexpr void append_range(const std::span<const T> spn)
@@ -565,6 +569,7 @@ public:
     * is well-defined.
     * \note A \c std::sized_sentinel_for source is checked up front (all-or-nothing); otherwise
     * the elements that fit are appended before \c std::bad_alloc is thrown.
+    * \throws std::bad_alloc if the source does not fit in \c reserved_unused().
     */
     template <std::input_iterator It, std::sentinel_for<It> S>
     constexpr void append_range(It first, S last)
@@ -581,6 +586,9 @@ public:
         }
     }
 
+    /**
+    * \throws std::bad_alloc if \a count > \c reserved_unused() (nothing is appended).
+    */
     template <std::input_iterator It>
     constexpr void append_range(It first, const std::size_t count)
     {
@@ -590,6 +598,9 @@ public:
         common_append_range_(first, count);
     }
 
+    /**
+    * \throws std::bad_alloc if \a il does not fit in \c reserved_unused() (nothing is appended).
+    */
     constexpr void append_range(const std::initializer_list<T> il)
     {
         append_range(std::span<const T>{std::data(il), std::size(il)});
@@ -600,6 +611,7 @@ public:
     * that case is forwarded to the \c std::span overload, which carries the same tag.
     * \note Sized sources are checked up front (all-or-nothing); unsized sources append
     * element-wise and may partially append before throwing \c std::bad_alloc.
+    * \throws std::bad_alloc if the source does not fit in \c reserved_unused().
     */
     template <std::ranges::input_range R>
     constexpr void append_range(R&& rg)
@@ -723,9 +735,12 @@ public:
         }
     }
 
+    /// \c clear() followed by \c append_range(), so the source is bounded by \c capacity().
     /**
     * \note Does not destroy elements.
     * \pre \a spn does not overlap this vector's storage.
+    * \throws std::bad_alloc if the source does not fit in \c capacity().  The \c clear() has
+    * already happened by then, so a failed assign leaves the vector empty rather than unchanged.
     * \sa https://cppreference.com/w/cpp/container/inplace_vector/assign_range.html
     */
     constexpr void assign_range(const std::span<const T> spn)
@@ -734,6 +749,7 @@ public:
         append_range(spn);
     }
 
+    /// \copydoc assign_range(std::span<const T>)
     template <std::input_iterator It, std::sentinel_for<It> S>
     constexpr void assign_range(It first, S last)
     {
@@ -741,6 +757,7 @@ public:
         append_range(first, last);
     }
 
+    /// \copydoc assign_range(std::span<const T>)
     template <std::input_iterator It>
     constexpr void assign_range(It first, const std::size_t count)
     {
@@ -748,12 +765,14 @@ public:
         append_range(first, count);
     }
 
+    /// \copydoc assign_range(std::span<const T>)
     constexpr void assign_range(const std::initializer_list<T> il)
     {
         clear();
         append_range(il);
     }
 
+    /// \copydoc assign_range(std::span<const T>)
     template <std::ranges::input_range R>
     constexpr void assign_range(R&& rg)
     {

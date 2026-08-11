@@ -237,11 +237,18 @@ public:
     ~aligned_byte_buffer() = default;
 
     /// Reserve capacity \a capacity; the buffer starts empty.
+    /**
+    * \throws std::bad_alloc if the allocation fails.  (No overflow guard is needed:
+    * \c sizeof(std::byte) is 1, so the byte count is exactly \a capacity.)
+    */
     constexpr explicit aligned_byte_buffer(const std::size_t capacity)
         : capacity_{capacity}, data_{allocate_(capacity)}
     {}
 
     /// Reserve capacity \a capacity and fill it with \a value (\c size()==capacity).
+    /**
+    * \copydetails aligned_byte_buffer(std::size_t)
+    */
     constexpr explicit aligned_byte_buffer(const std::size_t capacity, const std::byte value)
         : size_{capacity}, capacity_{capacity}, data_{allocate_(capacity)}
     {
@@ -333,6 +340,9 @@ public:
     * \note \c resize(capacity(), \a value) is how to fill only the reserved-unused tail
     * [\c size(), \c capacity()) and grow into it; \c fill_capacity() overwrites the live bytes
     * as well.
+    * \note Bounded by \c capacity(), which is settled at construction: growing past it throws
+    * rather than reallocating.
+    * \throws std::bad_alloc if \a count > \c capacity().
     */
     constexpr void resize(const std::size_t count, const std::byte value)
     {
@@ -380,6 +390,9 @@ public:
         ++size_;
     }
 
+    /**
+    * \throws std::bad_alloc if \c is_full().
+    */
     template <class... Args>
     requires (sizeof...(Args) <= 1) &&
              ((std::same_as<std::remove_cvref_t<Args>, std::byte> ||
@@ -413,6 +426,9 @@ public:
         unchecked_emplace_back(value);
     }
 
+    /**
+    * \throws std::bad_alloc if \c is_full().
+    */
     constexpr void push_back(const std::byte value) { emplace_back(value); }
 
     [[nodiscard]] constexpr bool try_push_back(const std::byte value) noexcept
@@ -461,6 +477,7 @@ public:
 
     /**
     * \pre \a spn does not overlap this buffer's storage.
+    * \throws std::bad_alloc if \a spn does not fit in \c reserved_unused() (nothing is appended).
     */
     constexpr void append_range(const std::span<const std::byte> spn)
     {
@@ -476,6 +493,7 @@ public:
     * is well-defined.
     * \note A \c std::sized_sentinel_for source is checked up front (all-or-nothing);
     * otherwise the bytes that fit are appended before \c std::bad_alloc is thrown.
+    * \throws std::bad_alloc if the source does not fit in \c reserved_unused().
     */
     template <std::input_iterator It, std::sentinel_for<It> S>
     constexpr void append_range(It first, S last)
@@ -490,6 +508,9 @@ public:
             emplace_back(*first);
     }
 
+    /**
+    * \throws std::bad_alloc if \a count > \c reserved_unused() (nothing is appended).
+    */
     template <std::input_iterator It>
     constexpr void append_range(It first, const std::size_t count)
     {
@@ -499,6 +520,9 @@ public:
         common_append_range_(first, count);
     }
 
+    /**
+    * \throws std::bad_alloc if \a il does not fit in \c reserved_unused() (nothing is appended).
+    */
     constexpr void append_range(const std::initializer_list<std::byte> il)
     {
         append_range(std::span{std::data(il), std::size(il)});
@@ -509,6 +533,7 @@ public:
     * element-wise and may partially append before throwing \c std::bad_alloc.
     * \pre If \a rg is a contiguous range of \c std::byte, it does not overlap this buffer's
     * storage: that case is forwarded to the \c std::span overload, which carries the same tag.
+    * \throws std::bad_alloc if the source does not fit in \c reserved_unused().
     */
     template <std::ranges::input_range R>
     constexpr void append_range(R&& rg)
@@ -624,9 +649,12 @@ public:
         }
     }
 
+    /// \c clear() followed by \c append_range(), so the source is bounded by \c capacity().
     /**
-    * Throws if the source exceeds \c capacity().
+    * \note The capacity is kept, not resized to the source.
     * \pre \a spn does not overlap this buffer's storage.
+    * \throws std::bad_alloc if the source does not fit in \c capacity().  The \c clear() has
+    * already happened by then, so a failed assign leaves the buffer empty rather than unchanged.
     */
     constexpr void assign_range(const std::span<const std::byte> spn)
     {
@@ -634,6 +662,7 @@ public:
         append_range(spn);
     }
 
+    /// \copydoc assign_range(std::span<const std::byte>)
     template <std::input_iterator It, std::sentinel_for<It> S>
     constexpr void assign_range(It first, S last)
     {
@@ -641,6 +670,7 @@ public:
         append_range(first, last);
     }
 
+    /// \copydoc assign_range(std::span<const std::byte>)
     template <std::input_iterator It>
     constexpr void assign_range(It first, const std::size_t count)
     {
@@ -648,12 +678,14 @@ public:
         append_range(first, count);
     }
 
+    /// \copydoc assign_range(std::span<const std::byte>)
     constexpr void assign_range(const std::initializer_list<std::byte> il)
     {
         clear();
         append_range(il);
     }
 
+    /// \copydoc assign_range(std::span<const std::byte>)
     template <std::ranges::input_range R>
     constexpr void assign_range(R&& rg)
     {
