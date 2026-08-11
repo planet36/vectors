@@ -440,6 +440,55 @@ The whole object is `{ std::byte* data_, std::size_t capacity_, std::size_t size
   but cannot see a later-freed source. The shallow copy compounds this: every copy views the same
   storage, so all of them dangle together.
 
+## Precondition checks under `-DDEBUG`
+
+Every `\pre` tag in the headers is a promise the caller makes. `-DDEBUG` — which the Makefile sets
+for the `test-*.debug` binaries only — turns the subset of those promises that can be checked
+cheaply into `assert`s. The checked set is the intersection of two conditions: the header already
+documents the precondition with a `\pre`, and the container can decide it in O(1) from state it
+already holds. Each assert sits in a `#if defined(DEBUG)` block, so a release build contains no
+`__assert_fail` at all.
+
+- **The `\pre` tags are the spec; the asserts only enforce them.** An assert with no matching tag,
+  or one stricter than the tag it enforces, puts the code at odds with the documented contract —
+  and the contract is what callers program against. `operator[]` is the case where that matters
+  most: it asserts `i < capacity()` and deliberately **not** `i < size()`, because reading a live
+  element at an index at or past `size()` is a designed capability of this family (see
+  "`operator[]` is unchecked and capacity-based" above) that all four suites exercise on purpose.
+  The tighter assert would contradict the design and fail the tests. In `fixed_vector` the bound
+  is the *current* `capacity()`, so a `reserve()` shrink leaves live slots outside the contract.
+- **A precondition documented on one overload is documented on both.** `front`, `back`, and
+  `operator[]` state the `\pre` on the non-`const` overload and give the `const` twin a
+  `/// \copydoc front()`, so the generated docs for an overload that asserts a precondition never
+  show it blank. `data()` and the `adopting` family follow the same convention.
+- **The checks live at the leaf.** `unchecked_push_back` carries no assert of its own; its
+  `!is_full()` check is in the `unchecked_emplace_back` it delegates to, so one assert catches
+  violations arriving through either overload. `adopting(R&&, capacity)` inherits the range
+  constructor's check the same way.
+- **The unasserted `\pre` tags stay promises for reasons, not by omission.** The non-overlap tags
+  on the `span` overloads — and on the range overloads, which carry them for the contiguous case
+  they forward — would need exactly the runtime aliasing check those bulk paths exist to avoid.
+  "`[first, last)` is a valid range" is not checkable *by the container* at all. And
+  `borrowed_byte_buffer`'s pointer-based construction tags describe memory the container has no
+  way to measure; only its range constructor's version is checkable, because a range carries its
+  own size (see that section above).
+- **`_GLIBCXX_DEBUG` covers range validity from the other side**, whenever the iterators come from
+  a standard container — which is how the tests supply them. It earns its place on that alone: an
+  invalid iterator yields a garbage distance, which the up-front capacity check reports as
+  `std::bad_alloc`, sending the reader after a capacity bug that does not exist. Debug mode names
+  the real defect instead ("attempt to copy a singular iterator", "iterators from different
+  sequences"), and plain ASan does not catch it at all.
+- **The asserts are `constexpr`-clean.** An assert whose condition holds is fine during constant
+  evaluation, so `test-fixed_vector.cpp`'s `static_assert` block still compiles under `-DDEBUG`.
+- **`DEBUG` is an ODR hazard, which is part of why the debug build gets its own binaries.** Like
+  `NDEBUG`, it changes the definition of inline and template functions, so a `-DDEBUG` translation
+  unit must not be linked against a non-`DEBUG` one. `_GLIBCXX_DEBUG` is the same hazard one level
+  down — it swaps in `__debug::vector` — and is safe here only because each test is a single TU.
+- **`-fhardened` was considered and rejected.** GCC declines to apply its own `_FORTIFY_SOURCE` /
+  `_GLIBCXX_ASSERTIONS` when those are set explicitly, as they are here, and warns that it has.
+  What remains — PIE, relro, cf-protection, stack-protector — hardens a shipped binary rather than
+  finding bugs in a test run, and ASan already reports a smashed stack more precisely.
+
 ## Testing
 
 See `README.md` for the test inventory and the commands to run it. The choices it describes are

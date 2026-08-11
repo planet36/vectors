@@ -125,43 +125,26 @@ document with a `\pre` tag *and* can check cheaply: `!is_full()` on the `uncheck
 Each sits in a `#if defined(DEBUG)` block, so a release build contains no `__assert_fail` at all.
 That is the whole list; 29 asserts across the four headers.
 
+**DESIGN.md's "Precondition checks under `-DDEBUG`" holds the reasoning** — why that set and no
+other, why each unasserted `\pre` stays a promise, what `_GLIBCXX_DEBUG` adds, the ODR hazard, and
+why `-fhardened` was rejected. Read it before changing any of this. What it obliges you to do here:
+
 - **The `\pre` tags are the spec; the asserts only enforce them.** Adding an assert without a
   matching `\pre`, or asserting something stricter than the tag says, is how this drifts into
   contradicting the design. In particular `operator[]` asserts `i < capacity()`, **not**
-  `i < size()` — reading a live element at an index `>= size()` is intended, and the tests do it.
-  All four suites read past `size()` through `operator[]` on purpose, so tightening the assert
-  would fail them.
-- **Every `\pre` is on both overloads' docs, not just the first.** `front`, `back`, and
+  `i < size()` — reading a live element at an index `>= size()` is intended, and all four suites
+  do it on purpose, so tightening the assert would fail them.
+- **Every `\pre` goes on both overloads' docs, not just the first.** `front`, `back`, and
   `operator[]` state the tag once on the non-const overload; the `const` twin gets a
-  `/// \copydoc front()` (etc.) so the precondition it asserts is not blank in the generated
-  docs. Same convention as `data()` and the `adopting` family.
-- The remaining `\pre` tags are unasserted: the non-overlap tags on the `span` overloads — and on
-  the range overloads, which carry them for the contiguous case they forward to the `span`
-  overload — would need a runtime aliasing check that these paths exist to avoid, and
-  "`[first, last)` is a valid
-  range" is not checkable *by the container*. `_GLIBCXX_DEBUG` covers that last one from the
-  other side, whenever the iterators come from a std container — which is how the tests use it.
-  It is worth keeping for that alone: an invalid iterator otherwise yields a garbage distance,
-  which the up-front capacity check reports as **`std::bad_alloc`**, sending you after a
-  phantom capacity bug. Debug mode names the real one instead ("attempt to copy a singular
-  iterator", "iterators from different sequences"), and plain ASan does not catch it at all.
-  `borrowed_byte_buffer`'s pointer-based construction tags are unasserted for the same reason:
-  "\a data points to at least \a capacity writable bytes" and `adopting`'s readable-bytes tag
-  are promises about memory the container cannot measure. Only the range constructor's version is
-  checkable, because a range carries its own size — see DESIGN.md.
-- `unchecked_push_back` delegates to `unchecked_emplace_back`, which is where its `!is_full()`
-  assert lives — one check at the leaf, and violations through either overload still trip it.
-  `adopting(R&&, capacity)` inherits the range constructor's assert the same way.
-- The asserts are `constexpr`-clean: an assert whose condition holds is fine in constant
-  evaluation, so `test-fixed_vector.cpp`'s `static_assert` block still compiles under `-DDEBUG`.
-- Standard `NDEBUG` caveat: `DEBUG` changes the definition of inline/template functions, so
-  don't link a `-DDEBUG` TU against a non-`DEBUG` one — that is an ODR violation. `_GLIBCXX_DEBUG`
-  is the same hazard one level down (it swaps in `__debug::vector` etc.), which is safe here only
-  because each test is a single TU. Both are reasons the debug build gets its own binaries.
-- `-fhardened` was considered and rejected: GCC warns that it declines to apply its own
-  `_FORTIFY_SOURCE` / `_GLIBCXX_ASSERTIONS` when those are set explicitly (they are), and its
-  remaining parts — PIE, relro, cf-protection, stack-protector — harden a shipped binary rather
-  than find bugs in a test run, with ASan already detecting stack smashes more precisely.
+  `/// \copydoc front()` (etc.). Same convention as `data()` and the `adopting` family.
+- **New asserts go at the leaf.** `unchecked_push_back` has none of its own — its `!is_full()`
+  check lives in the `unchecked_emplace_back` it delegates to, and `adopting(R&&, capacity)`
+  inherits the range constructor's the same way.
+- **Keep them `constexpr`-clean**, or `test-fixed_vector.cpp`'s `static_assert` block stops
+  compiling under `-DDEBUG`.
+- **Never link a `-DDEBUG` TU against a non-`DEBUG` one** — that is an ODR violation, and
+  `_GLIBCXX_DEBUG` is the same hazard one level down. Both are why the debug build has its own
+  binaries.
 
 ## Design invariants (the reason this isn't `std::inplace_vector`)
 
