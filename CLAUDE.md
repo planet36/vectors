@@ -67,8 +67,12 @@ Notes:
   opt-out list). It currently reports warnings, and **some of them are the point of the code
   they flag** — `cppcoreguidelines-avoid-c-arrays` on the C array that
   `test-borrowed_byte_buffer.cpp` borrows from, `performance-move-const-arg` on the
-  `std::move`s that test the non-emptying move, `cppcoreguidelines-missing-std-forward` on the
-  deliberately un-forwarded `P&&` of the single-object constructor (see DESIGN.md). Do not
+  `std::move`s that test the non-emptying move, `cppcoreguidelines-missing-std-forward` on each
+  of `borrowed_byte_buffer`'s three deliberately un-forwarded borrowing constructors — the two
+  `R&&` range ones and the `P&&` single-object one (see DESIGN.md). Nothing is consumed there:
+  the type borrows, so it takes only `std::ranges::data(r)` / the pointee `sizeof`, and the
+  forwarding reference is there to widen what binds (rvalue views as well as lvalue containers;
+  a C array reaching the range constructor rather than decaying), not to move from. Do not
   "fix" those; the suites answer the rest with `// NOLINT*` comments.
 - **`make test` runs both variants because neither subsumes the other**, and running only the
   release half is how a bug hides: it is the *weaker* check, yet the habitual one. A violated
