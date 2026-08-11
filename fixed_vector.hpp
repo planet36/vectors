@@ -62,6 +62,9 @@
 * \c dynamic_fixed_vector the same bound is instead required for correctness: its storage is
 * raw bytes from the aligned \c ::operator \c new, which a smaller \a Align would under-align.
 *
+* \note \a Align defaults to <code>max(alignof(std::size_t), alignof(T))</code> -- at least a word,
+* so the storage is word-aligned even for a narrow \a T.
+*
 * \invariant \c size() \c <= \c capacity() \c <= \c max_size(), which is \a N.
 * \invariant \c data() is never null: the storage is an in-place \c std::array member, so there
 * is no empty state that lacks a block (hence none of the null handling in the heap-backed

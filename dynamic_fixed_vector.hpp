@@ -59,6 +59,9 @@
 * unchecked and capacity-based, \c at() is bounds-checked, capacity overflow throws
 * \c std::bad_alloc, and the \c try_* family returns \c bool.
 *
+* \note \a Align defaults to <code>max(alignof(std::size_t), alignof(T))</code> -- at least a word,
+* so the block is word-aligned even for a narrow \a T.
+*
 * \invariant \c size() \c <= \c capacity().
 * \invariant \c data() is null \b exactly when \c capacity() is 0.  A capacity of 0 allocates
 * nothing, and the aligned \c ::operator \c new never returns null (it throws), so no other
