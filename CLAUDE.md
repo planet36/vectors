@@ -268,6 +268,13 @@ it, which removes the ownership machinery and changes construction:
   **shallow** — a copy aliases the same bytes, and move does **not** empty the source (the opposite
   of the heap types' move). The type is trivially copyable. The caller keeps the borrowed storage
   alive; a dangling source is UB the container cannot detect.
+- **A read past `size()` returns the caller's bytes**, which is *not* `aligned_byte_buffer`'s
+  situation even though neither container promises a value. There the tail is heap storage never
+  written, so the byte is genuinely arbitrary and only `std::byte`'s exemption from the
+  indeterminate-value rules keeps the read out of UB; here it is memory the caller owns and
+  probably initialized, so it is usually determinate — and is the caller's data, which a
+  beyond-size read can disclose. Don't collapse the two back into one word: `zeroize_reserved_unused()`
+  is the answer when the tail must not leak. DESIGN.md's `borrowed_byte_buffer` section has the why.
 - **No `Align` parameter** — borrowed memory carries no alignment promise, so `data()` returns the
   raw pointer. Do **not** add `assume_aligned`.
 - **Construction is over existing memory, not the shared owning constructors.** Value constructors
