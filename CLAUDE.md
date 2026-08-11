@@ -123,7 +123,9 @@ document with a `\pre` tag *and* can check cheaply: `!is_full()` on the `uncheck
 `!is_empty()` on `front`/`back`, `i < capacity()` on `operator[]`, and — in
 `borrowed_byte_buffer` only — `capacity() <= std::span{r}.size_bytes()` on the range constructor.
 Each sits in a `#if defined(DEBUG)` block, so a release build contains no `__assert_fail` at all.
-That is the whole list; 29 asserts across the four headers.
+That is the whole list: 7 per header — `front`, `back`, and `operator[]` on both of their
+overloads each, plus the one in `unchecked_emplace_back` — and `borrowed_byte_buffer`'s
+range-constructor check, for 29 in all.
 
 **DESIGN.md's "Precondition checks under `-DDEBUG`" holds the reasoning** — why that set and no
 other, why each unasserted `\pre` stays a promise, what `_GLIBCXX_DEBUG` adds, the ODR hazard, and
