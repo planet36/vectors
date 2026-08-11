@@ -1,5 +1,7 @@
 # vectors
 
+Upstream: <https://github.com/planet36/vectors>
+
 A header-only C++ library of **fixed-capacity vectors**: resizable sequences that never
 reallocate, never grow past their capacity, and never individually destroy an element. The
 storage is sized once — at compile time or at construction — and is never resized after that.
@@ -182,9 +184,10 @@ version:
   growing back exposes the slots exactly as they were left. `std::vector::reserve` can do none of
   those things.
 
-`DESIGN.md` explains the reasoning behind each of these, plus the allocation strategy, the
-alignment defaults, the `constexpr` limits of the heap-backed types, and the edge cases worth
-knowing (zero capacity is both empty and full; `append_range(span)` assumes no aliasing).
+[`DESIGN.md`](DESIGN.md) explains the reasoning behind each of these, plus the allocation
+strategy, the alignment defaults, the `constexpr` limits of the heap-backed types, and the edge
+cases worth knowing (zero capacity is both empty and full; `append_range(span)` assumes no
+aliasing).
 
 ## API at a glance
 
@@ -276,7 +279,7 @@ exits, it does not dump core.
 
 `test-fixed_vector.cpp` also drives the container through a `static_assert` block ahead of
 `main()`, so a regression there fails the compile rather than the run; the heap-backed suites can
-only do that for their empty and zero-capacity cases. See `DESIGN.md` for why.
+only do that for their empty and zero-capacity cases. See [`DESIGN.md`](DESIGN.md) for why.
 
 ### The two build variants
 

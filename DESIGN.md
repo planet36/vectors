@@ -2,7 +2,7 @@
 
 Engineering rationale for the fixed-capacity vector family in this repository. These notes are
 implementation-agnostic and intended for anyone (human or tool) reviewing or extending the code.
-See `README.md` for the API overview, a quick start for each container, and the build
+See [`README.md`](README.md) for the API overview, a quick start for each container, and the build
 instructions — this file covers only the *why*.
 
 ## The family
@@ -491,8 +491,8 @@ already holds. Each assert sits in a `#if defined(DEBUG)` block, so a release bu
 
 ## Testing
 
-See `README.md` for the test inventory and the commands to run it. The choices it describes are
-deliberate rather than incidental; this is the reasoning behind them.
+See [`README.md`](README.md) for the test inventory and the commands to run it. The choices it
+describes are deliberate rather than incidental; this is the reasoning behind them.
 
 - **The exit status is the entire contract: silence and 0 on success, a message and non-zero on
   failure.** These programs previously printed a running commentary of container state and
