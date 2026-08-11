@@ -14,6 +14,8 @@
 #include <stdexcept>
 #include <vector>
 
+constexpr auto is_odd = [](const int x) { return x % 2 != 0; };
+
 // A borrowed_byte_buffer owns nothing: pointer + capacity + size, so it is trivially copyable and
 // its special members are all defaulted (shallow copy/move).
 static_assert(std::is_trivially_copyable_v<borrowed_byte_buffer>);
@@ -467,6 +469,21 @@ test_append_range()
 }
 
 static void
+test_append_range_unsized_partial()
+{
+    // No up-front size check is possible for an unsized source, so the bytes that fit are
+    // appended before std::bad_alloc is thrown (the sized overloads are all-or-nothing).
+    std::array<std::byte, 4> s{};
+    borrowed_byte_buffer v{s};
+    v.append_range({1_b, 2_b});
+    CHECK_THROWS(std::bad_alloc,
+                 v.append_range(std::views::iota(1, 10) | std::views::filter(is_odd) |
+                                std::views::transform(to_byte)));
+    CHECK(to_ivec(v) == std::vector({1, 2, 1, 3})); // partially appended before the throw
+    CHECK(s[3] == 3_b);                             // and it landed in the borrowed storage
+}
+
+static void
 test_try_append_range()
 {
     constexpr std::array a{1_b, 2_b};
@@ -481,6 +498,18 @@ test_try_append_range()
     CHECK(!v.try_append_range(more.begin(), more.end()));     // sized sentinel: checked up front
     CHECK(!v.try_append_range(more.begin(), std::size_t{2})); // iterator + count
     CHECK(to_ivec(v) == std::vector({1, 2, 3, 4}));           // nothing appended by the failures
+}
+
+static void
+test_try_append_range_unsized_partial()
+{
+    std::array<std::byte, 4> s{};
+    borrowed_byte_buffer v{s};
+    v.append_range({1_b, 2_b});
+    // filter_view is not sized: the bytes that fit land before false is returned.
+    CHECK(!v.try_append_range(std::views::iota(1, 10) | std::views::filter(is_odd) |
+                              std::views::transform(to_byte)));
+    CHECK(to_ivec(v) == std::vector({1, 2, 1, 3}));
 }
 
 static void
@@ -511,8 +540,6 @@ test_assign_range_unsized_partial()
     // assign_range is clear() + append_range, so it inherits the unsized source's partial
     // append: the clear() has already run when the throw arrives, and the bytes that fit are
     // already in place.  (filter_view is what makes the source unsized.)
-    constexpr auto is_odd = [](const int x) { return x % 2 != 0; };
-
     std::array<std::byte, 4> s{9_b, 9_b, 9_b, 9_b};
     borrowed_byte_buffer v = borrowed_byte_buffer::adopting(s);
     CHECK_THROWS(std::bad_alloc,
@@ -769,7 +796,9 @@ main() // NOLINT(bugprone-exception-escape)
         test_zeroize_reserved_unused();
 
         test_append_range();
+        test_append_range_unsized_partial();
         test_try_append_range();
+        test_try_append_range_unsized_partial();
         test_assign_range();
         test_assign_range_unsized_partial();
 

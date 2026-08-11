@@ -15,6 +15,8 @@
 #include <stdexcept>
 #include <vector>
 
+constexpr auto is_odd = [](const int x) { return x % 2 != 0; };
+
 // Compile-time check: empty / zero-capacity instances are usable in constant expressions.
 // (The allocating paths are not, since over-aligned allocation is not usable in constant
 // evaluation -- so only the non-allocating members are exercised here.)
@@ -481,6 +483,18 @@ test_append_range_input_iterators()
 }
 
 static void
+test_append_range_unsized_partial()
+{
+    // No up-front size check is possible for an unsized source, so the elements that fit are
+    // appended before std::bad_alloc is thrown (the sized overloads are all-or-nothing).
+    dynamic_fixed_vector<int> v(4);
+    v.append_range({1, 2});
+    CHECK_THROWS(std::bad_alloc,
+                 v.append_range(std::views::iota(1, 10) | std::views::filter(is_odd)));
+    CHECK(to_ivec(v) == std::vector({1, 2, 1, 3})); // partially appended before the throw
+}
+
+static void
 test_try_append_range()
 {
     constexpr std::array a{1, 2};
@@ -494,6 +508,16 @@ test_try_append_range()
     CHECK(!v.try_append_range(more.begin(), more.end()));     // sized sentinel: checked up front
     CHECK(!v.try_append_range(more.begin(), std::size_t{2})); // iterator + count
     CHECK(to_ivec(v) == std::vector({1, 2, 3, 4}));           // nothing appended by the failures
+}
+
+static void
+test_try_append_range_unsized_partial()
+{
+    dynamic_fixed_vector<int> v(4);
+    v.append_range({1, 2});
+    // filter_view is not sized: the elements that fit land before false is returned.
+    CHECK(!v.try_append_range(std::views::iota(1, 10) | std::views::filter(is_odd)));
+    CHECK(to_ivec(v) == std::vector({1, 2, 1, 3}));
 }
 
 static void
@@ -523,8 +547,6 @@ test_assign_range_unsized_partial()
     // assign_range is clear() + append_range, so it inherits the unsized source's partial
     // append: the clear() has already run when the throw arrives, and the elements that fit
     // are already in place.
-    constexpr auto is_odd = [](const int x) { return x % 2 != 0; };
-
     dynamic_fixed_vector<int> v(4);
     v.append_range({9, 9, 9, 9});
     CHECK_THROWS(std::bad_alloc,
@@ -748,7 +770,9 @@ main() // NOLINT(bugprone-exception-escape)
 
         test_append_range();
         test_append_range_input_iterators();
+        test_append_range_unsized_partial();
         test_try_append_range();
+        test_try_append_range_unsized_partial();
         test_assign_range();
         test_assign_range_unsized_partial();
 
