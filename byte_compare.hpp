@@ -24,8 +24,9 @@
 * position of the first differing byte through timing.  Spans of unequal size compare unequal
 * immediately; sizes are normally public (e.g. a fixed tag length).
 *
-* \note \c aligned_byte_buffer::operator== is deliberately variable-time, per ordinary container
-* semantics, and does \b not use this.
+* \note Both including containers' \c operator== -- \c aligned_byte_buffer's and
+* \c borrowed_byte_buffer's -- are deliberately variable-time, per ordinary container semantics,
+* and do \b not use this.
 * \note Branch-freedom is a property of this source, not one the language guarantees: nothing
 * forbids a compiler from proving \c diff can only accumulate and exiting the loop early.  Note
 * the asymmetry with \c zeroize_reserved_unused(), which defeats the optimizer outright, whereas

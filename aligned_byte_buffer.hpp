@@ -851,6 +851,10 @@ public:
         return std::reverse_iterator(cbegin());
     }
 
+    /**
+    * \note Compares the live [0, \c size()) bytes by value (variable-time, per ordinary
+    * container semantics); use the free \c constant_time_equal for secret-dependent data.
+    */
     [[nodiscard]] constexpr bool operator==(const aligned_byte_buffer& rhs) const noexcept
     {
         return std::ranges::equal(span(), rhs.span());
