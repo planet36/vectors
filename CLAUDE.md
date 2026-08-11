@@ -35,6 +35,10 @@ Two documents accompany the headers; an API change should update both:
   strategy, the edge cases). This file states the invariants and the README summarizes them;
   DESIGN.md is where the reasoning lives, so revising an invariant means revising it there too.
 
+The invariants are therefore stated in all three files, and they drift independently. `DESIGN.md`
+is the authority for the *why* and `README.md` for the user-facing summary; where this file
+disagrees with either, assume `DESIGN.md` is right and this file is what needs fixing.
+
 ## Build & test
 
 Requires **GCC 16 / `-std=c++23`** (uses `std::from_range_t`, `std::start_lifetime_as_array`,
