@@ -321,10 +321,11 @@ so a release build has no trace of one.
 The headers sit next to the tests, so the commands above work as written.
 
 `make lint` is separate from all of this: it runs clang-tidy with the checks in `.clang-tidy` and
-is advisory — its recipe ignores the exit status, and a few of the warnings it prints are aimed at
+is advisory — its recipe ignores the exit status. It currently prints nothing: the cases aimed at
 code that exists to be warned about (the borrowed C array, the `std::move` of a trivially copyable
-view, the deliberately un-forwarded forwarding reference). Passing `make test` is the contract;
-`make lint` is a reading aid.
+view, the deliberately un-forwarded forwarding reference, the element-wise append loop) are
+silenced in place with `NOLINT` comments, so the comments are where that reasoning lives.
+Passing `make test` is the contract; `make lint` is a reading aid.
 
 ## License
 

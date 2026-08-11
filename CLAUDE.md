@@ -64,16 +64,37 @@ Notes:
 - **`make lint` is advisory and is not part of `make test`.** The recipe is prefixed with `-`, so
   a nonzero clang-tidy exit does not fail the build, and the checks are configured in
   `.clang-tidy` (`bugprone-*`, `cert-*`, `cppcoreguidelines-*`, `readability-*`, … minus a long
-  opt-out list). It currently reports warnings, and **some of them are the point of the code
-  they flag** — `cppcoreguidelines-avoid-c-arrays` on the C array that
-  `test-borrowed_byte_buffer.cpp` borrows from, `performance-move-const-arg` on the
-  `std::move`s that test the non-emptying move, `cppcoreguidelines-missing-std-forward` on each
-  of `borrowed_byte_buffer`'s three deliberately un-forwarded borrowing constructors — the two
-  `R&&` range ones and the `P&&` single-object one (see DESIGN.md). Nothing is consumed there:
-  the type borrows, so it takes only `std::ranges::data(r)` / the pointee `sizeof`, and the
-  forwarding reference is there to widen what binds (rvalue views as well as lvalue containers;
-  a C array reaching the range constructor rather than decaying), not to move from. Do not
-  "fix" those; the suites answer the rest with `// NOLINT*` comments.
+  opt-out list). **It currently prints nothing**, and that silence is the baseline: a warning
+  under a change is that change's, not a pre-existing noise floor to read past. Every deliberate
+  case is answered in place by a `// NOLINT*` comment, which makes those comments the record of
+  what was decided — and **a silenced warning can still be one whose flagged form is the point**,
+  so deleting the marker to "fix" the code is backwards. The five, and why each stands:
+  - `cppcoreguidelines-missing-std-forward` on each of `borrowed_byte_buffer`'s three
+    deliberately un-forwarded borrowing constructors — the two `R&&` range ones and the `P&&`
+    single-object one (see DESIGN.md). Nothing is consumed there: the type borrows, so it takes
+    only `std::ranges::data(r)` / the pointee `sizeof`, and the forwarding reference is there to
+    widen what binds (rvalue views as well as lvalue containers; a C array reaching the range
+    constructor rather than decaying), not to move from.
+  - `performance-move-const-arg` / `hicpp-move-const-arg` on the two `std::move`s in
+    `test-borrowed_byte_buffer.cpp` that test the non-emptying move. The check is right that the
+    `std::move` has no effect on a trivially copyable view — that *is* the assertion, so removing
+    it removes the test.
+  - `cppcoreguidelines-avoid-c-arrays` on the C array that `test-borrowed_byte_buffer.cpp`
+    borrows from: that array *is* the case being tested (a C array reaching the range constructor
+    instead of decaying to a one-element view), so rewriting it as a `std::array` is not the fix.
+  - `readability-use-anyofallof` on the element-wise loop in all four `try_append_range(R&&)`
+    overloads. The rewrite does not compile for the same inputs: `std::ranges::all_of` requires
+    `indirect_unary_predicate`, which requires the predicate be invocable with `iter_value_t<I>&`
+    — an *lvalue* — while `try_emplace_back` is constrained `std::constructible_from<T, Args...>`,
+    so a move-only `T` (trivially destructible and `movable` but not copyable, which the `requires`
+    clause admits) appends fine through the loop and fails to resolve as an `all_of`. The loop
+    needs only `iter_reference_t`. It is also a mutating loop whose `false` means *out of
+    capacity*, not *element failed a test* — the partial-append behavior the `\note` above it
+    documents, which folding into a query-named algorithm hides.
+  - `readability-simplify-boolean-expr` on the `if (!(...))` checks in the four suites'
+    `constexpr_*_ok()` functions. Where every check in a function is suppressed the marker is a
+    `NOLINTBEGIN` / `NOLINTEND` pair spanning the whole body rather than a `NOLINTNEXTLINE` per
+    line — deliberately; do not narrow them back to per-line comments.
 - **`make test` runs both variants because neither subsumes the other**, and running only the
   release half is how a bug hides: it is the *weaker* check, yet the habitual one. A violated
   precondition passes it silently and only the debug build reports it.
