@@ -166,19 +166,18 @@ Why this is nearly free, and why the decisions below fall out of it:
   what they held while they were reserved. The full scrub is `clear()`, then both calls. Folding
   them into one member covering `[size(), max_size())` would give the byte-level cost of the whole
   array to every caller who only wanted the tail.
-- **`fill_capacity()` stops at `capacity()`**, not `max_size()` — it fills the window, as its name
-  says, which is why it is `std::ranges::fill` over `[0, capacity())` rather than
-  `std::array::fill`.
-- **`fill_capacity()` fills `[0, capacity())`, not `[size(), capacity())`** — the live elements are
-  overwritten too. The name says how far it fills, not where it starts, and that has been misread
-  as "fill the unused part"; the docs on all four types now say the range outright. The
-  tail-only operation already exists and is spelled `resize(capacity(), value)`: it assigns
-  `value` to `[size(), capacity())` and sets `size()` to `capacity()`, which is precisely what a
-  `resize_capacity(value)` member would do. Adding that member would be a second name for an
-  existing one-liner — and a name that reads like a capacity *changer*, next to `reserve()`, which
-  is the member that actually is one. The three fill regions are covered without it:
-  `fill_size()` for `[0, size())`, `resize(capacity(), value)` for `[size(), capacity())`, and
-  `fill_capacity()` for both.
+- **`fill_capacity()` fills exactly `[0, capacity())`.** It stops at `capacity()`, not `max_size()`
+  — it fills the window, as its name says, which is why it is `std::ranges::fill` over
+  `[0, capacity())` rather than `std::array::fill` — and it starts at 0, so the live elements are
+  overwritten along with the reserved tail. That second half is the one the name does not carry
+  (it says how far the fill reaches, not where it begins) and it invites the reading "fill the
+  unused part", so the docs on all four types state the range outright. The tail-only operation
+  does exist, spelled `resize(capacity(), value)`: it assigns `value` to `[size(), capacity())`
+  and sets `size()` to `capacity()`, which is precisely what a `resize_capacity(value)` member
+  would do. Adding that member would be a second name for an existing one-liner — and a name that
+  reads like a capacity *changer*, next to `reserve()`, which is the member that actually is one.
+  The three fill regions are covered without it: `fill_size()` for `[0, size())`,
+  `resize(capacity(), value)` for `[size(), capacity())`, and `fill_capacity()` for both.
 
 `operator[]`'s `\pre i < capacity()` therefore tightens when the capacity is lowered: a slot in
 `[capacity(), max_size())` is alive but out of contract, and the `-DDEBUG` assert says so. That is
@@ -443,8 +442,8 @@ The whole object is `{ std::byte* data_, std::size_t capacity_, std::size_t size
 
 ## Testing
 
-See `README.md` for the test inventory and the commands to run it. Three of the choices it
-describes are deliberate rather than incidental; this is the reasoning behind them.
+See `README.md` for the test inventory and the commands to run it. The choices it describes are
+deliberate rather than incidental; this is the reasoning behind them.
 
 - **The exit status is the entire contract: silence and 0 on success, a message and non-zero on
   failure.** These programs previously printed a running commentary of container state and
@@ -465,17 +464,20 @@ describes are deliberate rather than incidental; this is the reasoning behind th
   "threw the wrong type", because those are different defects.
 
 - **`fixed_vector`'s suite drives the container at compile time.** Nearly its whole interface is
-  `constexpr`, so a `static_assert` block ahead of `main()` runs a vector through `append_range`,
-  `push_back`, `emplace_back`, `try_push_back`, `assign_range`, `resize`, `swap` and
-  `zeroize_reserved_unused` during constant evaluation. That moves a regression from a failed run
-  to a failed build, and buys one check the run-time net cannot: an index outside the storage is
-  rejected outright there. `operator[]` is unchecked by design, so at run time `v[10]` on a
-  `fixed_vector<int, 5>` reads whatever is past the array and every `CHECK` still passes; in a
-  `static_assert` the same expression fails to compile (GCC 16.1.1 rejects it through
-  `std::array`'s hardened precondition). The heap-backed types cannot be tested this way, because
-  over-aligned allocation is not usable in constant evaluation; their suites reach only the empty
-  and zero-capacity members, which is why the compile-time coverage is so lopsided across the
-  three.
+  `constexpr`, so a `static_assert` block ahead of `main()` drives a vector through the whole
+  append family (`append_range`, `push_back`, `emplace_back`, the `try_*` and `unchecked_*`
+  forms), the accessors, `assign_range`, `resize`, `fill_size`, `pop_back`, `clear`, `swap` (both
+  the member and the hidden friend) and — in a second block — `fill_capacity` and
+  `zeroize_reserved_unused`, all during constant evaluation. That moves a regression from a failed
+  run to a failed build, and it is the only net that rejects an index outside the storage without
+  aborting. `operator[]` is unchecked by design, so in the release build `v[10]` on a
+  `fixed_vector<int, 5>` reads whatever is past the array and every `CHECK` still passes; the
+  debug build catches it, but through the `-DDEBUG` `i < capacity()` assert, which means
+  `abort()`; in a `static_assert` the same expression simply fails to compile (GCC 16.1.1 rejects
+  it through `std::array`'s hardened precondition). The heap-backed types cannot be tested this
+  way, because over-aligned allocation is not usable in constant evaluation; their suites reach
+  only the empty and zero-capacity members, which is why the compile-time coverage is so lopsided
+  across the three.
 
 - **The heap-backed types are also run under AddressSanitizer + UndefinedBehaviorSanitizer.**
   `CHECK`s are blind to the specific mistakes these two can make: a read or write just past the

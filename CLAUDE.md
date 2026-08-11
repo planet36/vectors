@@ -44,6 +44,7 @@ libraries: the tests need only the standard library.
 make              # build the test programs -- both variants (release and debug, see below)
 make test         # build if needed, then run both variants -- the one to run by default
 make clean
+make lint         # clang-tidy over the four suites (and, via HeaderFilterRegex, the headers)
 ```
 
 Notes:
@@ -56,6 +57,15 @@ Notes:
   target it was under. A single program still builds and runs by hand — `g++ -std=c++23
   test-fixed_vector.cpp -o test-fixed_vector && ./test-fixed_vector` — since nothing in the
   suites needs the Makefile.
+- **`make lint` is advisory and is not part of `make test`.** The recipe is prefixed with `-`, so
+  a nonzero clang-tidy exit does not fail the build, and the checks are configured in
+  `.clang-tidy` (`bugprone-*`, `cert-*`, `cppcoreguidelines-*`, `readability-*`, … minus a long
+  opt-out list). It currently reports warnings, and **some of them are the point of the code
+  they flag** — `cppcoreguidelines-avoid-c-arrays` on the C array that
+  `test-borrowed_byte_buffer.cpp` borrows from, `performance-move-const-arg` on the
+  `std::move`s that test the non-emptying move, `cppcoreguidelines-missing-std-forward` on the
+  deliberately un-forwarded `P&&` of the single-object constructor (see DESIGN.md). Do not
+  "fix" those; the suites answer the rest with `// NOLINT*` comments.
 - **`make test` runs both variants because neither subsumes the other**, and running only the
   release half is how a bug hides: it is the *weaker* check, yet the habitual one. A violated
   precondition passes it silently and only the debug build reports it.
@@ -192,8 +202,10 @@ The header's class docstring lists the intended differences from `std::inplace_v
     zeroize calls. `fill_capacity()` stops at `capacity()`, not `max_size()`.
   - `operator[]`'s `\pre` (and `-DDEBUG` assert) is the *current* `capacity()`, so a shrink puts
     the slots beyond it out of contract even though they are alive.
-  - These four members are `fixed_vector`-only. The heap-backed siblings' capacity is settled by
-    the constructor, since moving it there would mean reallocating.
+  - Three members are `fixed_vector`-only: `reserve()`, `unreserved()`, and
+    `zeroize_unreserved()`. (`reserved_unused()`, `zeroize_reserved_unused()`, and
+    `fill_capacity()`, named above, are common to all four types.) The heap-backed siblings'
+    capacity is settled by the constructor, since moving it there would mean reallocating.
 
 ### `dynamic_fixed_vector` differences from `fixed_vector`
 

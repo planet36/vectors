@@ -200,7 +200,7 @@ Common to all four types:
 | Add without checking | `unchecked_push_back`, `unchecked_emplace_back` — assume `!is_full()` |
 | Remove / resize | `clear`, `pop_back`, `resize` — none destroy elements |
 | Bulk | `fill_capacity`, `fill_size`, `assign_range`, `zeroize_reserved_unused` |
-| Compare | `operator==`, `operator<=>` — gated on the element type supporting them |
+| Compare | `operator==`, `operator<=>` — gated on the element type supporting them; unconditional in the byte buffers |
 
 Note which range each fill covers: `fill_capacity(value)` fills **`[0, capacity())`** — the live
 elements included — and sets `size()` to `capacity()`. To fill only the reserved-unused tail
@@ -209,11 +209,13 @@ elements included — and sets `size()` to `capacity()`. To fill only the reserv
 `fill_size(value)`.
 
 `fixed_vector` adds three members for the capacity it alone can move: `reserve`, `unreserved`
-(the slots between `capacity()` and `max_size()`), and `zeroize_unreserved`.
+(how many slots lie between `capacity()` and `max_size()`), and `zeroize_unreserved`.
 
-The three owning types build and fill their storage through the same constructors (reserve,
-fill, span, iterator pair, `initializer_list`, range). `borrowed_byte_buffer` differs only in
-construction: it has no reserve/fill/range *element-copying* constructors — it is built over
+The three owning types build and fill their storage through the same constructor set (a single
+count/capacity argument, count + fill value, span, iterator pair, `initializer_list`, range) —
+differing in the one place noted above: `fixed_vector<T, N>(count)` creates `count` elements,
+while the runtime types' `X(capacity)` reserves and starts empty. `borrowed_byte_buffer` differs
+only in construction: it has no count/fill/range *element-copying* constructors — it is built over
 existing memory (a pointer or a contiguous range) and its `adopting` named constructors start it
 full — but every member above behaves identically once constructed.
 
@@ -242,12 +244,13 @@ and exits 0**. On the first failed check it prints one line to stderr and exits 
 immediately:
 
 ```
-test-fixed_vector.cpp:536: test_at: CHECK failed: v.at(1) == 99
+test-fixed_vector.cpp:695: test_at: CHECK failed: v.at(1) == 99
 ```
 
 ```sh
 make        # build the test programs -- both variants (see below)
 make test   # build if needed, then run them
+make lint   # optional: clang-tidy over the suites and headers, per .clang-tidy
 ```
 
 `make test` applies that same contract to the suite: it prints nothing and exits 0 when every
@@ -280,7 +283,7 @@ only do that for their empty and zero-capacity cases. See `DESIGN.md` for why.
 `make test` runs the suite twice, because neither build subsumes the other. The variants are two
 sets of binaries rather than two targets — `make` builds both, `make test` runs both:
 
-- **release** — `test-*`, built at `-O3 -flto -march=native`.
+- **release** — `test-*`, built at `-O3 -flto=auto -march=native`.
 - **debug** — `test-*.debug`, built with asserts, libstdc++ debug mode, fortified string ops,
   and ASan/UBSan.
 
@@ -311,6 +314,12 @@ slot is still alive. Each assert is inside `#if defined(DEBUG)`,
 so a release build has no trace of one.
 
 The headers sit next to the tests, so the commands above work as written.
+
+`make lint` is separate from all of this: it runs clang-tidy with the checks in `.clang-tidy` and
+is advisory — its recipe ignores the exit status, and a few of the warnings it prints are aimed at
+code that exists to be warned about (the borrowed C array, the `std::move` of a trivially copyable
+view, the deliberately un-forwarded forwarding reference). Passing `make test` is the contract;
+`make lint` is a reading aid.
 
 ## License
 
