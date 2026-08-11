@@ -210,8 +210,11 @@ test_ctor_from_range_sized()
 static void
 test_ctor_from_range_unsized()
 {
-    // A filter_view is not a sized_range, so there is no up-front size check -- unlike the
-    // heap-backed siblings, whose range constructors require forward iterators.
+    // A filter_view is not a sized_range, so there is no up-front size check: the elements are
+    // appended one at a time.  (It is still a *forward* range, so the heap-backed siblings would
+    // accept this source too -- what they reject is an input-only one, which fixed_vector takes
+    // because it never has to size an allocation.  See test-dynamic_fixed_vector.cpp's
+    // istream_view static_assert for that line.)
     const fixed_vector<int, 5> v(std::from_range, std::views::iota(1, 10) | std::views::filter(is_odd));
     CHECK(to_ivec(v) == std::vector({1, 3, 5, 7, 9}));
 }
