@@ -20,16 +20,15 @@ constexpr auto is_odd = [](const int x) { return x % 2 != 0; };
 // Compile-time check: empty / zero-capacity instances are usable in constant expressions.
 // (The allocating paths are not, since over-aligned allocation is not usable in constant
 // evaluation -- so only the non-allocating members are exercised here.)
+// NOLINTBEGIN(readability-simplify-boolean-expr)
 constexpr bool
 constexpr_empty_ok()
 {
     dynamic_fixed_vector<int> a;    // default ctor (no allocation)
     dynamic_fixed_vector<int> b(0); // zero-capacity ctor (no allocation)
 
-    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     if (!(a.is_empty() && a.size() == 0 && a.reserved_unused() == 0))
         return false;
-    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     if (!(b.capacity() == 0 && b.is_full()))
         return false;
     if (a.try_push_back(1)) // capacity 0 -> full -> false, must not throw
@@ -41,6 +40,7 @@ constexpr_empty_ok()
     swap(b, c);
     return b.size() == 0 && b == c;
 }
+// NOLINTEND(readability-simplify-boolean-expr)
 static_assert(constexpr_empty_ok());
 
 // The range / iterator-sentinel constructors require forward iterators: capacity has to be

@@ -19,16 +19,15 @@ constexpr auto is_odd = [](const int x) { return x % 2 != 0; };
 // Compile-time check: empty / zero-capacity instances are usable in constant expressions.
 // (The allocating paths are not, since over-aligned allocation is not usable in constant
 // evaluation -- so only the non-allocating members are exercised here.)
+// NOLINTBEGIN(readability-simplify-boolean-expr)
 constexpr bool
 constexpr_empty_ok()
 {
     aligned_byte_buffer<16> a;    // default ctor (no allocation)
     aligned_byte_buffer<16> b(0); // zero-capacity ctor (no allocation)
 
-    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     if (!(a.is_empty() && a.size() == 0 && a.reserved_unused() == 0))
         return false;
-    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     if (!(b.capacity() == 0 && b.is_full()))
         return false;
     if (a.try_push_back(std::byte{1})) // capacity 0 -> full -> false, must not throw
@@ -40,6 +39,7 @@ constexpr_empty_ok()
     swap(b, c);
     return b.size() == 0 && b == c;
 }
+// NOLINTEND(readability-simplify-boolean-expr)
 static_assert(constexpr_empty_ok());
 
 // The emplace_back family is constrained to at most one std::byte / integral argument.

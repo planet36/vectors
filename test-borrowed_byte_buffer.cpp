@@ -25,12 +25,12 @@ static_assert(std::is_trivially_destructible_v<borrowed_byte_buffer>);
 // expressions.  The borrowing constructors are not -- forming a byte view needs a
 // reinterpret_cast, which is barred in constant evaluation -- so only the default instance and the
 // non-borrowing members are exercised here.
+// NOLINTBEGIN(readability-simplify-boolean-expr)
 constexpr bool
 constexpr_empty_ok()
 {
     borrowed_byte_buffer a; // default ctor: null, capacity 0
 
-    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     if (!(a.is_empty() && a.size() == 0 && a.capacity() == 0 && a.reserved_unused() == 0))
         return false;
     if (a.data() != nullptr)
@@ -44,6 +44,7 @@ constexpr_empty_ok()
     swap(a, c);
     return a.size() == 0 && a == c;
 }
+// NOLINTEND(readability-simplify-boolean-expr)
 static_assert(constexpr_empty_ok());
 
 // The emplace_back family is constrained to at most one std::byte / integral argument (identical

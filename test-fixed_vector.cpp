@@ -22,11 +22,11 @@ constexpr auto is_odd = [](const int x) { return x % 2 != 0; };
 // evaluation, so their static_assert can only reach the empty/zero-capacity members --
 // fixed_vector's in-place std::array storage imposes no such limit.  A semantic regression in
 // any member exercised here therefore fails the compile, not just the run.
+// NOLINTBEGIN(readability-simplify-boolean-expr)
 constexpr bool
 constexpr_api_ok()
 {
     fixed_vector<int, 8> v;
-    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     if (!(v.is_empty() && v.size() == 0 && v.reserved_unused() == 8))
         return false;
 
@@ -38,46 +38,40 @@ constexpr_api_ok()
     if (!v.try_emplace_back(7))
         return false;
     v.unchecked_push_back(8);
-    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     if (!(v.is_full() && v.size() == 8))
         return false;
     if (v.try_push_back(9)) // full -> false, must not throw
         return false;
 
-    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     if (!(v.front() == 1 && v.back() == 8 && v.at(2) == 3 && v[7] == 8))
         return false;
 
     v.assign_range({9, 9});
     v.resize(4, 7);
-    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     if (!(v.size() == 4 && v[0] == 9 && v[1] == 9 && v[2] == 7 && v[3] == 7))
         return false;
 
     v.pop_back();
     v.fill_size(1);
-    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     if (!(v.size() == 3 && v[0] == 1 && v[2] == 1))
         return false;
 
     v.clear();
     // Never destroyed: clear() only reset size(), so the elements still read back.
-    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     if (!(v.is_empty() && v[0] == 1))
         return false;
 
     fixed_vector<int, 8> w{4, 5, 6};
     swap(v, w); // hidden friend
-    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     if (!(v.size() == 3 && w.is_empty()))
         return false;
     v.swap(w); // member
-    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     if (!(w.size() == 3 && v.is_empty()))
         return false;
 
     return true;
 }
+// NOLINTEND(readability-simplify-boolean-expr)
 static_assert(constexpr_api_ok());
 
 // Compile-time check: zeroize_reserved_unused() is usable in constant expressions (the
@@ -95,26 +89,23 @@ constexpr_zeroize_ok()
 static_assert(constexpr_zeroize_ok());
 
 // Compile-time check: reserve() and the capacity observers work in constant expressions too.
+// NOLINTBEGIN(readability-simplify-boolean-expr)
 constexpr bool
 constexpr_capacity_ok()
 {
     fixed_vector<int, 5> v{1, 2, 3, 4};
-    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     if (!(v.capacity() == 5 && v.unreserved() == 0 && v.reserved_unused() == 1))
         return false;
 
     v.reserve(2); // below size(): truncates size(), destroys nothing
-    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     if (!(v.capacity() == 2 && v.size() == 2 && v.is_full() && v.unreserved() == 3))
         return false;
 
     v.reserve(5); // growing leaves the regained slots as they were
-    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     if (!(v.capacity() == 5 && v.size() == 2 && v[2] == 3 && v[3] == 4 && v[4] == 0))
         return false;
 
     v.reserve(0); // both empty and full
-    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     if (!(v.is_empty() && v.is_full() && v.reserved_unused() == 0 && v.unreserved() == 5))
         return false;
 
@@ -122,6 +113,7 @@ constexpr_capacity_ok()
     v.zeroize_unreserved(); // no-op: nothing is unreserved
     return v[0] == 1 && v[4] == 0;
 }
+// NOLINTEND(readability-simplify-boolean-expr)
 static_assert(constexpr_capacity_ok());
 
 // max_size() is static here -- callable with no object.  capacity() is not: it reports the
