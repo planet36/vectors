@@ -63,14 +63,22 @@
 * representation is what gets written and later read back) and must be non-\c const (the view
 * writes through it).
 *
-* Like \c aligned_byte_buffer: the reserved tail [\c size(), \c capacity()) is left as-is
-* (borrowed bytes are neither zeroed nor read on construction; reading one back via \c operator[]
-* yields an \e unspecified -- not indeterminate -- \c std::byte), \c operator[] is unchecked and
-* capacity-based, \c at() is bounds-checked, capacity overflow throws \c std::bad_alloc, and the
-* \c try_* family returns \c bool.  \c zeroize_reserved_unused() and the free \c constant_time_equal
-* (from \c byte_compare.hpp) are available.  Nearly the whole interface is \c constexpr, but forming
-* a byte view over an object needs a \c reinterpret_cast, which is barred in constant evaluation,
+* Like \c aligned_byte_buffer: the reserved tail [\c size(), \c capacity()) is left as-is (borrowed
+* bytes are neither zeroed nor read on construction), \c operator[] is unchecked and capacity-based,
+* \c at() is bounds-checked, capacity overflow throws \c std::bad_alloc, and the \c try_* family
+* returns \c bool.  \c zeroize_reserved_unused() and the free \c constant_time_equal (from
+* \c byte_compare.hpp) are available.  Nearly the whole interface is \c constexpr, but forming a
+* byte view over an object needs a \c reinterpret_cast, which is barred in constant evaluation,
 * so only the default (empty) instance is usable in constant expressions.
+*
+* \note A read past \c size() returns the caller's own bytes, which is \b not the same situation as
+* \c aligned_byte_buffer's, though both containers promise the same thing about it -- nothing.
+* There the tail is heap storage that was never written, so the byte really is arbitrary and only
+* \c std::byte's exemption from the indeterminate-value rules keeps the read out of UB.  Here the
+* tail is memory the caller owns and most likely initialized, so the byte is usually perfectly
+* determinate -- and is the caller's data, which a beyond-size read (or an \c operator== after a
+* \c resize, or a \c span() handed onward) will disclose.  Call \c zeroize_reserved_unused() when
+* the tail must not leak.
 *
 * \invariant \c size() \c <= \c capacity().
 * \note Unlike \c aligned_byte_buffer, \c data() is \b not guaranteed null exactly when
@@ -773,8 +781,9 @@ public:
 
     /**
     * \pre \a i < \c capacity()
-    * \note Unchecked and capacity-based: reading an index in [size(), capacity()) is valid
-    * but yields an unspecified (not indeterminate) byte.  \c at() is the bounds-checked
+    * \note Unchecked and capacity-based: reading an index in [size(), capacity()) is valid and
+    * returns whatever the borrowed region holds there -- the caller's own bytes, on which this
+    * container promises nothing (see the class documentation).  \c at() is the bounds-checked
     * accessor.
     */
     [[nodiscard]] constexpr std::byte& operator[](const std::size_t i) noexcept
@@ -797,8 +806,8 @@ public:
     /**
     * \returns A reference to the byte at index \a i.
     * \note The only bounds-checked accessor, and checked against \c size(), not
-    * \c capacity(): \c operator[] reads an index in [size(), capacity()) and yields an
-    * unspecified byte, but this rejects that index.
+    * \c capacity(): \c operator[] reads an index in [size(), capacity()) and returns the
+    * borrowed region's own byte, but this rejects that index.
     * \throws std::out_of_range if \a i >= \c size().
     */
     [[nodiscard]] constexpr std::byte& at(const std::size_t i)

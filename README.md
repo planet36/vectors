@@ -168,9 +168,11 @@ These are deliberate departures from standard-container semantics, not oversight
 version:
 
 - **Every capacity slot holds a live element from construction onward.** Capacity is not raw
-  storage awaiting placement-new. (The exception is the byte buffers: `aligned_byte_buffer` leaves
-  its reserved tail uninitialized and `borrowed_byte_buffer` inherits whatever the borrowed region
-  held — either way a read past `size()` gives an *unspecified* `std::byte`, well-defined, not UB.)
+  storage awaiting placement-new. (The exception is the byte buffers, and they differ from each
+  other: `aligned_byte_buffer` leaves its reserved tail uninitialized, so a read past `size()`
+  gives an *unspecified* `std::byte` — well-defined, not UB. `borrowed_byte_buffer` inherits
+  whatever the borrowed region held, so the same read is typically determinate and returns the
+  caller's own bytes; neither container promises a value, but only the second can disclose one.)
 - **Elements are never individually destroyed.** `clear()`, `pop_back()`, and `resize()` only
   adjust the size counter, so the element type must be trivially destructible (enforced by a
   `requires` clause). A consequence: `emplace_back` cannot construct in place — the slot is already

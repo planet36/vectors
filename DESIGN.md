@@ -31,7 +31,8 @@ share `constant_time_equal`, factored into `byte_compare.hpp`.
 These are deliberate and hold across all four types, except where the `borrowed_byte_buffer`
 section notes otherwise — being non-owning, it departs on storage lifetime, copy/move semantics,
 and the "all slots alive up front" point (it inherits whatever the borrowed region already held,
-so reads past `size()` are *unspecified*, as in `aligned_byte_buffer`):
+so the container promises nothing about a read past `size()` — for a different reason than
+`aligned_byte_buffer`, see "Beyond-`size()` reads expose the caller's bytes" below):
 
 - **All capacity slots are alive up front.** Capacity storage is not raw bytes waiting for placement
   construction; every slot holds a live element from the moment the container exists.
@@ -326,6 +327,18 @@ The whole object is `{ std::byte* data_, std::size_t capacity_, std::size_t size
   no `unique_ptr`, no deleter, no overflow guard (nothing is allocated), and a trivial destructor.
   The caller is responsible for keeping the borrowed storage alive for the buffer's lifetime; a
   destroyed source leaves a dangling view, exactly as with `std::span` / `std::string_view`.
+
+- **Beyond-`size()` reads expose the caller's bytes.** `operator[]` is capacity-based here as
+  everywhere, so an index in `[size(), capacity())` reads the borrowed region. Both byte buffers
+  are described as yielding an *unspecified* byte there, but they mean different things by it, and
+  the difference is the one a caller has to act on. In `aligned_byte_buffer` the tail is heap
+  storage that was never written: the value really is arbitrary, and only `std::byte`'s exemption
+  from the indeterminate-value rules keeps the read out of UB. Here the tail is memory the caller
+  owns and very likely initialized, so the byte is usually perfectly determinate — and is the
+  *caller's own data*, which a beyond-size read (or an `operator==` after `resize`, or a `span()`
+  handed onward) will disclose. The container guarantees nothing about the value in either case;
+  what differs is that here "nothing is guaranteed" is not the same as "nothing is there".
+  `zeroize_reserved_unused()` is the answer when the tail must not leak.
 
 - **Copy and move are shallow, and all six special members are defaulted.** The type is a pointer
   and two integers, hence trivially copyable — cheap to pass by value. A copy is a second view of

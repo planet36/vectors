@@ -544,8 +544,11 @@ test_operator_index()
     CHECK(v[2] == 33_b);
     v[1] = 99_b;
     CHECK(v[1] == 99_b);
-    // Exercise -- but do not check the value of -- a read at an index >= size() within capacity:
-    // operator[] is capacity-based, and the borrowed reserved tail is unspecified here.
+    // Exercise -- but do not check the value of -- a read at an index >= size() within capacity.
+    // operator[] is capacity-based, so this is a valid read; it returns whatever the borrowed
+    // region holds (here s{} happens to make it zero, but the container promises nothing, so no
+    // value is asserted).  Unlike aligned_byte_buffer, the byte is the *caller's*, not an
+    // untouched heap byte -- see the class note.
     const auto probe = std::to_integer<unsigned>(v[v.capacity() - 1]);
     (void)probe;
 }
