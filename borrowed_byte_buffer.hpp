@@ -271,6 +271,7 @@ public:
     */
     template <std::ranges::contiguous_range R>
     requires is_writable_borrow_<R>
+    // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
     explicit borrowed_byte_buffer(R&& r, const std::size_t capacity) noexcept
         : data_{reinterpret_cast<std::byte*>(std::ranges::data(r))}, capacity_{capacity}
     {
@@ -288,6 +289,7 @@ public:
     */
     template <std::ranges::contiguous_range R>
     requires is_writable_borrow_<R>
+    // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
     explicit borrowed_byte_buffer(R&& r) noexcept
         : data_{reinterpret_cast<std::byte*>(std::ranges::data(r))},
           capacity_{std::span{r}.size_bytes()}
@@ -300,6 +302,7 @@ public:
     */
     template <typename P>
     requires is_object_ptr_<P>
+    // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
     explicit borrowed_byte_buffer(P&& data) noexcept
         : data_{reinterpret_cast<std::byte*>(data)}, capacity_{object_ptr_size_<P>}
     {}
@@ -696,6 +699,7 @@ public:
         }
         else
         {
+            // NOLINTNEXTLINE(readability-use-anyofallof)
             for (auto&& e : std::forward<R>(rg))
             {
                 if (!try_emplace_back(std::forward<decltype(e)>(e)))

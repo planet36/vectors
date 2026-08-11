@@ -710,6 +710,7 @@ public:
         }
         else
         {
+            // NOLINTNEXTLINE(readability-use-anyofallof)
             for (auto&& e : std::forward<R>(rg))
             {
                 if (!try_emplace_back(std::forward<decltype(e)>(e)))
