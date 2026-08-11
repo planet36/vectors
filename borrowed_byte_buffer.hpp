@@ -36,8 +36,9 @@
 * Same append interface as \c aligned_byte_buffer (\c is_full, \c reserved_unused,
 * \c append_range, \c push_back, ...), but it \b borrows the bytes it operates on instead of
 * owning them: construction takes a pointer or a contiguous range whose lifetime the caller
-* manages, and the buffer never allocates or frees.  It is the run-time-capacity, non-owning counterpart to
-* \c fixed_vector<std::byte, N>.
+* manages, and the buffer never allocates or frees.  Read it as \c aligned_byte_buffer with the
+* ownership removed -- that is the container it is closest to, and the one the differences below
+* are stated against.
 *
 * Differences from \c aligned_byte_buffer:
 *   - \b Non-owning.  Just a pointer + capacity + size; no allocation, a trivial destructor, and
@@ -266,7 +267,7 @@ public:
     /// Borrow \a capacity bytes of the range \a r; the buffer starts empty (\c size()==0).
     /**
     * \a r is any contiguous, sized range of writable, trivially-copyable elements -- a
-    * \c std::array, \c std::vector, \c std::span, C array, etc. (see \c is_borrowable_range_).
+    * \c std::array, \c std::vector, \c std::span, C array, etc. (see \c is_writable_borrow_).
     * Its storage is overlaid, not copied.
     * \pre \a r's byte size is at least \a capacity.
     */
@@ -282,7 +283,10 @@ public:
 
     /// Borrow all of the range \a r; capacity is its byte size, the buffer starts empty.
     /**
-    * \copydetails borrowed_byte_buffer(R&&, std::size_t)
+    * \a r is any contiguous, sized range of writable, trivially-copyable elements -- a
+    * \c std::array, \c std::vector, \c std::span, C array, etc. (see \c is_writable_borrow_).
+    * Its storage is overlaid, not copied.  Taking the whole range, this carries no size
+    * precondition of its own, unlike the \a capacity overload.
     */
     template <std::ranges::contiguous_range R>
     requires is_writable_borrow_<R>
@@ -308,7 +312,13 @@ public:
     * \e full, so \c span(), the iterators and \c operator== immediately see the bytes already in
     * the region -- for reading, iterating, or comparing memory that is already populated (a
     * header, a received packet, a key), rather than building into an empty region.
-    * \pre The source points to at least \c capacity() readable bytes.
+    *
+    * \note Adopting is about where the size cursor starts, not about read-only access: these
+    * take the same sources the value constructors do, so the storage must still be \b writable
+    * and its elements non-\c const (\c is_writable_borrow_ / \c is_object_ptr_).  A \c const
+    * source is rejected even though adopting it would only be read -- the whole type writes
+    * through its pointer, so it cannot hold one.  View \c const bytes with \c std::span instead.
+    * \pre The source points to at least \c capacity() writable bytes.
     */
     [[nodiscard]] static borrowed_byte_buffer
     adopting(void* const data, const std::size_t capacity) noexcept
