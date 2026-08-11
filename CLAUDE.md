@@ -37,8 +37,8 @@ Two documents accompany the headers; an API change should update both:
 
 ## Build & test
 
-Requires **GCC 16 / `-std=c++23`** (uses `std::from_range`, ranges, concepts). No third-party
-libraries: the tests need only the standard library.
+Requires **GCC 16 / `-std=c++23`** (uses `std::from_range_t`, `std::start_lifetime_as_array`,
+ranges, concepts). No third-party libraries: the tests need only the standard library.
 
 ```sh
 make              # build the test programs -- both variants (release and debug, see below)

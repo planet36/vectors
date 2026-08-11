@@ -37,8 +37,8 @@ a free `constant_time_equal` (in `byte_compare.hpp`, which they both include).
 
 ## Requirements
 
-- **GCC 16** with `-std=c++23` (the headers use `std::from_range`, `std::start_lifetime_as_array`,
-  ranges, and concepts).
+- **GCC 16** with `-std=c++23` (the headers use `std::from_range_t`,
+  `std::start_lifetime_as_array`, ranges, and concepts).
 - No third-party libraries — the headers and their tests need only the standard library.
 
 ## Quick start
