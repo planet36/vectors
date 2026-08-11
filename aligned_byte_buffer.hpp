@@ -802,6 +802,7 @@ public:
         return data()[i];
     }
 
+    /// \copydoc at(std::size_t)
     [[nodiscard]] constexpr const std::byte& at(const std::size_t i) const
     {
         check_idx_(i);

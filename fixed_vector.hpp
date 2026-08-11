@@ -795,11 +795,12 @@ public:
     }
 
     /**
-    * \note No \c std::assume_aligned<Align> is needed, unlike the heap-backed siblings: the
-    * array is a member of an \c alignas(Align) object, so the compiler derives the alignment.
+    * \note No \c std::assume_aligned<Align> is needed, unlike the heap-backed siblings: the array
+    * member itself carries the \c alignas(Align), so the compiler derives the alignment.
     */
     [[nodiscard]] constexpr T* data() noexcept { return std::data(data_); }
 
+    /// \copydoc data()
     [[nodiscard]] constexpr const T* data() const noexcept { return std::data(data_); }
 
     /**
@@ -881,6 +882,7 @@ public:
         return data_[i];
     }
 
+    /// \copydoc at(std::size_t)
     [[nodiscard]] constexpr const T& at(const std::size_t i) const
     {
         check_idx_(i);
