@@ -480,7 +480,7 @@ public:
     * without changing \c size(), call \c fill_size().
     * \note Stops at \c capacity(), not \c max_size(): the unreserved slots are outside the
     * container's window and are left alone.
-    * \sa https://cppreference.com/w/cpp/algorithm/ranges/fill
+    * \sa https://cppreference.com/w/cpp/algorithm/ranges/fill.html
     */
     constexpr void fill_capacity(const T& value)
         noexcept(std::is_nothrow_copy_assignable_v<T>)
@@ -493,7 +493,7 @@ public:
     /**
     * The complement of \c resize(capacity(), \a value), which fills the reserved-unused tail;
     * \c fill_capacity() does both.
-    * \sa https://cppreference.com/w/cpp/algorithm/ranges/fill
+    * \sa https://cppreference.com/w/cpp/algorithm/ranges/fill.html
     */
     constexpr void fill_size(const T& value)
         noexcept(std::is_nothrow_copy_assignable_v<T>)
