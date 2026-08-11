@@ -8,10 +8,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
-#include <span>
-#include <string>
 #include <ranges>
+#include <span>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 constexpr auto is_odd = [](const int x) { return x % 2 != 0; };
