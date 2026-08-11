@@ -648,6 +648,24 @@ test_assign_range()
     CHECK(to_ivec(v) == std::vector({10, 11, 12}));
 }
 
+static void
+test_assign_range_unsized_partial()
+{
+    // assign_range is clear() + append_range, so it inherits the unsized source's partial
+    // append: the clear() has already run when the throw arrives, and the elements that fit
+    // are already in place.
+    fixed_vector<int, 4> v{9, 9, 9, 9};
+    CHECK_THROWS(std::bad_alloc,
+                 v.assign_range(std::views::iota(1, 10) | std::views::filter(is_odd)));
+    CHECK(to_ivec(v) == std::vector({1, 3, 5, 7})); // not empty -- what fit survived the throw
+
+    // The sized counterpart, for contrast: checked up front, so it throws before writing.
+    fixed_vector<int, 4> w{9, 9, 9, 9};
+    CHECK_THROWS(std::bad_alloc, w.assign_range({1, 2, 3, 4, 5}));
+    CHECK(w.is_empty());
+    CHECK(w[0] == 9); // nothing was written; the old elements are alive, just outside size()
+}
+
 // ---- Element access ----
 
 static void
@@ -884,6 +902,7 @@ main() // NOLINT(bugprone-exception-escape)
         test_try_append_range();
         test_try_append_range_unsized_partial();
         test_assign_range();
+        test_assign_range_unsized_partial();
 
         test_span_and_data();
         test_front_back();

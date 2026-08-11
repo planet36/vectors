@@ -510,6 +510,29 @@ test_assign_range()
     CHECK(v.capacity() == 6); // assign_range keeps the current capacity
 }
 
+static void
+test_assign_range_unsized_partial()
+{
+    // assign_range is clear() + append_range, so it inherits the unsized source's partial
+    // append: the clear() has already run when the throw arrives, and the bytes that fit are
+    // already in place.  (filter_view is what makes the source unsized.)
+    constexpr auto is_odd = [](const int x) { return x % 2 != 0; };
+
+    aligned_byte_buffer<16> v(4);
+    v.append_range({9_b, 9_b, 9_b, 9_b});
+    CHECK_THROWS(std::bad_alloc,
+                 v.assign_range(std::views::iota(1, 10) | std::views::filter(is_odd) |
+                                std::views::transform(to_byte)));
+    CHECK(to_ivec(v) == std::vector({1, 3, 5, 7})); // not empty -- what fit survived the throw
+
+    // The sized counterpart, for contrast: checked up front, so it throws before writing.
+    aligned_byte_buffer<16> w(4);
+    w.append_range({9_b, 9_b, 9_b, 9_b});
+    CHECK_THROWS(std::bad_alloc, w.assign_range({1_b, 2_b, 3_b, 4_b, 5_b}));
+    CHECK(w.is_empty());
+    CHECK(w[0] == 9_b); // nothing was written; the byte is still there, just outside size()
+}
+
 // ---- Element access ----
 
 static void
@@ -731,6 +754,7 @@ main() // NOLINT(bugprone-exception-escape)
         test_append_range();
         test_try_append_range();
         test_assign_range();
+        test_assign_range_unsized_partial();
 
         test_span_and_data();
         test_front_back();

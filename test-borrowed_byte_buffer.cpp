@@ -505,6 +505,30 @@ test_assign_range()
     CHECK(v.capacity() == 6); // assign_range keeps the current capacity
 }
 
+static void
+test_assign_range_unsized_partial()
+{
+    // assign_range is clear() + append_range, so it inherits the unsized source's partial
+    // append: the clear() has already run when the throw arrives, and the bytes that fit are
+    // already in place.  (filter_view is what makes the source unsized.)
+    constexpr auto is_odd = [](const int x) { return x % 2 != 0; };
+
+    std::array<std::byte, 4> s{9_b, 9_b, 9_b, 9_b};
+    borrowed_byte_buffer v = borrowed_byte_buffer::adopting(s);
+    CHECK_THROWS(std::bad_alloc,
+                 v.assign_range(std::views::iota(1, 10) | std::views::filter(is_odd) |
+                                std::views::transform(to_byte)));
+    CHECK(to_ivec(v) == std::vector({1, 3, 5, 7})); // not empty -- what fit survived the throw
+    CHECK(s[3] == 7_b);                             // and it landed in the borrowed storage
+
+    // The sized counterpart, for contrast: checked up front, so it throws before writing.
+    std::array<std::byte, 4> t{9_b, 9_b, 9_b, 9_b};
+    borrowed_byte_buffer w = borrowed_byte_buffer::adopting(t);
+    CHECK_THROWS(std::bad_alloc, w.assign_range({1_b, 2_b, 3_b, 4_b, 5_b}));
+    CHECK(w.is_empty());
+    CHECK(t[0] == 9_b); // the borrowed bytes were never touched
+}
+
 // ---- Element access ----
 
 static void
@@ -747,6 +771,7 @@ main() // NOLINT(bugprone-exception-escape)
         test_append_range();
         test_try_append_range();
         test_assign_range();
+        test_assign_range_unsized_partial();
 
         test_span_and_data();
         test_front_back();
