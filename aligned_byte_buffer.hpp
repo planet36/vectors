@@ -652,7 +652,9 @@ public:
     * \note The capacity is kept, not resized to the source.
     * \pre \a spn does not overlap this buffer's storage.
     * \throws std::bad_alloc if the source does not fit in \c capacity().  The \c clear() has
-    * already happened by then, so a failed assign leaves the buffer empty rather than unchanged.
+    * already happened by then, so a failed assign never leaves the previous contents in place:
+    * a sized source (checked up front) leaves the buffer empty, while an unsized one leaves the
+    * bytes that fit -- \c append_range's partial-append behavior, inherited.
     */
     constexpr void assign_range(const std::span<const std::byte> spn)
     {
