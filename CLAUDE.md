@@ -302,6 +302,16 @@ it, which removes the ownership machinery and changes construction:
 
 ## API / error-handling conventions
 
+- **A `\copydoc` / `\copydetails` target block must hold only what is true of every overload that
+  copies it** — no `\a param` naming a parameter the others do not have, and no claim that holds
+  for only some of them. The tag copies the text verbatim, nothing checks that the text still
+  fits, and there is no Doxygen build here to catch it, so a target block is a promise that the
+  overloads share one contract. Three defects of exactly this shape were found and fixed in one
+  pass: a `\copydetails` importing a `\pre` about a `capacity` parameter onto the constructor that
+  has none, an `assign_range` post-condition (`leaves the container empty`) true only of the sized
+  overloads, and that same block's `\pre \a spn` reaching four overloads with no `spn`. Where the
+  overloads genuinely differ, give each its own block. Current targets: `data()`, `front()`,
+  `back()`, `operator[]`, `at()`, `push_back`, `assign_range`, and `adopting`.
 - Capacity overflow throws **`std::bad_alloc`** (not `length_error`); `at()` throws
   **`std::out_of_range`**. The `try_*` family (`try_push_back`, `try_emplace_back`,
   `try_append_range`) returns `bool` instead of throwing and is marked `[[nodiscard]]`.
