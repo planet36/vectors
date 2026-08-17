@@ -98,6 +98,22 @@ so the container promises nothing about a read past `size()` — for a different
 
   [sd6]: https://isocpp.org/std/standing-documents/sd-6-sg10-feature-test-recommendations
 
+  **Why the headers include `<string.h>` and not just `<cstring>`.** Both names are declared by
+  `<string.h>`, and that include sits alongside the `<cstring>` the qualified `std::memcpy` /
+  `std::memset` calls need — the two are not redundant, and collapsing them to the C++ spelling
+  alone is not a modernization. Since the probe above must be unqualified, it needs the names in
+  the *global* namespace, which `<cstring>` does not supply: `[cstring]` guarantees only the
+  `std::` names, and neither `memset_explicit` nor `explicit_bzero` is among the ones it is required to
+  declare at all — the first is C23, the second a glibc/BSD extension. That they have been
+  reachable through `<cstring>` on glibc is an implementation detail of that header including
+  `<string.h>`, not something to depend on.
+
+  What makes this worth stating rather than leaving to the reader: the failure mode is silent.
+  Drop the `<string.h>` on an implementation whose `<cstring>` does not re-export, and the
+  requires-expression simply evaluates to `false` and takes the volatile-write fallback. There is
+  no build error and no test failure — all three branches zero the memory correctly, so the suites
+  cannot tell them apart. The only casualty is the guarantee, and nothing announces its loss.
+
   During constant evaluation
   `fixed_vector` value-assigns the tail instead (there is no memory to scrub at compile time);
   the heap types are only ever empty in constant evaluation.
