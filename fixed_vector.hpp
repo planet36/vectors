@@ -20,7 +20,6 @@
 #include <compare>
 #include <concepts>
 #include <cstddef>
-#include <cstring>
 #include <initializer_list>
 #include <iterator>
 #include <new>
