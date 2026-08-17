@@ -28,6 +28,7 @@
 #include <ranges>
 #include <span>
 #include <stdexcept>
+#include <string.h> // memset_explicit, explicit_bzero
 #include <type_traits>
 #include <utility>
 
