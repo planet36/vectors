@@ -347,10 +347,15 @@ it, which removes the ownership machinery and changes construction:
   element-wise and may partially append before throwing / returning `false`.
 - `zeroize_reserved_unused()` (all four; trivially copyable element types only) zeroizes the
   reserved tail with non-elidable stores (`memset_explicit`/`explicit_bzero` when the libc
-  declares one — detected by name lookup, there is no feature-test macro — else a volatile-write
-  fallback); `clear()` + `zeroize_reserved_unused()` scrubs everything up to `capacity()`. In
-  `fixed_vector` it also works in constant evaluation (value-assigns the tail), and covering the
-  whole container after a `reserve()` shrink additionally needs `zeroize_unreserved()`.
+  declares one — detected by *unqualified* name lookup, there is no feature-test macro — else a
+  volatile-write fallback). Because that lookup is unqualified it needs the names in the global
+  namespace, which is why every header includes **`<string.h>` alongside `<cstring>`** — the two
+  are not redundant and **collapsing them to the C++ spelling is not a modernization**; it drops
+  zeroization to the volatile fallback with no build error and no test failure, since all three
+  branches zero correctly. (DESIGN.md has the why, next to the matching rule that the call must
+  stay unqualified.) `clear()` + `zeroize_reserved_unused()` scrubs everything up to `capacity()`.
+  In `fixed_vector` it also works in constant evaluation (value-assigns the tail), and covering
+  the whole container after a `reserve()` shrink additionally needs `zeroize_unreserved()`.
 - Nearly the entire interface is `constexpr`. `operator==` / `operator<=>` are gated on
   `std::equality_comparable` / `std::three_way_comparable`.
 - `append_range` / `assign_range` are overloaded for span, iterator+sentinel, iterator+count,
