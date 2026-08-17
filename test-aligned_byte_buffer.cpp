@@ -5,13 +5,14 @@
 #include "test_utils.hpp"
 
 #include <array>
+#include <compare>
 #include <cstddef>
-#include <cstdlib>
 #include <limits>
 #include <new>
 #include <ranges>
 #include <span>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 constexpr auto is_odd = [](const int x) { return x % 2 != 0; };

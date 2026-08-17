@@ -6,13 +6,15 @@
 
 #include <algorithm>
 #include <array>
+#include <compare>
 #include <cstddef>
-#include <cstdlib>
+#include <iterator>
 #include <new>
 #include <numeric>
 #include <ranges>
 #include <span>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 constexpr auto is_odd = [](const int x) { return x % 2 != 0; };
