@@ -199,7 +199,7 @@ public:
 
     /// Create \a count elements equal to \a value (\c size()==count).
     /**
-    * \throws std::bad_alloc if \a count > \c max_size().
+    * \throw std::bad_alloc if \a count > \c max_size().
     */
     constexpr explicit fixed_vector(const std::size_t count, const T& value)
     {
@@ -211,7 +211,7 @@ public:
     * \note This creates elements, unlike the heap-backed siblings' \c X(n), which reserves
     * capacity \a n and starts empty.  Capacity is already \a N at construction, so the argument
     * can only mean the size; use \c reserve() to lower the capacity afterward.
-    * \throws std::bad_alloc if \a count > \c max_size().
+    * \throw std::bad_alloc if \a count > \c max_size().
     */
     constexpr explicit fixed_vector(const std::size_t count)
     {
@@ -224,13 +224,13 @@ public:
 
     /// Copy the elements of \a spn (\c size()==std::size(spn)).
     /**
-    * \throws std::bad_alloc if \a spn does not fit in \c max_size().
+    * \throw std::bad_alloc if \a spn does not fit in \c max_size().
     */
     constexpr explicit fixed_vector(const std::span<const T> spn) { append_range(spn); }
 
     /// Copy the elements of <code>[first, last)</code>.
     /**
-    * \throws std::bad_alloc if the source does not fit in \c max_size().
+    * \throw std::bad_alloc if the source does not fit in \c max_size().
     */
     template <std::input_iterator It, std::sentinel_for<It> S>
     constexpr explicit fixed_vector(It first, S last)
@@ -240,7 +240,7 @@ public:
 
     /// Copy \a count elements starting at \a first (\c size()==count).
     /**
-    * \throws std::bad_alloc if \a count > \c max_size().
+    * \throw std::bad_alloc if \a count > \c max_size().
     */
     template <std::input_iterator It>
     constexpr explicit fixed_vector(It first, const std::size_t count)
@@ -250,13 +250,13 @@ public:
 
     /// Copy the elements of \a il (\c size()==il.size()).
     /**
-    * \throws std::bad_alloc if \a il does not fit in \c max_size().
+    * \throw std::bad_alloc if \a il does not fit in \c max_size().
     */
     constexpr fixed_vector(const std::initializer_list<T> il) { append_range(il); }
 
     /// Copy the elements of \a rg.
     /**
-    * \throws std::bad_alloc if the source does not fit in \c max_size().
+    * \throw std::bad_alloc if the source does not fit in \c max_size().
     */
     template <std::ranges::input_range R>
     constexpr explicit fixed_vector(std::from_range_t, R&& rg)
@@ -326,7 +326,7 @@ public:
     *
     * \note Unlike \c std::vector::reserve, this shrinks as well as grows.
     * \post <code>capacity() == new_cap && size() <= capacity()</code>
-    * \throws std::bad_alloc if \a new_cap > \c max_size().
+    * \throw std::bad_alloc if \a new_cap > \c max_size().
     */
     constexpr void reserve(const std::size_t new_cap)
     {
@@ -348,7 +348,7 @@ public:
     * \note \c resize(capacity(), \a value) is how to fill only the reserved-unused tail
     * [\c size(), \c capacity()) and grow into it; \c fill_capacity() overwrites the live
     * elements as well.
-    * \throws std::bad_alloc if \a count > \c capacity().
+    * \throw std::bad_alloc if \a count > \c capacity().
     */
     constexpr void resize(const std::size_t count, const T& value)
     {
@@ -395,7 +395,7 @@ public:
     }
 
     /**
-    * \throws std::bad_alloc if \c is_full().
+    * \throw std::bad_alloc if \c is_full().
     */
     template <class... Args>
     requires std::constructible_from<T, Args...> && std::assignable_from<T&, T>
@@ -439,7 +439,7 @@ public:
     }
 
     /**
-    * \throws std::bad_alloc if \c is_full().
+    * \throw std::bad_alloc if \c is_full().
     */
     constexpr void push_back(const T& value) { emplace_back(value); }
 
@@ -537,7 +537,7 @@ public:
 
     /**
     * \pre \a spn does not overlap this vector's storage.
-    * \throws std::bad_alloc if \a spn does not fit in \c reserved_unused() (nothing is appended).
+    * \throw std::bad_alloc if \a spn does not fit in \c reserved_unused() (nothing is appended).
     */
     constexpr void append_range(const std::span<const T> spn)
     {
@@ -553,7 +553,7 @@ public:
     * is well-defined.
     * \note A \c std::sized_sentinel_for source is checked up front (all-or-nothing); otherwise
     * the elements that fit are appended before \c std::bad_alloc is thrown.
-    * \throws std::bad_alloc if the source does not fit in \c reserved_unused().
+    * \throw std::bad_alloc if the source does not fit in \c reserved_unused().
     */
     template <std::input_iterator It, std::sentinel_for<It> S>
     constexpr void append_range(It first, S last)
@@ -571,7 +571,7 @@ public:
     }
 
     /**
-    * \throws std::bad_alloc if \a count > \c reserved_unused() (nothing is appended).
+    * \throw std::bad_alloc if \a count > \c reserved_unused() (nothing is appended).
     */
     template <std::input_iterator It>
     constexpr void append_range(It first, const std::size_t count)
@@ -583,7 +583,7 @@ public:
     }
 
     /**
-    * \throws std::bad_alloc if \a il does not fit in \c reserved_unused() (nothing is appended).
+    * \throw std::bad_alloc if \a il does not fit in \c reserved_unused() (nothing is appended).
     */
     constexpr void append_range(const std::initializer_list<T> il)
     {
@@ -595,7 +595,7 @@ public:
     * that case is forwarded to the \c std::span overload, which carries the same tag.
     * \note Sized sources are checked up front (all-or-nothing); unsized sources append
     * element-wise and may partially append before throwing \c std::bad_alloc.
-    * \throws std::bad_alloc if the source does not fit in \c reserved_unused().
+    * \throw std::bad_alloc if the source does not fit in \c reserved_unused().
     */
     template <std::ranges::input_range R>
     constexpr void append_range(R&& rg)
@@ -723,7 +723,7 @@ public:
     /**
     * \note Does not destroy elements.
     * \pre The source does not overlap this vector's storage.
-    * \throws std::bad_alloc if the source does not fit in \c capacity().  The \c clear() has
+    * \throw std::bad_alloc if the source does not fit in \c capacity().  The \c clear() has
     * already happened by then, so a failed assign never leaves the previous contents in place:
     * a sized source (checked up front) leaves the vector empty, while an unsized one leaves the
     * elements that fit -- \c append_range's partial-append behavior, inherited.
@@ -858,7 +858,7 @@ public:
     * \note The only bounds-checked accessor, and checked against \c size(), not \c capacity():
     * an element in [size(), capacity()) is alive and \c operator[] reads it, but this rejects
     * that index.
-    * \throws std::out_of_range if \a i >= \c size().
+    * \throw std::out_of_range if \a i >= \c size().
     */
     [[nodiscard]] constexpr T& at(const std::size_t i)
     {
