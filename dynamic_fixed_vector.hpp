@@ -547,7 +547,8 @@ public:
 
     /**
     * \pre \a spn does not overlap this vector's storage.
-    * \exception std::bad_alloc if \a spn does not fit in \c reserved_unused() (nothing is appended).
+    * \exception std::bad_alloc if \a spn does not fit in \c reserved_unused()
+    * (nothing is appended).
     */
     constexpr void append_range(const std::span<const T> spn)
     {
