@@ -340,6 +340,9 @@ it, which removes the ownership machinery and changes construction:
 - Capacity overflow throws **`std::bad_alloc`** (not `length_error`); `at()` throws
   **`std::out_of_range`**. The `try_*` family (`try_push_back`, `try_emplace_back`,
   `try_append_range`) returns `bool` instead of throwing and is marked `[[nodiscard]]`.
+- **A throwing member documents it with `\exception`.** Doxygen's `\throw` and `\throws` are
+  exact synonyms, so nothing in a build catches the difference; the headers were converted to the
+  one spelling and hold no instance of the other two. Keep new tags on that spelling.
 - `unchecked_*` variants skip the capacity check and assume `!is_full()` — the checked
   `emplace_back`/`push_back`/`append_range` delegate to them after validating.
 - Append overloads that can know the source size up front (span, iterator+count,
