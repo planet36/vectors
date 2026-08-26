@@ -19,7 +19,7 @@
 
 constexpr auto is_odd = [](const int x) { return x % 2 != 0; };
 
-// Compile-time check: nearly the whole interface is usable in constant expressions.
+// Compile-time check that nearly the whole interface is usable in constant expressions.
 // Unlike the heap-backed siblings -- whose over-aligned allocation is not usable in constant
 // evaluation, so their static_assert can only reach the empty/zero-capacity members --
 // fixed_vector's in-place std::array storage imposes no such limit.  A semantic regression in
@@ -59,7 +59,7 @@ constexpr_api_ok()
         return false;
 
     v.clear();
-    // Never destroyed: clear() only reset size(), so the elements still read back.
+    // Nothing is destroyed.  clear() only reset size(), so the elements still read back.
     if (!(v.is_empty() && v[0] == 1))
         return false;
 
@@ -76,7 +76,7 @@ constexpr_api_ok()
 // NOLINTEND(readability-simplify-boolean-expr)
 static_assert(constexpr_api_ok());
 
-// Compile-time check: zeroize_reserved_unused() is usable in constant expressions (the
+// Compile-time check that zeroize_reserved_unused() is usable in constant expressions (the
 // runtime explicit-zeroing path is replaced by value-assignment during constant evaluation).
 constexpr bool
 constexpr_zeroize_ok()
@@ -85,12 +85,12 @@ constexpr_zeroize_ok()
     v.fill_capacity(9);
     v.resize(2); // the tail slots [2, 5) still hold 9
     v.zeroize_reserved_unused();
-    // operator[] is capacity-based: the tail is now zero
+    // operator[] is capacity-based, so the tail is now zero
     return v.size() == 2 && v[0] == 9 && v[1] == 9 && v[2] == 0 && v[3] == 0 && v[4] == 0;
 }
 static_assert(constexpr_zeroize_ok());
 
-// Compile-time check: reserve() and the capacity observers work in constant expressions too.
+// Compile-time check that reserve() and the capacity observers work in constant expressions.
 // NOLINTBEGIN(readability-simplify-boolean-expr)
 constexpr bool
 constexpr_capacity_ok()
@@ -118,8 +118,8 @@ constexpr_capacity_ok()
 // NOLINTEND(readability-simplify-boolean-expr)
 static_assert(constexpr_capacity_ok());
 
-// max_size() is static here -- callable with no object.  capacity() is not: it reports the
-// current, run-time capacity, as in the heap-backed siblings.
+// max_size() is static here, callable with no object.  capacity() is not, since it reports
+// the current, run-time capacity, as in the heap-backed siblings.
 static_assert(fixed_vector<int, 5>::max_size() == 5);
 
 // Align defaults to max(alignof(std::size_t), alignof(T)) and is honored by the storage.
@@ -146,7 +146,7 @@ test_ctor_default()
 static void
 test_ctor_count()
 {
-    // Creates count value-initialized elements -- unlike the heap-backed siblings, where X(n)
+    // Creates count value-initialized elements, unlike the heap-backed siblings, where X(n)
     // reserves capacity n and starts empty.
     const fixed_vector<int, 5> v(3);
     CHECK(v.size() == 3);
@@ -204,10 +204,10 @@ test_ctor_from_range_sized()
 static void
 test_ctor_from_range_unsized()
 {
-    // A filter_view is not a sized_range, so there is no up-front size check: the elements are
-    // appended one at a time.  (It is still a *forward* range, so the heap-backed siblings would
-    // accept this source too -- what they reject is an input-only one, which fixed_vector takes
-    // because it never has to size an allocation.  See test-dynamic_fixed_vector.cpp's
+    // A filter_view is not a sized_range, so there is no up-front size check.  The elements
+    // are appended one at a time.  (It is still a *forward* range, so the heap-backed siblings
+    // would accept this source too.  What they reject is an input-only one, which fixed_vector
+    // takes because it never has to size an allocation.  See test-dynamic_fixed_vector.cpp's
     // istream_view static_assert for that line.)
     const fixed_vector<int, 5> v(std::from_range, std::views::iota(1, 10) | std::views::filter(is_odd));
     CHECK(to_ivec(v) == std::vector({1, 3, 5, 7, 9}));
@@ -240,9 +240,9 @@ test_move_ctor()
     // NOLINTNEXTLINE(hicpp-move-const-arg,performance-move-const-arg)
     const fixed_vector<int, 5> b = std::move(a);
     CHECK(to_ivec(b) == std::vector({1, 2, 3}));
-    // Copy and move are member-wise (defaulted): for a trivially copyable T a moved-from
-    // fixed_vector is left unchanged -- unlike the heap-backed siblings, where move
-    // construction transfers the buffer and leaves the source empty.
+    // Copy and move are member-wise (defaulted).  For a trivially copyable T a moved-from
+    // fixed_vector is left unchanged, unlike the heap-backed siblings, where move construction
+    // transfers the buffer and leaves the source empty.
     // NOLINTNEXTLINE(bugprone-use-after-move,hicpp-invalid-access-moved,clang-analyzer-cplusplus.Move)
     CHECK(a.size() == 3);
     CHECK(to_ivec(a) == std::vector({1, 2, 3}));
@@ -307,7 +307,7 @@ test_capacity_max_size()
     const fixed_vector<int, 5> v{1, 2, 3};
     CHECK(v.capacity() == 5); // capacity starts at N ...
     CHECK(v.max_size() == 5); // ... and max_size() stays N forever
-    // max_size() is static: callable with no object.  capacity() is not -- it is a run-time
+    // max_size() is static, callable with no object.  capacity() is not, being a run-time
     // value that reserve() moves.
     CHECK(fixed_vector<int, 5>::max_size() == 5);
 }
@@ -347,7 +347,7 @@ test_reserve()
 {
     fixed_vector<int, 5> v{1, 2, 3, 4};
 
-    // Shrinking above size(): capacity is the limit every space check consults.
+    // Shrinking above size() is fine.  Capacity is the limit every space check consults.
     v.reserve(4);
     CHECK(v.capacity() == 4);
     CHECK(v.max_size() == 5); // max_size() is unaffected
@@ -360,13 +360,13 @@ test_reserve()
     CHECK(!v.try_push_back(5));
     CHECK(to_ivec(v) == std::vector({1, 2, 3, 4}));
 
-    // Shrinking below size() truncates size(); nothing is destroyed.
+    // Shrinking below size() truncates size().  Nothing is destroyed.
     v.reserve(2);
     CHECK(v.capacity() == 2);
     CHECK(v.size() == 2);
     CHECK(to_ivec(v) == std::vector({1, 2}));
 
-    // Growing leaves the regained slots untouched -- 3 and 4 are still there.
+    // Growing leaves the regained slots untouched, so 3 and 4 are still there.
     v.reserve(5);
     CHECK(v.capacity() == 5);
     CHECK(v.size() == 2);
@@ -398,7 +398,7 @@ test_clear()
     v.clear();
     CHECK(v.is_empty());
     CHECK(v.capacity() == 5);
-    // clear() only resets size(); operator[] is capacity-based, so the former elements still
+    // clear() only resets size().  operator[] is capacity-based, so the former elements still
     // read back.
     CHECK(v[0] == 1);
     CHECK(v[1] == 2);
@@ -416,7 +416,7 @@ test_resize()
     v.resize(4); // grow with T{} == 0
     CHECK(to_ivec(v) == std::vector({7, 0, 0, 0}));
 
-    // Bounded by capacity(), not max_size(): resize does not implicitly reserve.
+    // Bounded by capacity(), not max_size(), so resize does not implicitly reserve.
     v.reserve(4);
     CHECK_THROWS(std::bad_alloc, v.resize(5));
     CHECK(v.size() == 4);
@@ -443,7 +443,7 @@ test_push_back()
 {
     fixed_vector<int, 5> v;
     const int x = 10;
-    v.push_back(x);  // const&
+    v.push_back(x); // const&
     v.push_back(20); // &&
     CHECK(to_ivec(v) == std::vector({10, 20}));
 }
@@ -500,7 +500,8 @@ test_fill_capacity_fill_size()
     CHECK(to_ivec(v) == std::vector({4, 4, 4, 4, 4}));
     CHECK(v.is_full());
 
-    // fill_capacity() stops at capacity(), not max_size(): the unreserved slots keep their 4s.
+    // fill_capacity() stops at capacity(), not max_size(), so the unreserved slots keep
+    // their 4s.
     v.reserve(3);
     v.fill_capacity(7);
     CHECK(v.size() == 3);
@@ -509,7 +510,7 @@ test_fill_capacity_fill_size()
     CHECK(v[3] == 4);
     CHECK(v[4] == 4);
 
-    // resize(capacity(), value) is the tail-only counterpart of fill_capacity(): it fills
+    // resize(capacity(), value) is the tail-only counterpart of fill_capacity().  It fills
     // [size(), capacity()) and grows into it, leaving the live elements as they are.
     v.resize(v.capacity(), 6);
     CHECK(to_ivec(v) == std::vector({7, 7, 7, 6, 6}));
@@ -525,12 +526,12 @@ test_zeroize_reserved_unused()
     v.zeroize_reserved_unused();
     CHECK(v.size() == 2);
     CHECK(to_ivec(v) == std::vector({9, 9}));
-    // operator[] is capacity-based: the tail is now zero
+    // operator[] is capacity-based, so the tail is now zero
     // NOLINTNEXTLINE(readability-static-accessed-through-instance)
     for (std::size_t i = v.size(); i < v.max_size(); ++i)
         CHECK(v[i] == 0);
-    // Scrub the whole array: clear() + zeroize_reserved_unused() (non-elidable stores).  This
-    // reaches every slot only because capacity() is still max_size(); see the test below.
+    // Scrub the whole array with clear() + zeroize_reserved_unused() (non-elidable stores).
+    // This reaches every slot only because capacity() is still max_size().  See the test below.
     v.clear();
     v.zeroize_reserved_unused();
     CHECK(v.is_empty());
@@ -544,11 +545,11 @@ test_zeroize_unreserved()
 {
     fixed_vector<int, 5> v;
     v.fill_capacity(9); // every slot holds 9
-    v.reserve(3);       // slots [3, 5) are now unreserved, still holding 9
+    v.reserve(3); // slots [3, 5) are now unreserved, still holding 9
     CHECK(v.size() == 3);
     v.zeroize_unreserved();
     CHECK(to_ivec(v) == std::vector({9, 9, 9})); // the reserved half is untouched
-    v.reserve(5);                                // regain the slots to read them
+    v.reserve(5); // regain the slots to read them
     CHECK(v[3] == 0);
     CHECK(v[4] == 0);
 
@@ -557,7 +558,7 @@ test_zeroize_unreserved()
     v.zeroize_unreserved();
     CHECK(to_ivec(v) == std::vector({8, 8, 8, 8, 8}));
 
-    // The whole array, capacity reduced: clear() + both halves.
+    // The whole array with a reduced capacity needs clear() plus both halves.
     v.reserve(2);
     v.clear();
     v.zeroize_reserved_unused();
@@ -577,11 +578,11 @@ test_append_range()
     const std::vector more{6, 7};
 
     fixed_vector<int, 12> v;
-    v.append_range({1, 2, 3});                    // initializer_list
-    v.append_range(std::span<const int>{tail});   // span
-    v.append_range(more.begin(), more.end());     // iterator + sentinel
+    v.append_range({1, 2, 3}); // initializer_list
+    v.append_range(std::span<const int>{tail}); // span
+    v.append_range(more.begin(), more.end()); // iterator + sentinel
     v.append_range(more.begin(), std::size_t{1}); // iterator + count -> 6
-    v.append_range(std::views::iota(8, 10));      // range -> 8,9
+    v.append_range(std::views::iota(8, 10)); // range -> 8,9
     CHECK(to_ivec(v) == std::vector({1, 2, 3, 4, 5, 6, 7, 6, 8, 9}));
 }
 
@@ -603,13 +604,13 @@ test_try_append_range()
     const std::vector more{5, 6};
 
     fixed_vector<int, 4> v;
-    CHECK(v.try_append_range(std::span<const int>{a}));       // span
-    CHECK(v.try_append_range({3, 4}));                        // initializer_list
-    CHECK(!v.try_append_range({5, 6}));                       // would overflow -> false
-    CHECK(!v.try_append_range(std::views::iota(0, 3)));       // sized range: checked up front
-    CHECK(!v.try_append_range(more.begin(), more.end()));     // sized sentinel: checked up front
+    CHECK(v.try_append_range(std::span<const int>{a})); // span
+    CHECK(v.try_append_range({3, 4})); // initializer_list
+    CHECK(!v.try_append_range({5, 6})); // would overflow -> false
+    CHECK(!v.try_append_range(std::views::iota(0, 3))); // sized range: checked up front
+    CHECK(!v.try_append_range(more.begin(), more.end())); // sized sentinel: checked up front
     CHECK(!v.try_append_range(more.begin(), std::size_t{2})); // iterator + count
-    CHECK(to_ivec(v) == std::vector({1, 2, 3, 4}));           // nothing appended by the failures
+    CHECK(to_ivec(v) == std::vector({1, 2, 3, 4})); // nothing appended by the failures
 }
 
 static void
@@ -617,7 +618,7 @@ test_try_append_range_unsized_partial()
 {
     fixed_vector<int, 4> v;
     v.append_range({1, 2});
-    // filter_view is not sized: the elements that fit land before false is returned.
+    // filter_view is not sized, so the elements that fit land before false is returned.
     CHECK(!v.try_append_range(std::views::iota(1, 10) | std::views::filter(is_odd)));
     CHECK(to_ivec(v) == std::vector({1, 2, 1, 3}));
 }
@@ -646,14 +647,14 @@ static void
 test_assign_range_unsized_partial()
 {
     // assign_range is clear() + append_range, so it inherits the unsized source's partial
-    // append: the clear() has already run when the throw arrives, and the elements that fit
+    // append.  The clear() has already run when the throw arrives, and the elements that fit
     // are already in place.
     fixed_vector<int, 4> v{9, 9, 9, 9};
     CHECK_THROWS(std::bad_alloc,
                  v.assign_range(std::views::iota(1, 10) | std::views::filter(is_odd)));
     CHECK(to_ivec(v) == std::vector({1, 3, 5, 7})); // not empty -- what fit survived the throw
 
-    // The sized counterpart, for contrast: checked up front, so it throws before writing.
+    // The sized counterpart, for contrast, is checked up front, so it throws before writing.
     fixed_vector<int, 4> w{9, 9, 9, 9};
     CHECK_THROWS(std::bad_alloc, w.assign_range({1, 2, 3, 4, 5}));
     CHECK(w.is_empty());
@@ -694,7 +695,7 @@ test_operator_index()
     CHECK(v[2] == 33);
     v[1] = 99;
     CHECK(v[1] == 99);
-    // Indexes 3 and 4 are >= size() but < capacity(): live, value-initialized elements.
+    // Indexes 3 and 4 are >= size() but < capacity(), so they are live and value-initialized.
     // Deterministic here, unlike aligned_byte_buffer, whose reserved tail is unspecified.
     CHECK(v[3] == 0);
     CHECK(v[4] == 0);
@@ -788,7 +789,8 @@ test_comparisons()
     CHECK((a <=> b) == std::strong_ordering::equal);
     CHECK((d <=> a) == std::strong_ordering::less);
 
-    // Only the live [0,size) elements take part: the unused tail slots differ but are ignored.
+    // Only the live [0,size) elements take part, so the unused tail slots differ but are
+    // ignored.
     b.fill_capacity(1);
     b.assign_range({1, 2, 3});
     CHECK(b[4] == 1);
@@ -838,7 +840,7 @@ test_overflow_throws_bad_alloc()
 {
     static constexpr std::array too_many{1, 2, 3, 4, 5, 6};
 
-    // The count constructor creates count elements, so it can overflow N -- unlike the
+    // The count constructor creates count elements, so it can overflow N, unlike the
     // heap-backed siblings, where X(n) reserves capacity n and cannot.
     CHECK_THROWS(std::bad_alloc, const fixed_vector<int, 5> v(6); (void)v);
     CHECK_THROWS(std::bad_alloc, const fixed_vector<int, 5> v(6, 42); (void)v);

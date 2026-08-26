@@ -20,14 +20,14 @@
 
 constexpr auto is_odd = [](const int x) { return x % 2 != 0; };
 
-// A borrowed_byte_buffer owns nothing: pointer + capacity + size, so it is trivially copyable and
-// its special members are all defaulted (shallow copy/move).
+// A borrowed_byte_buffer owns nothing but a pointer, a capacity, and a size, so it is
+// trivially copyable and its special members are all defaulted (shallow copy/move).
 static_assert(std::is_trivially_copyable_v<borrowed_byte_buffer>);
 static_assert(std::is_trivially_destructible_v<borrowed_byte_buffer>);
 
-// Compile-time check: the default (empty, non-borrowing) instance is usable in constant
-// expressions.  The borrowing constructors are not -- forming a byte view needs a
-// reinterpret_cast, which is barred in constant evaluation -- so only the default instance and the
+// Compile-time check that the default (empty, non-borrowing) instance is usable in constant
+// expressions.  The borrowing constructors are not, because forming a byte view needs a
+// reinterpret_cast, which is barred in constant evaluation.  Only the default instance and the
 // non-borrowing members are exercised here.
 // NOLINTBEGIN(readability-simplify-boolean-expr)
 constexpr bool
@@ -51,8 +51,9 @@ constexpr_empty_ok()
 // NOLINTEND(readability-simplify-boolean-expr)
 static_assert(constexpr_empty_ok());
 
-// The emplace_back family is constrained to at most one std::byte / integral argument (identical
-// to aligned_byte_buffer).  A dependent context is needed so a rejected call yields false.
+// The emplace_back family is constrained to at most one std::byte / integral argument
+// (identical to aligned_byte_buffer).  A dependent context is needed so a rejected call yields
+// false.
 template <typename... Args>
 constexpr bool can_emplace_back =
     requires(borrowed_byte_buffer v, Args&&... args) {
@@ -72,8 +73,8 @@ template <typename... Args>
 constexpr bool can_construct =
     requires(Args&&... args) { borrowed_byte_buffer{std::forward<Args>(args)...}; };
 
-// Accepted: lvalue contiguous containers, an rvalue std::span (a borrowed_range), a single object
-// pointer, and the (void*, size_t) primitive.
+// Accepted: lvalue contiguous containers, an rvalue std::span (a borrowed_range), a single
+// object pointer, and the (void*, size_t) primitive.
 static_assert(can_construct<std::array<std::byte, 8>&>);
 static_assert(can_construct<std::vector<std::byte>&>);
 static_assert(can_construct<std::vector<int>&>);
@@ -108,7 +109,7 @@ test_ctor_default()
 static void
 test_ctor_ptr_capacity()
 {
-    // The (void*, capacity) primitive: borrow raw bytes, start empty.
+    // The (void*, capacity) primitive borrows raw bytes and starts empty.
     std::array<std::byte, 8> s{};
     void* const p = s.data();
     const borrowed_byte_buffer v(p, 8);
@@ -121,7 +122,7 @@ test_ctor_ptr_capacity()
 static void
 test_ctor_range()
 {
-    // Any writable, contiguous, sized range -- overlaid, not copied; the buffer starts empty.
+    // Any writable, contiguous, sized range is overlaid, not copied.  The buffer starts empty.
     std::array<std::byte, 4> a{};
     const borrowed_byte_buffer va{a};
     CHECK(va.capacity() == 4);
@@ -164,7 +165,7 @@ test_ctor_range_capacity()
 static void
 test_ctor_single_object()
 {
-    // Overlay a single object; capacity is sizeof(T).
+    // Overlay a single object, with sizeof(T) as the capacity.
     std::uint32_t u = 0;
     const borrowed_byte_buffer v{&u};
     CHECK(v.capacity() == sizeof(u));
@@ -182,7 +183,7 @@ test_adopting()
     CHECK(v.is_full());
     CHECK(to_ivec(v) == std::vector({1, 2, 3, 4}));
 
-    // adopting(range, capacity): adopt a prefix.
+    // adopting(range, capacity) adopts a prefix.
     const auto v2 = borrowed_byte_buffer::adopting(a, 2);
     CHECK(v2.size() == 2);
     CHECK(v2.capacity() == 2);
@@ -194,7 +195,7 @@ test_adopting()
     CHECK(v3.size() == 3);
     CHECK(to_ivec(v3) == std::vector({1, 2, 3}));
 
-    // adopting(T*): a populated single object.
+    // adopting(T*) takes a populated single object.
     std::uint16_t u = 0xBEEF;
     const auto v4 = borrowed_byte_buffer::adopting(&u);
     CHECK(v4.size() == sizeof(u));
@@ -204,7 +205,7 @@ test_adopting()
 static void
 test_write_shows_through()
 {
-    // Writes through the buffer land in the borrowed storage; the reserved tail is untouched.
+    // Writes through the buffer land in the borrowed storage.  The reserved tail is untouched.
     std::array<std::byte, 4> s{};
     borrowed_byte_buffer v{s};
     v.append_range({1_b, 2_b, 3_b});
@@ -240,8 +241,8 @@ test_move_ctor()
     const borrowed_byte_buffer b = std::move(a);
     CHECK(b.data() == orig);
     CHECK(to_ivec(b) == std::vector({1, 2, 3, 4}));
-    // Move is a shallow copy (defaulted, trivially copyable): the source is NOT emptied, unlike
-    // aligned_byte_buffer's move.
+    // Move is a shallow copy (defaulted, trivially copyable), so the source is NOT emptied,
+    // unlike aligned_byte_buffer's move.
     // NOLINTNEXTLINE(bugprone-use-after-move,hicpp-invalid-access-moved,clang-analyzer-cplusplus.Move)
     CHECK(a.data() == orig);
     CHECK(a.size() == 4);
@@ -342,7 +343,7 @@ test_clear()
     v.clear();
     CHECK(v.is_empty());
     CHECK(v.capacity() == 3); // clear() does not change capacity
-    // clear() only resets size(); operator[] is capacity-based, so the bytes still read back.
+    // clear() only resets size().  operator[] is capacity-based, so the bytes still read back.
     CHECK(v[0] == 1_b);
     CHECK(v[2] == 3_b);
 }
@@ -384,7 +385,7 @@ test_push_back_emplace_back()
     v.push_back(x); // by value
     v.push_back(20_b);
     v.emplace_back(30); // int -> std::byte via functional cast
-    v.emplace_back();   // no args -> std::byte{}
+    v.emplace_back(); // no args -> std::byte{}
     CHECK(to_ivec(v) == std::vector({10, 20, 30, 0}));
 }
 
@@ -393,7 +394,7 @@ test_unchecked_push_back_unchecked_emplace_back()
 {
     std::array<std::byte, 3> s{};
     borrowed_byte_buffer v{s};
-    v.unchecked_emplace_back(1);   // int
+    v.unchecked_emplace_back(1); // int
     v.unchecked_push_back(2_b);
     v.unchecked_emplace_back(3_b); // byte
     CHECK(to_ivec(v) == std::vector({1, 2, 3}));
@@ -427,7 +428,7 @@ test_fill_capacity_fill_size()
     CHECK(to_ivec(v) == std::vector({4, 4, 4, 4, 4}));
     CHECK(v.is_full());
 
-    // resize(capacity(), value) is the tail-only counterpart of fill_capacity(): it fills
+    // resize(capacity(), value) is the tail-only counterpart of fill_capacity().  It fills
     // [size(), capacity()) and grows into it, leaving the live bytes as they are.
     v.resize(3);
     v.fill_size(7_b);
@@ -449,7 +450,7 @@ test_zeroize_reserved_unused()
     CHECK(to_ivec(v) == std::vector({1, 2, 3}));
     for (std::size_t i = v.size(); i < v.capacity(); ++i)
         CHECK(v[i] == 0_b);
-    // Scrub the whole region: clear() + zeroize_reserved_unused() (non-elidable stores).
+    // Scrub the whole region with clear() + zeroize_reserved_unused() (non-elidable stores).
     v.clear();
     v.zeroize_reserved_unused();
     CHECK(v.is_empty());
@@ -468,10 +469,10 @@ test_append_range()
 
     std::array<std::byte, 12> s{};
     borrowed_byte_buffer v{s};
-    v.append_range({1_b, 2_b, 3_b});                  // initializer_list
+    v.append_range({1_b, 2_b, 3_b}); // initializer_list
     v.append_range(std::span<const std::byte>{tail}); // span (memcpy fast path)
-    v.append_range(more.begin(), more.end());         // iterator + sentinel
-    v.append_range(more.begin(), std::size_t{1});     // iterator + count -> 6
+    v.append_range(more.begin(), more.end()); // iterator + sentinel
+    v.append_range(more.begin(), std::size_t{1}); // iterator + count -> 6
     v.append_range(std::views::iota(8, 10) | std::views::transform(to_byte)); // range -> 8,9
     CHECK(to_ivec(v) == std::vector({1, 2, 3, 4, 5, 6, 7, 6, 8, 9}));
 }
@@ -488,7 +489,7 @@ test_append_range_unsized_partial()
                  v.append_range(std::views::iota(1, 10) | std::views::filter(is_odd) |
                                 std::views::transform(to_byte)));
     CHECK(to_ivec(v) == std::vector({1, 2, 1, 3})); // partially appended before the throw
-    CHECK(s[3] == 3_b);                             // and it landed in the borrowed storage
+    CHECK(s[3] == 3_b); // and it landed in the borrowed storage
 }
 
 static void
@@ -500,12 +501,12 @@ test_try_append_range()
     std::array<std::byte, 4> s{};
     borrowed_byte_buffer v{s};
     CHECK(v.try_append_range(std::span<const std::byte>{a})); // span
-    CHECK(v.try_append_range({3_b, 4_b}));                    // initializer_list
-    CHECK(!v.try_append_range({5_b, 6_b}));                   // would overflow -> false
+    CHECK(v.try_append_range({3_b, 4_b})); // initializer_list
+    CHECK(!v.try_append_range({5_b, 6_b})); // would overflow -> false
     CHECK(!v.try_append_range(std::views::iota(0, 3) | std::views::transform(to_byte)));
-    CHECK(!v.try_append_range(more.begin(), more.end()));     // sized sentinel: checked up front
+    CHECK(!v.try_append_range(more.begin(), more.end())); // sized sentinel: checked up front
     CHECK(!v.try_append_range(more.begin(), std::size_t{2})); // iterator + count
-    CHECK(to_ivec(v) == std::vector({1, 2, 3, 4}));           // nothing appended by the failures
+    CHECK(to_ivec(v) == std::vector({1, 2, 3, 4})); // nothing appended by the failures
 }
 
 static void
@@ -514,7 +515,7 @@ test_try_append_range_unsized_partial()
     std::array<std::byte, 4> s{};
     borrowed_byte_buffer v{s};
     v.append_range({1_b, 2_b});
-    // filter_view is not sized: the bytes that fit land before false is returned.
+    // filter_view is not sized, so the bytes that fit land before false is returned.
     CHECK(!v.try_append_range(std::views::iota(1, 10) | std::views::filter(is_odd) |
                               std::views::transform(to_byte)));
     CHECK(to_ivec(v) == std::vector({1, 2, 1, 3}));
@@ -546,7 +547,7 @@ static void
 test_assign_range_unsized_partial()
 {
     // assign_range is clear() + append_range, so it inherits the unsized source's partial
-    // append: the clear() has already run when the throw arrives, and the bytes that fit are
+    // append.  The clear() has already run when the throw arrives, and the bytes that fit are
     // already in place.  (filter_view is what makes the source unsized.)
     std::array<std::byte, 4> s{9_b, 9_b, 9_b, 9_b};
     borrowed_byte_buffer v = borrowed_byte_buffer::adopting(s);
@@ -554,9 +555,9 @@ test_assign_range_unsized_partial()
                  v.assign_range(std::views::iota(1, 10) | std::views::filter(is_odd) |
                                 std::views::transform(to_byte)));
     CHECK(to_ivec(v) == std::vector({1, 3, 5, 7})); // not empty -- what fit survived the throw
-    CHECK(s[3] == 7_b);                             // and it landed in the borrowed storage
+    CHECK(s[3] == 7_b); // and it landed in the borrowed storage
 
-    // The sized counterpart, for contrast: checked up front, so it throws before writing.
+    // The sized counterpart, for contrast, is checked up front, so it throws before writing.
     std::array<std::byte, 4> t{9_b, 9_b, 9_b, 9_b};
     borrowed_byte_buffer w = borrowed_byte_buffer::adopting(t);
     CHECK_THROWS(std::bad_alloc, w.assign_range({1_b, 2_b, 3_b, 4_b, 5_b}));
@@ -603,11 +604,11 @@ test_operator_index()
     CHECK(v[2] == 33_b);
     v[1] = 99_b;
     CHECK(v[1] == 99_b);
-    // Exercise -- but do not check the value of -- a read at an index >= size() within capacity.
-    // operator[] is capacity-based, so this is a valid read; it returns whatever the borrowed
+    // Exercise (but do not check the value of) a read at an index >= size() within capacity.
+    // operator[] is capacity-based, so this is a valid read.  It returns whatever the borrowed
     // region holds (here s{} happens to make it zero, but the container promises nothing, so no
     // value is asserted).  Unlike aligned_byte_buffer, the byte is the *caller's*, not an
-    // untouched heap byte -- see the class note.
+    // untouched heap byte.  See the class note.
     const auto probe = std::to_integer<unsigned>(v[v.capacity() - 1]);
     (void)probe;
 }
@@ -638,7 +639,7 @@ test_const_accessors()
     CHECK(v.span().size() == 3);
     CHECK(std::vector<std::byte>(v.begin(), v.end()) == std::vector({1_b, 2_b, 3_b}));
     CHECK(std::vector<std::byte>(v.rbegin(), v.rend()) == std::vector({3_b, 2_b, 1_b}));
-    const auto sp = static_cast<std::span<const std::byte>>(v); // operator std::span<const byte>
+    const auto sp = static_cast<std::span<const std::byte>>(v); // operator span<const byte>
     CHECK(sp.size() == 3);
     CHECK_THROWS(std::out_of_range, (void)v.at(3));
 }
@@ -700,8 +701,8 @@ test_comparisons()
 static void
 test_constant_time_equal()
 {
-    // Free function (from byte_compare.hpp) for secret-dependent data; the container's operator==
-    // stays variable-time.
+    // Free function (from byte_compare.hpp) for secret-dependent data.  The container's
+    // operator== stays variable-time.
     std::array<std::byte, 3> sa{1_b, 2_b, 3_b};
     std::array<std::byte, 3> sb{1_b, 2_b, 3_b};
     std::array<std::byte, 3> sc{1_b, 2_b, 4_b};
@@ -719,7 +720,7 @@ test_constant_time_equal()
 static void
 test_overlay_object()
 {
-    // This test is endianness-agnostic: each scalar is copied in as its native object
+    // This test is endianness-agnostic.  Each scalar is copied in as its native object
     // representation and read back through the same-typed member, so the byte order cancels.
     // It never inspects a byte at a fixed offset, which is the only thing that would care.
     struct Header
@@ -735,7 +736,7 @@ test_overlay_object()
     CHECK(v.capacity() == sizeof(Header));
     CHECK(v.is_empty());
 
-    // Build the header's bytes through the overlay; the writes land in `h` directly.
+    // Build the header's bytes through the overlay, so the writes land in `h` directly.
     const std::uint32_t magic = 0x01020304;
     const std::uint16_t len = 0x0506;
     const std::uint16_t flags = 0x0708;
@@ -758,8 +759,8 @@ test_overflow_throws_bad_alloc()
 {
     static constexpr std::array too_many{1_b, 2_b, 3_b};
 
-    // The borrowing constructors reserve rather than creating elements, so only the modifiers can
-    // overflow.  Backing storage is declared inside each check so it lives for the throwing call.
+    // The borrowing constructors reserve rather than creating elements, so only the modifiers
+    // can overflow.  Backing storage is declared inside each check so it lives for the throw.
     CHECK_THROWS(std::bad_alloc, std::array<std::byte, 2> s{}; borrowed_byte_buffer v{s};
                  v.push_back(1_b); v.push_back(2_b); v.push_back(3_b));
     CHECK_THROWS(std::bad_alloc, std::array<std::byte, 1> s{}; borrowed_byte_buffer v{s};

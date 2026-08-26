@@ -15,27 +15,29 @@
 #include <cstddef>
 #include <span>
 
-/// Constant-time equality comparison of two byte spans.
+/// Constant-time equality comparison of two byte spans
 /**
-* Runs in time dependent only on the spans' sizes, never on their contents: every byte pair is
+* Runs in time dependent only on the spans' sizes, never on their contents.  Every byte pair is
 * examined and the XORed differences are OR-accumulated, with no data-dependent branch or early
 * exit.  Use this instead of \c operator== / \c std::memcmp when comparing secret-dependent data
 * (e.g. verifying a MAC / authentication tag), where a first-mismatch early exit leaks the
-* position of the first differing byte through timing.  Spans of unequal size compare unequal
-* immediately; sizes are normally public (e.g. a fixed tag length).
+* position of the first differing byte through timing.
+*
+* Spans of unequal size compare unequal immediately.  Their sizes are normally public (e.g. a
+* fixed tag length).
 *
 * \note Both including containers' \c operator== -- \c aligned_byte_buffer's and
 * \c borrowed_byte_buffer's -- are deliberately variable-time, per ordinary container semantics,
 * and do \b not use this.
-* \note Branch-freedom is a property of this source, not one the language guarantees: nothing
+* \note Branch-freedom is a property of this source, not one the language guarantees.  Nothing
 * forbids a compiler from proving \c diff can only accumulate and exiting the loop early.  Note
 * the asymmetry with \c zeroize_reserved_unused(), which defeats the optimizer outright, whereas
-* this relies on it declining a transformation it is permitted to make.  Verified for GCC 16 at
-* \c -O3 \c -march=native: the loop vectorizes to a \c vpxor / \c vpor accumulation with a
-* horizontal reduce, and every surviving conditional branch tests a size, not a content byte.
-* Re-check if the compiler or flags change; should one ever short-circuit here, the fix is a
-* barrier on \c diff (an empty \c asm volatile reading it, or a volatile accumulator), not a
-* rewrite.
+* this relies on it declining a transformation it is permitted to make.
+* \note Verified for GCC 16 at \c -O3 \c -march=native.  The loop vectorizes to a \c vpxor /
+* \c vpor accumulation with a horizontal reduce, and every surviving conditional branch tests a
+* size, not a content byte.  Re-check if the compiler or flags change.  Should one ever
+* short-circuit here, the fix is a barrier on \c diff (an empty \c asm volatile reading it, or a
+* volatile accumulator), not a rewrite.
 */
 [[nodiscard]] constexpr bool
 constant_time_equal(const std::span<const std::byte> a,

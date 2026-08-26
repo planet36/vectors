@@ -34,21 +34,21 @@
 
 #include "byte_compare.hpp"
 
-/// A resizable, fixed-capacity buffer of \c std::byte with over-alignable storage.
+/// A resizable, fixed-capacity buffer of \c std::byte with over-alignable storage
 /**
-* This is the \c std::byte specialization of \c dynamic_fixed_vector: the same API, but the
-* element type is fixed to \c std::byte so the implementation can be simpler and faster.
+* This is the \c std::byte specialization of \c dynamic_fixed_vector.  The API is the same, but
+* the element type is fixed to \c std::byte so the implementation can be simpler and faster.
 *
 * Differences from \c dynamic_fixed_vector:
-*   - There is no element-type template parameter; only the alignment \a Align (a power of
+*   - There is no element-type template parameter, only the alignment \a Align (a power of
 *     two, defaulting to 16).  \c aligned_byte_buffer<16> and \c aligned_byte_buffer<32> are
 *     distinct types.
-*   - Because \c sizeof(std::byte)==1, the allocation size is exactly the capacity: there is
+*   - Because \c sizeof(std::byte)==1, the allocation size is exactly the capacity.  There is
 *     no multiplication and no overflow check.
 *   - Reserved-but-unused capacity is left \b uninitialized.  Storage lifetime is begun with
 *     \c std::start_lifetime_as_array (no whole-capacity zeroing).  Bytes that enter \c size()
-*     are always written; reading beyond \c size() via \c operator[] yields an \e unspecified
-*     byte value -- which is well-defined (not UB) for \c std::byte.
+*     are always written.  Reading beyond \c size() via \c operator[] yields an \e unspecified
+*     byte value, which is well-defined (not UB) for \c std::byte.
 *   - The \c emplace_back family accepts at most one argument, of type \c std::byte or an
 *     integral type (floating-point and other enumeration arguments are rejected).
 *
@@ -65,8 +65,8 @@
 * nothing, and the aligned \c ::operator \c new never returns null (it throws), so no other
 * state holds a null block.
 *
-* Together those make the preconditions below sufficient on their own: \c !is_full(),
-* \c !is_empty() and <code>i < capacity()</code> each imply a non-null, \a Align-aligned block,
+* Together those make the preconditions below sufficient on their own.  \c !is_full(),
+* \c !is_empty(), and <code>i < capacity()</code> each imply a non-null, \a Align-aligned block,
 * so the members carrying them index \c data() without re-checking it for null.
 *
 * \sa dynamic_fixed_vector
@@ -76,7 +76,7 @@ requires (std::has_single_bit(Align))
 class aligned_byte_buffer
 {
 private:
-    /// Stateless deleter that frees a block from the aligned \c ::operator \c new.
+    /// Stateless deleter that frees a block from the aligned \c ::operator \c new
     struct aligned_deleter
     {
         constexpr void operator()(std::byte* const p) const noexcept
@@ -91,15 +91,15 @@ private:
     std::size_t capacity_{};
     storage_ptr data_{};
 
-    /// Allocate an over-aligned, \b uninitialized block of \a cap bytes.
+    /// Allocate an over-aligned, \b uninitialized block of \a cap bytes
     [[nodiscard]] static constexpr storage_ptr allocate_(const std::size_t cap)
     {
-        // Not an optimization: ::operator new(0) returns a non-null block, so only this keeps
+        // Not an optimization.  ::operator new(0) returns a non-null block, so only this keeps
         // the class invariant's "capacity 0 implies null data()" true.
         if (cap == 0)
             return nullptr;
 
-        // sizeof(std::byte) == 1, so the byte count is exactly cap -- no overflow is possible.
+        // sizeof(std::byte) == 1, so the byte count is exactly cap and no overflow is possible.
         void* const raw = ::operator new(cap, std::align_val_t{Align});
         auto* const p = std::start_lifetime_as_array<std::byte>(raw, cap);
         return storage_ptr{p};
@@ -131,10 +131,10 @@ private:
         }
     }
 
-    /// True if \a R is a sized, contiguous range of \c std::byte.
+    /// True if \a R is a sized, contiguous range of \c std::byte
     /**
     * Such a range is handed to the \c std::span overload for its \c std::memcpy.  Overload
-    * resolution will not do this on its own: for \c std::vector<std::byte>, say, the \c R&&
+    * resolution will not do this on its own.  For \c std::vector<std::byte>, say, the \c R&&
     * template is an exact match while the \c std::span overload needs a user-defined
     * conversion, so the template wins and the \c memcpy is dead code for callers who do not
     * hand-write a span.
@@ -144,7 +144,7 @@ private:
         std::ranges::contiguous_range<R> && std::ranges::sized_range<R> &&
         std::same_as<std::ranges::range_value_t<R>, std::byte>;
 
-    /// \a rg as a \c std::span of \c const \c std::byte, the form the \c memcpy overload takes.
+    /// \a rg as a \c std::span of \c const \c std::byte, the form the \c memcpy overload takes
     template <typename R>
     requires is_bulk_appendable_<R>
     [[nodiscard]] static constexpr std::span<const std::byte> as_span_(R& rg)
@@ -152,18 +152,18 @@ private:
         return std::span{rg};
     }
 
-    /// Zero \a n bytes at \a p with stores the compiler must not optimize away.
+    /// Zero \a n bytes at \a p with stores the compiler must not optimize away
     /**
     * Uses \c ::memset_explicit (C23) or \c explicit_bzero (glibc, BSDs) when the C library
     * declares one, else writes through a \c volatile pointer.  Neither has a feature-test
     * macro, so availability is probed by unqualified name lookup on the dependent parameter
     * \a P.
     *
-    * \note The lookup must stay unqualified; do \b not "modernize" it to
+    * \note The lookup must stay unqualified.  Do \b not "modernize" it to
     * \c std::memset_explicit.  libstdc++ 16 does not define that C++26 spelling at any
     * \c -std, and a qualified name into a namespace lacking the member is a hard error rather
-    * than a substitution failure -- so the \c requires probe cannot reject it, and the build
-    * fails outright instead of reaching the branches below.
+    * than a substitution failure.  The \c requires probe therefore cannot reject it, and the
+    * build fails outright instead of reaching the branches below.
     */
     template <typename P>
     static void zero_explicit_(P const p, const std::size_t n) noexcept
@@ -232,7 +232,7 @@ public:
         return *this;
     }
 
-    /// Swap-based: \a other is left holding this buffer's former contents, not emptied.
+    /// Swap-based, so \a other is left holding this buffer's former contents, not emptied
     constexpr aligned_byte_buffer& operator=(aligned_byte_buffer&& other) noexcept
     {
         swap(other);
@@ -241,16 +241,16 @@ public:
 
     ~aligned_byte_buffer() = default;
 
-    /// Reserve capacity \a capacity; the buffer starts empty.
+    /// Reserve capacity \a capacity, leaving the buffer empty
     /**
-    * \exception std::bad_alloc if the allocation fails.  (No overflow guard is needed:
-    * \c sizeof(std::byte) is 1, so the byte count is exactly \a capacity.)
+    * \exception std::bad_alloc if the allocation fails.  (No overflow guard is needed, since
+    * \c sizeof(std::byte) is 1 and the byte count is exactly \a capacity.)
     */
     constexpr explicit aligned_byte_buffer(const std::size_t capacity)
         : capacity_{capacity}, data_{allocate_(capacity)}
     {}
 
-    /// Reserve capacity \a capacity and fill it with \a value (\c size()==capacity).
+    /// Reserve capacity \a capacity and fill it with \a value (\c size()==capacity)
     /**
     * \copydetails aligned_byte_buffer(std::size_t)
     */
@@ -261,7 +261,7 @@ public:
             std::memset(data(), std::to_integer<int>(value), this->capacity());
     }
 
-    /// Capacity is the size of \a spn.
+    /// Capacity is the size of \a spn
     /**
     * \exception std::bad_alloc if the allocation fails.
     */
@@ -271,7 +271,7 @@ public:
         common_append_range_(spn);
     }
 
-    /// Capacity is the distance between \a first and \a last (forward iterators required).
+    /// Capacity is the distance between \a first and \a last (forward iterators required)
     /**
     * \exception std::bad_alloc if the allocation fails.
     */
@@ -283,7 +283,7 @@ public:
             unchecked_emplace_back(*first);
     }
 
-    /// Capacity is \a count.
+    /// Capacity is \a count
     /**
     * \exception std::bad_alloc if the allocation fails.
     */
@@ -294,7 +294,7 @@ public:
         common_append_range_(first, count);
     }
 
-    /// Capacity is the size of \a il.
+    /// Capacity is the size of \a il
     /**
     * \exception std::bad_alloc if the allocation fails.
     */
@@ -302,7 +302,7 @@ public:
         : aligned_byte_buffer(std::span{std::data(il), std::size(il)})
     {}
 
-    /// Capacity is the size of \a rg (forward range required).
+    /// Capacity is the size of \a rg (forward range required)
     /**
     * \exception std::bad_alloc if the allocation fails.
     */
@@ -352,7 +352,7 @@ public:
     [[nodiscard]] constexpr bool is_full() const noexcept { return size() == capacity(); }
 
     /**
-    * \note Does not zero the bytes: they stay in the buffer, readable through \c operator[]
+    * \note Does not zero the bytes.  They stay in the buffer, readable through \c operator[]
     * as the now-reserved tail.  \c clear() followed by \c zeroize_reserved_unused() scrubs
     * them.
     */
@@ -360,12 +360,12 @@ public:
 
     /// Resize to \a count bytes
     /**
-    * Growing sets the new bytes to \a value; shrinking leaves the removed ones unchanged.
+    * Growing sets the new bytes to \a value.  Shrinking leaves the removed ones unchanged.
     * \note \c resize(capacity(), \a value) is how to fill only the reserved-unused tail
-    * [\c size(), \c capacity()) and grow into it; \c fill_capacity() overwrites the live bytes
-    * as well.
-    * \note Bounded by \c capacity(), which is settled at construction: growing past it throws
-    * rather than reallocating.
+    * [\c size(), \c capacity()) and grow into it.  \c fill_capacity() overwrites the live
+    * bytes as well.
+    * \note Bounded by \c capacity(), which is settled at construction, so growing past it
+    * throws rather than reallocating.
     * \exception std::bad_alloc if \a count > \c capacity().
     */
     constexpr void resize(const std::size_t count, const std::byte value)
@@ -399,9 +399,9 @@ public:
     * \pre \c !is_full()
     * \note Accepts no argument (appends \c std::byte{}) or one \c std::byte / integral
     * argument, converted as by \c static_cast (out-of-range integers truncate mod 256).
-    * Floating-point and other enumeration arguments are rejected; cast explicitly if
+    * Floating-point and other enumeration arguments are rejected.  Cast explicitly if that is
     * intended.
-    * \note "Emplace" is assignment here: the slot already holds a live byte, so this is
+    * \note "Emplace" is assignment here.  The slot already holds a live byte, so this is
     * equivalent to \c push_back(std::byte(args...)).
     */
     template <class... Args>
@@ -463,12 +463,12 @@ public:
         return try_emplace_back(value);
     }
 
-    /// Fill all \c capacity() bytes with \a value and set \c size() to \c capacity().
+    /// Fill all \c capacity() bytes with \a value and set \c size() to \c capacity()
     /**
-    * The range filled is [0, \c capacity()) -- the live bytes are overwritten too, not only the
-    * reserved-unused tail.  To leave [0, \c size()) alone and fill just the tail, growing into
-    * it, call \c resize(capacity(), \a value) instead; to fill just the live bytes without
-    * changing \c size(), call \c fill_size().
+    * The range filled is [0, \c capacity()), so the live bytes are overwritten too, not only
+    * the reserved-unused tail.  To leave [0, \c size()) alone and fill just the tail, growing
+    * into it, call \c resize(capacity(), \a value) instead.  To fill just the live bytes
+    * without changing \c size(), call \c fill_size().
     */
     constexpr void fill_capacity(const std::byte value) noexcept
     {
@@ -477,9 +477,9 @@ public:
         size_ = capacity();
     }
 
-    /// Fill the live bytes [0, \c size()) with \a value; \c size() is unchanged.
+    /// Fill the live bytes [0, \c size()) with \a value, leaving \c size() unchanged
     /**
-    * The complement of \c resize(capacity(), \a value), which fills the reserved-unused tail;
+    * The complement of \c resize(capacity(), \a value), which fills the reserved-unused tail.
     * \c fill_capacity() does both.
     */
     constexpr void fill_size(const std::byte value) noexcept
@@ -488,13 +488,13 @@ public:
             std::memset(data(), std::to_integer<int>(value), size());
     }
 
-    /// Zero the reserved tail [\c size(), \c capacity()); \c size() is unchanged.
+    /// Zero the reserved tail [\c size(), \c capacity()), leaving \c size() unchanged
     /**
-    * Replaces the unspecified reserved bytes with zeros -- e.g. to pad to an alignment
-    * boundary before reading whole SIMD lanes past \c size(), or to keep stale heap bytes from
-    * leaking through beyond-size reads.  The stores happen even if nothing reads the tail
-    * afterward, so \c clear() followed by this scrubs the whole buffer -- for sensitive
-    * contents, where a plain \c memset is a dead store the optimizer may elide.
+    * Replaces the unspecified reserved bytes with zeros, e.g. to pad to an alignment boundary
+    * before reading whole SIMD lanes past \c size(), or to keep stale heap bytes from leaking
+    * through beyond-size reads.  The stores happen even if nothing reads the tail afterward, so
+    * \c clear() followed by this scrubs the whole buffer.  That matters for sensitive contents,
+    * where a plain \c memset is a dead store the optimizer may elide.
     */
     constexpr void zeroize_reserved_unused() noexcept
     {
@@ -519,8 +519,8 @@ public:
     * \pre <code>[first, last)</code> is a valid range.  For a \c std::sized_sentinel_for this
     * keeps <code>last - first</code> non-negative, so the size check's cast to \c std::size_t
     * is well-defined.
-    * \note A \c std::sized_sentinel_for source is checked up front (all-or-nothing);
-    * otherwise the bytes that fit are appended before \c std::bad_alloc is thrown.
+    * \note A \c std::sized_sentinel_for source is checked up front (all-or-nothing).  An
+    * unsized one appends the bytes that fit before \c std::bad_alloc is thrown.
     * \exception std::bad_alloc if the source does not fit in \c reserved_unused().
     */
     template <std::input_iterator It, std::sentinel_for<It> S>
@@ -549,7 +549,8 @@ public:
     }
 
     /**
-    * \exception std::bad_alloc if \a il does not fit in \c reserved_unused() (nothing is appended).
+    * \exception std::bad_alloc if \a il does not fit in \c reserved_unused() (nothing is
+    * appended).
     */
     constexpr void append_range(const std::initializer_list<std::byte> il)
     {
@@ -557,10 +558,10 @@ public:
     }
 
     /**
-    * \note Sized sources are checked up front (all-or-nothing); unsized sources append
+    * \note Sized sources are checked up front (all-or-nothing).  Unsized sources append
     * element-wise and may partially append before throwing \c std::bad_alloc.
     * \pre If \a rg is a contiguous range of \c std::byte, it does not overlap this buffer's
-    * storage: that case is forwarded to the \c std::span overload, which carries the same tag.
+    * storage.  That case is forwarded to the \c std::span overload, which carries the same tag.
     * \exception std::bad_alloc if the source does not fit in \c reserved_unused().
     */
     template <std::ranges::input_range R>
@@ -602,8 +603,8 @@ public:
     * \pre <code>[first, last)</code> is a valid range.  For a \c std::sized_sentinel_for this
     * keeps <code>last - first</code> non-negative, so the size check's cast to \c std::size_t
     * is well-defined.
-    * \note A \c std::sized_sentinel_for source is checked up front (nothing appended on
-    * \c false); otherwise the bytes that fit have already been appended when \c false is
+    * \note A \c std::sized_sentinel_for source is checked up front, so nothing is appended on
+    * \c false.  An unsized one has already appended the bytes that fit when \c false is
     * returned (observe \c size()).
     */
     template <std::input_iterator It, std::sentinel_for<It> S>
@@ -641,11 +642,11 @@ public:
     }
 
     /**
-    * \note Sized sources are checked up front (nothing appended on \c false); unsized
+    * \note Sized sources are checked up front, so nothing is appended on \c false.  Unsized
     * sources append element-wise, so on \c false the bytes that fit have already been
     * appended (observe \c size()).
     * \pre If \a rg is a contiguous range of \c std::byte, it does not overlap this buffer's
-    * storage: that case is forwarded to the \c std::span overload, which carries the same tag.
+    * storage.  That case is forwarded to the \c std::span overload, which carries the same tag.
     */
     template <std::ranges::input_range R>
     [[nodiscard]] constexpr bool try_append_range(R&& rg)
@@ -678,14 +679,14 @@ public:
         }
     }
 
-    /// \c clear() followed by \c append_range(), so the source is bounded by \c capacity().
+    /// \c clear() followed by \c append_range(), so the source is bounded by \c capacity()
     /**
     * \note The capacity is kept, not resized to the source.
     * \pre The source does not overlap this buffer's storage.
     * \exception std::bad_alloc if the source does not fit in \c capacity().  The \c clear() has
-    * already happened by then, so a failed assign never leaves the previous contents in place:
-    * a sized source (checked up front) leaves the buffer empty, while an unsized one leaves the
-    * bytes that fit -- \c append_range's partial-append behavior, inherited.
+    * already happened by then, so a failed assign never leaves the previous contents in place.
+    * A sized source (checked up front) leaves the buffer empty.  An unsized one leaves the
+    * bytes that fit, inheriting \c append_range's partial-append behavior.
     */
     constexpr void assign_range(const std::span<const std::byte> spn)
     {
@@ -741,7 +742,7 @@ public:
     /**
     * \returns A pointer to the block, aligned to \a Align, or \c nullptr if \c capacity()
     * is 0 (per the class invariant, that is the only case).
-    * \note The null test is not defensive: \c std::assume_aligned requires a pointer to a
+    * \note The null test is not defensive.  \c std::assume_aligned requires a pointer to a
     * real object, so it may not be applied to the empty buffer's null block.
     */
     [[nodiscard]] constexpr std::byte* data() noexcept
@@ -799,7 +800,7 @@ public:
 
     /**
     * \pre \a i < \c capacity()
-    * \note Unchecked and capacity-based: reading an index in [size(), capacity()) is valid
+    * \note Unchecked and capacity-based.  Reading an index in [size(), capacity()) is valid
     * but yields an unspecified (not indeterminate) byte.  \c at() is the bounds-checked
     * accessor.
     */
@@ -823,7 +824,7 @@ public:
     /**
     * \returns A reference to the byte at index \a i.
     * \note The only bounds-checked accessor, and checked against \c size(), not
-    * \c capacity(): \c operator[] reads an index in [size(), capacity()) and yields an
+    * \c capacity().  \c operator[] reads an index in [size(), capacity()) and yields an
     * unspecified byte, but this rejects that index.
     * \exception std::out_of_range if \a i >= \c size().
     */
@@ -884,7 +885,7 @@ public:
 
     /**
     * \note Compares the live [0, \c size()) bytes by value (variable-time, per ordinary
-    * container semantics); use the free \c constant_time_equal for secret-dependent data.
+    * container semantics).  Use the free \c constant_time_equal for secret-dependent data.
     */
     [[nodiscard]] constexpr bool operator==(const aligned_byte_buffer& rhs) const noexcept
     {

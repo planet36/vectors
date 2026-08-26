@@ -17,9 +17,9 @@
 
 constexpr auto is_odd = [](const int x) { return x % 2 != 0; };
 
-// Compile-time check: empty / zero-capacity instances are usable in constant expressions.
+// Compile-time check that empty / zero-capacity instances are usable in constant expressions.
 // (The allocating paths are not, since over-aligned allocation is not usable in constant
-// evaluation -- so only the non-allocating members are exercised here.)
+// evaluation, so only the non-allocating members are exercised here.)
 // NOLINTBEGIN(readability-simplify-boolean-expr)
 constexpr bool
 constexpr_empty_ok()
@@ -67,7 +67,7 @@ static_assert([] {
            constant_time_equal(std::span<const std::byte>{}, {});
 }());
 
-// Only Align is a template parameter; the requires clause reduces to has_single_bit(Align),
+// Only Align is a template parameter.  The requires clause reduces to has_single_bit(Align),
 // since alignof(std::byte) == 1 makes the Align >= alignof(T) constraint vacuous here.
 static_assert(alignof(std::byte) == 1);
 
@@ -86,7 +86,7 @@ test_ctor_default()
 static void
 test_ctor_capacity()
 {
-    // Reserves capacity and starts empty; the reserved bytes are left uninitialized (no
+    // Reserves capacity and starts empty.  The reserved bytes are left uninitialized (no
     // whole-capacity memset), unlike dynamic_fixed_vector's value-initialized tail.
     const aligned_byte_buffer<16> v(64);
     CHECK(v.size() == 0);
@@ -167,7 +167,7 @@ test_copy_ctor()
     aligned_byte_buffer<16> a(8);
     a.append_range({1_b, 2_b, 3_b});
     const aligned_byte_buffer<16> b = a; // copies only the live [0,size) bytes
-    CHECK(a.data() != b.data());         // independent buffers
+    CHECK(a.data() != b.data()); // independent buffers
     CHECK(b.capacity() == 8);
     CHECK(to_ivec(a) == to_ivec(b));
     a[0] = 99_b;
@@ -217,8 +217,8 @@ test_move_assign()
     CHECK(b.data() == a_buf); // buffer transferred, not reallocated
     CHECK(b.capacity() == 3);
     CHECK(to_ivec(b) == std::vector({4, 5, 6}));
-    // Move assignment swaps: the source keeps the target's former buffer until it is destroyed,
-    // rather than being left empty as after move construction.
+    // Move assignment swaps, so the source keeps the target's former buffer until it is
+    // destroyed, rather than being left empty as after move construction.
     // NOLINTNEXTLINE(bugprone-use-after-move,hicpp-invalid-access-moved,clang-analyzer-cplusplus.Move)
     CHECK(a.data() == b_buf);
     CHECK(a.capacity() == 1);
@@ -246,14 +246,14 @@ test_data_null_iff_capacity_zero()
 {
     // The class invariant the \pre !is_full() / !is_empty() members rely on to reach the
     // storage without re-checking data() for null.  One direction is free (the throwing
-    // ::operator new never returns null), but "capacity 0 -> null" is not: ::operator new(0)
+    // ::operator new never returns null), but "capacity 0 -> null" is not.  ::operator new(0)
     // returns a *non-null* block, so allocate_'s early return is the only thing making it
     // true.  Cover each structurally distinct way to reach capacity 0, not every permutation.
     const std::vector<std::byte> empty;
 
-    { const aligned_byte_buffer<16> b;           CHECK(data_null_iff_empty(b)); } // never allocates
-    { const aligned_byte_buffer<16> b(0);        CHECK(data_null_iff_empty(b)); } // the early return
-    { const aligned_byte_buffer<16> b(8);        CHECK(data_null_iff_empty(b)); } // real allocation
+    { const aligned_byte_buffer<16> b;    CHECK(data_null_iff_empty(b)); } // never allocates
+    { const aligned_byte_buffer<16> b(0); CHECK(data_null_iff_empty(b)); } // the early return
+    { const aligned_byte_buffer<16> b(8); CHECK(data_null_iff_empty(b)); } // real allocation
     { const aligned_byte_buffer<16> b(0, 7_b);   CHECK(data_null_iff_empty(b)); }
     { const aligned_byte_buffer<16> b(std::span<const std::byte>{});     CHECK(data_null_iff_empty(b)); }
     { const aligned_byte_buffer<16> b(empty.begin(), empty.end());       CHECK(data_null_iff_empty(b)); }
@@ -300,7 +300,7 @@ test_data_null_iff_capacity_zero()
         CHECK(data_null_iff_empty(b));
     }
 
-    // The invariant must survive a throw: assign_range keeps the current capacity, so this
+    // The invariant must survive a throw.  assign_range keeps the current capacity, so this
     // overflows a capacity-0 buffer and must leave it consistent.
     {
         aligned_byte_buffer<16> b;
@@ -349,7 +349,7 @@ test_clear()
     v.clear();
     CHECK(v.is_empty());
     CHECK(v.capacity() == 3); // clear() does not change capacity
-    // clear() only resets size(); operator[] is capacity-based, so the bytes still read back.
+    // clear() only resets size().  operator[] is capacity-based, so the bytes still read back.
     CHECK(v[0] == 1_b);
     CHECK(v[2] == 3_b);
 }
@@ -385,10 +385,10 @@ test_push_back_emplace_back()
 {
     aligned_byte_buffer<16> v(4);
     const std::byte x = 10_b;
-    v.push_back(x);     // by value
+    v.push_back(x); // by value
     v.push_back(20_b);
     v.emplace_back(30); // int -> std::byte via functional cast
-    v.emplace_back();   // no args -> std::byte{}
+    v.emplace_back(); // no args -> std::byte{}
     CHECK(to_ivec(v) == std::vector({10, 20, 30, 0}));
 }
 
@@ -396,7 +396,7 @@ static void
 test_unchecked_push_back_unchecked_emplace_back()
 {
     aligned_byte_buffer<16> v(3);
-    v.unchecked_emplace_back(1);   // int
+    v.unchecked_emplace_back(1); // int
     v.unchecked_push_back(2_b);
     v.unchecked_emplace_back(3_b); // byte
     CHECK(to_ivec(v) == std::vector({1, 2, 3}));
@@ -428,7 +428,7 @@ test_fill_capacity_fill_size()
     CHECK(to_ivec(v) == std::vector({4, 4, 4, 4, 4}));
     CHECK(v.is_full());
 
-    // resize(capacity(), value) is the tail-only counterpart of fill_capacity(): it fills
+    // resize(capacity(), value) is the tail-only counterpart of fill_capacity().  It fills
     // [size(), capacity()) and grows into it, leaving the live bytes as they are.
     v.resize(3);
     v.fill_size(7_b);
@@ -446,11 +446,11 @@ test_zeroize_reserved_unused()
     CHECK(v.size() == 3);
     CHECK(v.capacity() == 8);
     CHECK(to_ivec(v) == std::vector({1, 2, 3}));
-    // Turning the unspecified reserved tail into determinate zeros is the point: only now may
-    // those bytes be checked for a value.
+    // Turning the unspecified reserved tail into determinate zeros is the point, so only now
+    // may those bytes be checked for a value.
     for (std::size_t i = v.size(); i < v.capacity(); ++i)
         CHECK(v[i] == 0_b);
-    // Scrub the whole buffer: clear() + zeroize_reserved_unused() (non-elidable stores).
+    // Scrub the whole buffer with clear() + zeroize_reserved_unused() (non-elidable stores).
     v.clear();
     v.zeroize_reserved_unused();
     CHECK(v.is_empty());
@@ -468,10 +468,10 @@ test_append_range()
     const std::vector more{6_b, 7_b};
 
     aligned_byte_buffer<16> v(12);
-    v.append_range({1_b, 2_b, 3_b});                        // initializer_list
-    v.append_range(std::span<const std::byte>{tail});       // span (memcpy fast path)
-    v.append_range(more.begin(), more.end());               // iterator + sentinel
-    v.append_range(more.begin(), std::size_t{1});           // iterator + count -> 6
+    v.append_range({1_b, 2_b, 3_b}); // initializer_list
+    v.append_range(std::span<const std::byte>{tail}); // span (memcpy fast path)
+    v.append_range(more.begin(), more.end()); // iterator + sentinel
+    v.append_range(more.begin(), std::size_t{1}); // iterator + count -> 6
     v.append_range(std::views::iota(8, 10) | std::views::transform(to_byte)); // range -> 8,9
     CHECK(to_ivec(v) == std::vector({1, 2, 3, 4, 5, 6, 7, 6, 8, 9}));
 }
@@ -496,13 +496,13 @@ test_try_append_range()
     const std::vector more{5_b, 6_b};
 
     aligned_byte_buffer<16> v(4);
-    CHECK(v.try_append_range(std::span<const std::byte>{a}));  // span
-    CHECK(v.try_append_range({3_b, 4_b}));                     // initializer_list
-    CHECK(!v.try_append_range({5_b, 6_b}));                    // would overflow -> false
+    CHECK(v.try_append_range(std::span<const std::byte>{a})); // span
+    CHECK(v.try_append_range({3_b, 4_b})); // initializer_list
+    CHECK(!v.try_append_range({5_b, 6_b})); // would overflow -> false
     CHECK(!v.try_append_range(std::views::iota(0, 3) | std::views::transform(to_byte)));
-    CHECK(!v.try_append_range(more.begin(), more.end()));      // sized sentinel: checked up front
-    CHECK(!v.try_append_range(more.begin(), std::size_t{2}));  // iterator + count
-    CHECK(to_ivec(v) == std::vector({1, 2, 3, 4}));            // nothing appended by the failures
+    CHECK(!v.try_append_range(more.begin(), more.end())); // sized sentinel: checked up front
+    CHECK(!v.try_append_range(more.begin(), std::size_t{2})); // iterator + count
+    CHECK(to_ivec(v) == std::vector({1, 2, 3, 4})); // nothing appended by the failures
 }
 
 static void
@@ -510,7 +510,7 @@ test_try_append_range_unsized_partial()
 {
     aligned_byte_buffer<16> v(4);
     v.append_range({1_b, 2_b});
-    // filter_view is not sized: the bytes that fit land before false is returned.
+    // filter_view is not sized, so the bytes that fit land before false is returned.
     CHECK(!v.try_append_range(std::views::iota(1, 10) | std::views::filter(is_odd) |
                               std::views::transform(to_byte)));
     CHECK(to_ivec(v) == std::vector({1, 2, 1, 3}));
@@ -541,7 +541,7 @@ static void
 test_assign_range_unsized_partial()
 {
     // assign_range is clear() + append_range, so it inherits the unsized source's partial
-    // append: the clear() has already run when the throw arrives, and the bytes that fit are
+    // append.  The clear() has already run when the throw arrives, and the bytes that fit are
     // already in place.  (filter_view is what makes the source unsized.)
     aligned_byte_buffer<16> v(4);
     v.append_range({9_b, 9_b, 9_b, 9_b});
@@ -550,7 +550,7 @@ test_assign_range_unsized_partial()
                                 std::views::transform(to_byte)));
     CHECK(to_ivec(v) == std::vector({1, 3, 5, 7})); // not empty -- what fit survived the throw
 
-    // The sized counterpart, for contrast: checked up front, so it throws before writing.
+    // The sized counterpart, for contrast, is checked up front, so it throws before writing.
     aligned_byte_buffer<16> w(4);
     w.append_range({9_b, 9_b, 9_b, 9_b});
     CHECK_THROWS(std::bad_alloc, w.assign_range({1_b, 2_b, 3_b, 4_b, 5_b}));
@@ -592,9 +592,10 @@ test_operator_index()
     CHECK(v[2] == 33_b);
     v[1] = 99_b;
     CHECK(v[1] == 99_b);
-    // Exercise -- but do not check the value of -- a read at an index >= size() within capacity.
+    // Exercise (but do not check the value of) a read at an index >= size() within capacity.
     // The reserved tail is left uninitialized, so for std::byte this is well-defined but
-    // *unspecified*: unlike fixed_vector / dynamic_fixed_vector, no value may be asserted here.
+    // *unspecified*.  Unlike fixed_vector / dynamic_fixed_vector, no value may be asserted
+    // here.
     const auto probe = std::to_integer<unsigned>(v[v.capacity() - 1]);
     (void)probe;
 }
@@ -679,7 +680,7 @@ test_comparisons()
 static void
 test_constant_time_equal()
 {
-    // Free function for secret-dependent data; the container's operator== stays variable-time.
+    // Free function for secret-dependent data.  The container's operator== stays variable-time.
     const aligned_byte_buffer<16> a{1_b, 2_b, 3_b};
     const aligned_byte_buffer<16> b{1_b, 2_b, 3_b};
     const aligned_byte_buffer<16> c{1_b, 2_b, 4_b};

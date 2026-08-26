@@ -1,15 +1,15 @@
 // SPDX-FileCopyrightText: Steven Ward
 // SPDX-License-Identifier: MPL-2.0
 
-/// Helpers shared by the test-*.cpp programs.
+/// Helpers shared by the test-*.cpp programs
 /**
-* The pass/fail contract is the exit status alone: a passing program prints nothing and exits
+* The pass/fail contract is the exit status alone.  A passing program prints nothing and exits
 * EXIT_SUCCESS.  The first failed check prints one line to stderr and exits EXIT_FAILURE
 * immediately, leaving the remaining checks unrun.
 *
-* Nothing here calls \c abort(), which is why \c assert is not used: a failing test must not dump
-* core.  For the same reason \c run_tests catches everything, so an exception that escapes a test
-* cannot reach \c terminate().
+* Nothing here calls \c abort(), which is why \c assert is not used.  A failing test must not
+* dump core.  For the same reason \c run_tests catches everything, so an exception that escapes
+* a test cannot reach \c terminate().
 */
 
 #pragma once
@@ -27,7 +27,7 @@
 #include <utility>
 #include <vector>
 
-/// Report a failed check at \a file : \a line within \a func and exit EXIT_FAILURE.
+/// Report a failed check at \a file : \a line within \a func and exit EXIT_FAILURE
 [[noreturn]] inline void
 test_fail(const std::string_view file, const int line, const std::string_view func,
           const std::string_view msg)
@@ -36,12 +36,12 @@ test_fail(const std::string_view file, const int line, const std::string_view fu
     std::exit(EXIT_FAILURE);
 }
 
-/// Fail unless the expression is true.
+/// Fail unless the expression is true
 /**
 * Variadic so that an expression containing an unparenthesized comma -- e.g.
 * \c CHECK(fixed_vector<int,5>::max_size()==5) -- does not need the extra parens \c assert
-* required.  (\c max_size() is the \c static one; \c capacity() is a run-time value and needs an
-* object.)
+* required.  (\c max_size() is the \c static one.  \c capacity() is a run-time value and needs
+* an object.)
 */
 #define CHECK(...)                                                                  \
     do {                                                                            \
@@ -49,9 +49,9 @@ test_fail(const std::string_view file, const int line, const std::string_view fu
             test_fail(__FILE__, __LINE__, __func__, "CHECK failed: " #__VA_ARGS__); \
     } while (false)
 
-/// Fail unless evaluating the expression throws an exception of type \a Ex.
+/// Fail unless evaluating the expression throws an exception of type \a Ex
 /**
-* Reports "no exception" and "wrong exception type" distinctly: a throw of the wrong type is a
+* Reports "no exception" and "wrong exception type" distinctly.  A throw of the wrong type is a
 * different defect from no throw at all, and catching it here (rather than letting it escape) is
 * what keeps the run from reaching \c terminate().
 */
@@ -75,10 +75,10 @@ test_fail(const std::string_view file, const int line, const std::string_view fu
         }                                                                            \
     } while (false)
 
-/// Run \a tests and return the value \c main should return.
+/// Run \a tests and return the value \c main should return
 /**
-* An exception propagating out of \c main would call \c terminate -> \c abort and dump core; report
-* it and exit non-zero instead.
+* An exception propagating out of \c main would call \c terminate -> \c abort and dump core.
+* Report it and exit non-zero instead.
 */
 template <std::invocable Fn>
 [[nodiscard]] int
@@ -100,10 +100,10 @@ run_tests(Fn&& tests)
     return EXIT_FAILURE;
 }
 
-/// The live [0, size()) elements of \a v as a std::vector<int>, for comparison with an expected
-/// list.
+/// The live [0, size()) elements of \a v as a std::vector<int>
 /**
-* std::byte does not implicitly convert to int, so it is unpacked with \c std::to_integer.
+* The result is meant for comparison with an expected list.  std::byte does not implicitly
+* convert to int, so it is unpacked with \c std::to_integer.
 */
 template <typename V>
 [[nodiscard]] std::vector<int>
@@ -119,32 +119,32 @@ to_ivec(const V& v)
     return std::vector<int>(std::from_range, v.span() | std::views::transform(as_int));
 }
 
-/// A std::byte with the value \a i.
+/// A std::byte with the value \a i
 [[nodiscard]] constexpr std::byte
 to_byte(const int i) noexcept
 {
     return static_cast<std::byte>(i);
 }
 
-/// A std::byte literal, e.g. 0xAB_b.
+/// A std::byte literal, e.g. 0xAB_b
 [[nodiscard]] constexpr std::byte
 operator""_b(const unsigned long long v) noexcept
 {
     return static_cast<std::byte>(v);
 }
 
-/// True if \a p is aligned to \a align bytes.
+/// True if \a p is aligned to \a align bytes
 [[nodiscard]] inline bool
 is_aligned(const void* const p, const std::size_t align) noexcept
 {
     return reinterpret_cast<std::uintptr_t>(p) % align == 0;
 }
 
-/// True if the heap-backed containers' class invariant holds for \a v: \c data() is null
-/// exactly when \c capacity() is 0.
+/// True if the heap-backed containers' class invariant holds for \a v
 /**
-* A predicate rather than a CHECK of its own, so that a failure reports the caller's line --
-* the point is *which state* broke the invariant.
+* The invariant is that \c data() is null exactly when \c capacity() is 0.  This is a predicate
+* rather than a CHECK of its own, so that a failure reports the caller's line.  The point is
+* *which state* broke the invariant.
 */
 template <typename V>
 [[nodiscard]] bool

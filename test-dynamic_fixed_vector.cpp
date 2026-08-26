@@ -19,9 +19,9 @@
 
 constexpr auto is_odd = [](const int x) { return x % 2 != 0; };
 
-// Compile-time check: empty / zero-capacity instances are usable in constant expressions.
+// Compile-time check that empty / zero-capacity instances are usable in constant expressions.
 // (The allocating paths are not, since over-aligned allocation is not usable in constant
-// evaluation -- so only the non-allocating members are exercised here.)
+// evaluation, so only the non-allocating members are exercised here.)
 // NOLINTBEGIN(readability-simplify-boolean-expr)
 constexpr bool
 constexpr_empty_ok()
@@ -45,8 +45,8 @@ constexpr_empty_ok()
 // NOLINTEND(readability-simplify-boolean-expr)
 static_assert(constexpr_empty_ok());
 
-// The range / iterator-sentinel constructors require forward iterators: capacity has to be
-// computed up front.  An input-only source is rejected at compile time; it goes through
+// The range / iterator-sentinel constructors require forward iterators, since capacity has to
+// be computed up front.  An input-only source is rejected at compile time.  It goes through
 // X(capacity) + append_range instead (see test_append_range_input_iterators).
 static_assert(std::constructible_from<dynamic_fixed_vector<int>, std::from_range_t,
                                       std::vector<int>>);
@@ -68,7 +68,7 @@ test_ctor_default()
 static void
 test_ctor_capacity()
 {
-    // X(n) reserves capacity n and starts empty -- unlike fixed_vector, where X(count) creates
+    // X(n) reserves capacity n and starts empty, unlike fixed_vector, where X(count) creates
     // count elements.
     const dynamic_fixed_vector<int> v(5);
     CHECK(v.size() == 0);
@@ -163,7 +163,7 @@ test_move_ctor()
     const dynamic_fixed_vector<int> b = std::move(a);
     CHECK(b.data() == orig); // buffer transferred, not reallocated
     CHECK(to_ivec(b) == std::vector({1, 2, 3}));
-    // Move construction leaves the source empty -- unlike fixed_vector, whose defaulted
+    // Move construction leaves the source empty, unlike fixed_vector, whose defaulted
     // member-wise move leaves a trivially copyable source unchanged.
     // NOLINTNEXTLINE(bugprone-use-after-move,hicpp-invalid-access-moved,clang-analyzer-cplusplus.Move)
     CHECK(a.size() == 0);
@@ -200,8 +200,8 @@ test_move_assign()
     CHECK(b.data() == a_buf); // buffer transferred, not reallocated
     CHECK(b.capacity() == 3); // capacity replaced too
     CHECK(to_ivec(b) == std::vector({4, 5, 6}));
-    // Move assignment swaps: the source keeps the target's former buffer until it is destroyed,
-    // rather than being left empty as after move construction.
+    // Move assignment swaps, so the source keeps the target's former buffer until it is
+    // destroyed, rather than being left empty as after move construction.
     // NOLINTNEXTLINE(bugprone-use-after-move,hicpp-invalid-access-moved,clang-analyzer-cplusplus.Move)
     CHECK(a.data() == b_buf);
     CHECK(a.capacity() == 1);
@@ -229,15 +229,15 @@ test_data_null_iff_capacity_zero()
 {
     // The class invariant the \pre !is_full() / !is_empty() members rely on to reach the
     // storage without re-checking data() for null.  One direction is free (the throwing
-    // ::operator new never returns null), but "capacity 0 -> null" is not: ::operator new(0)
+    // ::operator new never returns null), but "capacity 0 -> null" is not.  ::operator new(0)
     // returns a *non-null* block, so allocate_raw_'s early return is the only thing making it
     // true.  Cover each structurally distinct way to reach capacity 0, not every permutation.
     const std::vector<int> src{1, 2, 3};
     const std::vector<int> empty;
 
-    { const dynamic_fixed_vector<int> v;              CHECK(data_null_iff_empty(v)); } // never allocates
-    { const dynamic_fixed_vector<int> v(0);           CHECK(data_null_iff_empty(v)); } // the early return
-    { const dynamic_fixed_vector<int> v(3);           CHECK(data_null_iff_empty(v)); } // real allocation
+    { const dynamic_fixed_vector<int> v;    CHECK(data_null_iff_empty(v)); } // never allocates
+    { const dynamic_fixed_vector<int> v(0); CHECK(data_null_iff_empty(v)); } // the early return
+    { const dynamic_fixed_vector<int> v(3); CHECK(data_null_iff_empty(v)); } // real allocation
     { const dynamic_fixed_vector<int> v(0, 7);        CHECK(data_null_iff_empty(v)); }
     { const dynamic_fixed_vector<int> v(std::span<const int>{});      CHECK(data_null_iff_empty(v)); }
     { const dynamic_fixed_vector<int> v(empty.begin(), empty.end());  CHECK(data_null_iff_empty(v)); }
@@ -284,7 +284,7 @@ test_data_null_iff_capacity_zero()
         CHECK(data_null_iff_empty(v));
     }
 
-    // The invariant must survive a throw: assign_range keeps the current capacity, so this
+    // The invariant must survive a throw.  assign_range keeps the current capacity, so this
     // overflows a capacity-0 vector and must leave it consistent.
     {
         dynamic_fixed_vector<int> v;
@@ -333,7 +333,8 @@ test_clear()
     v.clear();
     CHECK(v.is_empty());
     CHECK(v.capacity() == 3); // clear() does not change capacity
-    // clear() only resets size(); operator[] is capacity-based, so the elements still read back.
+    // clear() only resets size().  operator[] is capacity-based, so the elements still read
+    // back.
     CHECK(v[0] == 1);
     CHECK(v[2] == 3);
 }
@@ -369,7 +370,7 @@ test_push_back()
 {
     dynamic_fixed_vector<int> v(3);
     const int x = 10;
-    v.push_back(x);  // const&
+    v.push_back(x); // const&
     v.push_back(20); // &&
     CHECK(to_ivec(v) == std::vector({10, 20}));
 }
@@ -426,7 +427,7 @@ test_fill_capacity_fill_size()
     CHECK(to_ivec(v) == std::vector({4, 4, 4, 4, 4}));
     CHECK(v.is_full());
 
-    // resize(capacity(), value) is the tail-only counterpart of fill_capacity(): it fills
+    // resize(capacity(), value) is the tail-only counterpart of fill_capacity().  It fills
     // [size(), capacity()) and grows into it, leaving the live elements as they are.
     v.resize(3);
     v.fill_size(7);
@@ -445,10 +446,10 @@ test_zeroize_reserved_unused()
     CHECK(v.size() == 2);
     CHECK(v.capacity() == 5);
     CHECK(to_ivec(v) == std::vector({9, 9}));
-    // operator[] is capacity-based: the tail is now zero
+    // operator[] is capacity-based, so the tail is now zero
     for (std::size_t i = v.size(); i < v.capacity(); ++i)
         CHECK(v[i] == 0);
-    // Scrub the whole buffer: clear() + zeroize_reserved_unused() (non-elidable stores).
+    // Scrub the whole buffer with clear() + zeroize_reserved_unused() (non-elidable stores).
     v.clear();
     v.zeroize_reserved_unused();
     CHECK(v.is_empty());
@@ -465,19 +466,19 @@ test_append_range()
     const std::vector more{6, 7};
 
     dynamic_fixed_vector<int> v(12);
-    v.append_range({1, 2, 3});                    // initializer_list
-    v.append_range(std::span<const int>{tail});   // span
-    v.append_range(more.begin(), more.end());     // iterator + sentinel
+    v.append_range({1, 2, 3}); // initializer_list
+    v.append_range(std::span<const int>{tail}); // span
+    v.append_range(more.begin(), more.end()); // iterator + sentinel
     v.append_range(more.begin(), std::size_t{1}); // iterator + count -> 6
-    v.append_range(std::views::iota(8, 10));      // range -> 8,9
+    v.append_range(std::views::iota(8, 10)); // range -> 8,9
     CHECK(to_ivec(v) == std::vector({1, 2, 3, 4, 5, 6, 7, 6, 8, 9}));
 }
 
 static void
 test_append_range_input_iterators()
 {
-    // append_range accepts input-only sources, unlike the range constructors (which need forward
-    // iterators to size the allocation up front -- see the static_assert above).
+    // append_range accepts input-only sources, unlike the range constructors, which need
+    // forward iterators to size the allocation up front (see the static_assert above).
     std::istringstream iss("1 2 3");
     dynamic_fixed_vector<int> v(5);
     v.append_range(std::views::istream<int>(iss));
@@ -503,13 +504,13 @@ test_try_append_range()
     const std::vector more{5, 6};
 
     dynamic_fixed_vector<int> v(4);
-    CHECK(v.try_append_range(std::span<const int>{a}));       // span
-    CHECK(v.try_append_range({3, 4}));                        // initializer_list
-    CHECK(!v.try_append_range({5, 6}));                       // would overflow -> false
-    CHECK(!v.try_append_range(std::views::iota(0, 3)));       // sized range: checked up front
-    CHECK(!v.try_append_range(more.begin(), more.end()));     // sized sentinel: checked up front
+    CHECK(v.try_append_range(std::span<const int>{a})); // span
+    CHECK(v.try_append_range({3, 4})); // initializer_list
+    CHECK(!v.try_append_range({5, 6})); // would overflow -> false
+    CHECK(!v.try_append_range(std::views::iota(0, 3))); // sized range: checked up front
+    CHECK(!v.try_append_range(more.begin(), more.end())); // sized sentinel: checked up front
     CHECK(!v.try_append_range(more.begin(), std::size_t{2})); // iterator + count
-    CHECK(to_ivec(v) == std::vector({1, 2, 3, 4}));           // nothing appended by the failures
+    CHECK(to_ivec(v) == std::vector({1, 2, 3, 4})); // nothing appended by the failures
 }
 
 static void
@@ -517,7 +518,7 @@ test_try_append_range_unsized_partial()
 {
     dynamic_fixed_vector<int> v(4);
     v.append_range({1, 2});
-    // filter_view is not sized: the elements that fit land before false is returned.
+    // filter_view is not sized, so the elements that fit land before false is returned.
     CHECK(!v.try_append_range(std::views::iota(1, 10) | std::views::filter(is_odd)));
     CHECK(to_ivec(v) == std::vector({1, 2, 1, 3}));
 }
@@ -547,7 +548,7 @@ static void
 test_assign_range_unsized_partial()
 {
     // assign_range is clear() + append_range, so it inherits the unsized source's partial
-    // append: the clear() has already run when the throw arrives, and the elements that fit
+    // append.  The clear() has already run when the throw arrives, and the elements that fit
     // are already in place.
     dynamic_fixed_vector<int> v(4);
     v.append_range({9, 9, 9, 9});
@@ -555,7 +556,7 @@ test_assign_range_unsized_partial()
                  v.assign_range(std::views::iota(1, 10) | std::views::filter(is_odd)));
     CHECK(to_ivec(v) == std::vector({1, 3, 5, 7})); // not empty -- what fit survived the throw
 
-    // The sized counterpart, for contrast: checked up front, so it throws before writing.
+    // The sized counterpart, for contrast, is checked up front, so it throws before writing.
     dynamic_fixed_vector<int> w(4);
     w.append_range({9, 9, 9, 9});
     CHECK_THROWS(std::bad_alloc, w.assign_range({1, 2, 3, 4, 5}));
@@ -597,7 +598,7 @@ test_operator_index()
     CHECK(v[2] == 33);
     v[1] = 99;
     CHECK(v[1] == 99);
-    // Indexes 3 and 4 are >= size() but < capacity(): live, value-initialized elements.
+    // Indexes 3 and 4 are >= size() but < capacity(), so they are live and value-initialized.
     // Deterministic here, unlike aligned_byte_buffer, whose reserved tail is unspecified.
     CHECK(v[3] == 0);
     CHECK(v[4] == 0);
@@ -686,7 +687,7 @@ test_comparisons()
 static void
 test_alignment()
 {
-    // Over-alignment honored for several Align values: the block comes from the aligned
+    // Over-alignment is honored for several Align values.  The block comes from the aligned
     // ::operator new, so Align can exceed alignof(T).
     const auto check_align = []<std::size_t A>()
     {
@@ -724,7 +725,7 @@ test_overflow_throws_bad_alloc()
     static constexpr std::array too_many{1, 2, 3};
 
     // X(n) reserves rather than creating elements, so unlike fixed_vector the constructors
-    // cannot overflow -- only the modifiers can.
+    // cannot overflow.  Only the modifiers can.
     CHECK_THROWS(std::bad_alloc, dynamic_fixed_vector<int> v(2); v.push_back(1); v.push_back(2);
                  v.push_back(3));
     CHECK_THROWS(std::bad_alloc, dynamic_fixed_vector<int> v(1); v.emplace_back(1);

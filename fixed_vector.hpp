@@ -30,10 +30,10 @@
 #include <type_traits>
 #include <utility>
 
-/// A resizable array container with in-place storage and a compile-time capacity bound.
+/// A resizable array container with in-place storage and a compile-time capacity bound
 /**
-* \a N bounds the capacity; it does not fix it.  Of the four containers here this is the only one
-* whose \c capacity() moves after construction (via \c reserve()) -- the heap-backed siblings
+* \a N bounds the capacity.  It does not fix it.  Of the four containers here this is the only
+* one whose \c capacity() moves after construction (via \c reserve()).  The heap-backed siblings
 * settle theirs in the constructor, since moving it there would mean reallocating.
 *
 * This is similar to \c std::inplace_vector and \c boost::container::static_vector,
@@ -41,32 +41,33 @@
 *   - The data is stored in a `std::array<T, N>`.
 *   - An alignment for the data may be given.
 *   - \a N elements are value-initialized upon instantiation.
-*   - \c clear(), \c pop_back(), and \c resize() only change the size -- they do not destroy
+*   - \c clear(), \c pop_back(), and \c resize() only change the size.  They do not destroy
 *     any removed elements.
 *   - Array elements are never explicitly destroyed.
-*   - \c operator[] is unchecked and \b capacity-based: an index in [\c size(), \c capacity())
+*   - \c operator[] is unchecked and \b capacity-based.  An index in [\c size(), \c capacity())
 *     legitimately reads a live element.  \c at() is the only bounds-checked accessor.
 *   - \c capacity() is a \b run-time value in [0, \a N], not the template parameter.  It starts
-*     at \a N and is moved by \c reserve(), which shrinks as well as grows; \a N is reported by
+*     at \a N and is moved by \c reserve(), which shrinks as well as grows.  \a N is reported by
 *     \c max_size().  Capacity bounds every space check, but the storage is always the whole
 *     \c std::array<T, N>, so no slot is ever (de)allocated, constructed, or destroyed.
 *
 * Like \c std::inplace_vector, capacity overflow throws \c std::bad_alloc and the \c try_* /
-* \c unchecked_* families are provided -- though the \c try_* members return \c bool here
-* rather than \c std::inplace_vector's pointer/iterator.
+* \c unchecked_* families are provided.  The \c try_* members return \c bool here rather than
+* \c std::inplace_vector's pointer/iterator.
 *
-* \note <code>Align >= alignof(T)</code> is not needed for correctness here -- \c alignas
-* cannot weaken a type's natural alignment -- but is required as a diagnostic: a weakened
+* \note <code>Align >= alignof(T)</code> is not needed for correctness here, since \c alignas
+* cannot weaken a type's natural alignment.  It is required as a diagnostic.  A weakened
 * \c alignas is ill-formed ([dcl.align]/5), yet GCC accepts it silently (Clang rejects it), so
-* without the constraint an under-alignment request would be quietly ignored.  In
-* \c dynamic_fixed_vector the same bound is instead required for correctness: its storage is
-* raw bytes from the aligned \c ::operator \c new, which a smaller \a Align would under-align.
+* without the constraint an under-alignment request would be quietly ignored.
+* \note In \c dynamic_fixed_vector the same bound is instead required for correctness.  Its
+* storage is raw bytes from the aligned \c ::operator \c new, which a smaller \a Align would
+* under-align.
 *
-* \note \a Align defaults to <code>max(alignof(std::size_t), alignof(T))</code> -- at least a word,
-* so the storage is word-aligned even for a narrow \a T.
+* \note \a Align defaults to <code>max(alignof(std::size_t), alignof(T))</code>, which is at
+* least a word.  The storage is therefore word-aligned even for a narrow \a T.
 *
 * \invariant \c size() \c <= \c capacity() \c <= \c max_size(), which is \a N.
-* \invariant \c data() is never null: the storage is an in-place \c std::array member, so there
+* \invariant \c data() is never null.  The storage is an in-place \c std::array member, so there
 * is no empty state that lacks a block (hence none of the null handling in the heap-backed
 * siblings' \c data()).
 *
@@ -113,11 +114,11 @@ private:
         }
     }
 
-    /// True if \a R is a sized, contiguous range of \c T.
+    /// True if \a R is a sized, contiguous range of \c T
     /**
     * Such a range is handed to the \c std::span overload for its bulk copy.  Overload
-    * resolution will not do this on its own: for \c std::vector<T>, say, the \c R&& template is
-    * an exact match while the \c std::span overload needs a user-defined conversion, so the
+    * resolution will not do this on its own.  For \c std::vector<T>, say, the \c R&& template
+    * is an exact match while the \c std::span overload needs a user-defined conversion, so the
     * template wins and the bulk path is dead code for callers who do not hand-write a span.
     */
     template <typename R>
@@ -125,7 +126,7 @@ private:
         std::ranges::contiguous_range<R> && std::ranges::sized_range<R> &&
         std::same_as<std::ranges::range_value_t<R>, T>;
 
-    /// \a rg as a \c std::span of \c const \c T, the form the bulk-copy overload takes.
+    /// \a rg as a \c std::span of \c const \c T, the form the bulk-copy overload takes
     template <typename R>
     requires is_bulk_appendable_<R>
     [[nodiscard]] static constexpr std::span<const T> as_span_(R& rg)
@@ -133,18 +134,18 @@ private:
         return std::span{rg};
     }
 
-    /// Zero \a n bytes at \a p with stores the compiler must not optimize away.
+    /// Zero \a n bytes at \a p with stores the compiler must not optimize away
     /**
     * Uses \c ::memset_explicit (C23) or \c explicit_bzero (glibc, BSDs) when the C library
     * declares one, else writes through a \c volatile pointer.  Neither has a feature-test
     * macro, so availability is probed by unqualified name lookup on the dependent parameter
     * \a P.
     *
-    * \note The lookup must stay unqualified; do \b not "modernize" it to
+    * \note The lookup must stay unqualified.  Do \b not "modernize" it to
     * \c std::memset_explicit.  libstdc++ 16 does not define that C++26 spelling at any
     * \c -std, and a qualified name into a namespace lacking the member is a hard error rather
-    * than a substitution failure -- so the \c requires probe cannot reject it, and the build
-    * fails outright instead of reaching the branches below.
+    * than a substitution failure.  The \c requires probe therefore cannot reject it, and the
+    * build fails outright instead of reaching the branches below.
     */
     template <typename P>
     static void zero_explicit_(P const p, const std::size_t n) noexcept
@@ -181,15 +182,15 @@ public:
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
     /**
-    * \note Not unconditionally \c noexcept: the in-place \c std::array<T, N> member
+    * \note Not unconditionally \c noexcept.  The in-place \c std::array<T, N> member
     * value-initializes all \a N elements on this path, and \c std::default_initializable<T>
     * does not require that construction be non-throwing.
     */
     constexpr fixed_vector() noexcept(std::is_nothrow_default_constructible_v<T>) = default;
     /**
-    * \note Copy and move are member-wise (defaulted): moving a trivially copyable \c T leaves
-    * the source unchanged, \b not emptied -- unlike the heap-backed siblings, whose move
-    * construction empties it.
+    * \note Copy and move are member-wise (defaulted).  Moving a trivially copyable \c T leaves
+    * the source unchanged, \b not emptied.  The heap-backed siblings differ, since their move
+    * construction empties the source.
     */
     fixed_vector(const fixed_vector&) noexcept(std::is_nothrow_copy_constructible_v<T>) = default;
     fixed_vector(fixed_vector&&) noexcept(std::is_nothrow_move_constructible_v<T>) = default;
@@ -197,7 +198,7 @@ public:
     fixed_vector& operator=(fixed_vector&&) noexcept(std::is_nothrow_move_assignable_v<T>) = default;
     ~fixed_vector() = default;
 
-    /// Create \a count elements equal to \a value (\c size()==count).
+    /// Create \a count elements equal to \a value (\c size()==count)
     /**
     * \exception std::bad_alloc if \a count > \c max_size().
     */
@@ -206,11 +207,11 @@ public:
         resize(count, value);
     }
 
-    /// Create \a count value-initialized elements (\c size()==count).
+    /// Create \a count value-initialized elements (\c size()==count)
     /**
     * \note This creates elements, unlike the heap-backed siblings' \c X(n), which reserves
     * capacity \a n and starts empty.  Capacity is already \a N at construction, so the argument
-    * can only mean the size; use \c reserve() to lower the capacity afterward.
+    * can only mean the size.  Use \c reserve() to lower the capacity afterward.
     * \exception std::bad_alloc if \a count > \c max_size().
     */
     constexpr explicit fixed_vector(const std::size_t count)
@@ -222,13 +223,13 @@ public:
         size_ = count;
     }
 
-    /// Copy the elements of \a spn (\c size()==std::size(spn)).
+    /// Copy the elements of \a spn (\c size()==std::size(spn))
     /**
     * \exception std::bad_alloc if \a spn does not fit in \c max_size().
     */
     constexpr explicit fixed_vector(const std::span<const T> spn) { append_range(spn); }
 
-    /// Copy the elements of <code>[first, last)</code>.
+    /// Copy the elements of <code>[first, last)</code>
     /**
     * \exception std::bad_alloc if the source does not fit in \c max_size().
     */
@@ -238,7 +239,7 @@ public:
         append_range(first, last);
     }
 
-    /// Copy \a count elements starting at \a first (\c size()==count).
+    /// Copy \a count elements starting at \a first (\c size()==count)
     /**
     * \exception std::bad_alloc if \a count > \c max_size().
     */
@@ -248,13 +249,13 @@ public:
         append_range(first, count);
     }
 
-    /// Copy the elements of \a il (\c size()==il.size()).
+    /// Copy the elements of \a il (\c size()==il.size())
     /**
     * \exception std::bad_alloc if \a il does not fit in \c max_size().
     */
     constexpr fixed_vector(const std::initializer_list<T> il) { append_range(il); }
 
-    /// Copy the elements of \a rg.
+    /// Copy the elements of \a rg
     /**
     * \exception std::bad_alloc if the source does not fit in \c max_size().
     */
@@ -273,8 +274,10 @@ public:
         return *this;
     }
 
-    /// Swap the sizes, the capacities, and all \c max_size() array slots (not just the live
-    /// elements).
+    /// Swap the sizes, the capacities, and all \c max_size() array slots
+    /**
+    * The slots beyond \c size() are exchanged too, not only the live elements.
+    */
     constexpr void swap(fixed_vector& other) noexcept(std::is_nothrow_swappable_v<T>)
     {
         std::swap(size_, other.size_);
@@ -288,10 +291,10 @@ public:
         a.swap(b);
     }
 
-    /// Get the current capacity, which is in [0, \a N] and moved by \c reserve().
+    /// Get the current capacity, which is in [0, \a N] and moved by \c reserve()
     [[nodiscard]] constexpr std::size_t capacity() const noexcept { return capacity_; }
 
-    /// Get \a N, the number of array slots -- the capacity \c reserve() may not exceed.
+    /// Get \a N, the number of array slots, which is the capacity \c reserve() may not exceed
     [[nodiscard]] static constexpr std::size_t max_size() noexcept { return N; }
 
     [[nodiscard]] constexpr std::size_t size() const noexcept { return size_; }
@@ -317,15 +320,15 @@ public:
     */
     constexpr void clear() noexcept { size_ = 0; }
 
-    /// Set the capacity to \a new_cap, the limit that every space check consults.
+    /// Set the capacity to \a new_cap, the limit that every space check consults
     /**
-    * Growing leaves the newly reserved slots [old \c capacity(), \a new_cap) untouched: they are
-    * alive either way, holding whatever was last written there (\c T{} if never written).
-    * Shrinking below \c size() truncates \c size() to \a new_cap; the excess elements stay alive
-    * (nothing is destroyed) and are readable again once the capacity is grown back.
+    * Growing leaves the newly reserved slots [old \c capacity(), \a new_cap) untouched.  They
+    * are alive either way, holding whatever was last written there (\c T{} if never written).
+    * Shrinking below \c size() truncates \c size() to \a new_cap.  The excess elements stay
+    * alive (nothing is destroyed) and are readable again once the capacity is grown back.
     *
-    * No storage is (de)allocated on either path -- the \c std::array<T, N> member is the storage
-    * regardless of the capacity -- so this is O(1).
+    * No storage is (de)allocated on either path, because the \c std::array<T, N> member is the
+    * storage regardless of the capacity.  This is therefore O(1).
     *
     * \note Unlike \c std::vector::reserve, this shrinks as well as grows.
     * \post <code>capacity() == new_cap && size() <= capacity()</code>
@@ -344,12 +347,12 @@ public:
 
     /// Resize to \a count elements
     /**
-    * Growing assigns \a value to the new elements; shrinking leaves the removed ones alive and
-    * unchanged (nothing is destroyed).
-    * \note Bounded by \c capacity(), like every other space check -- growing past it throws
-    * rather than reserving; \c reserve() is the only member that changes the capacity.
+    * Growing assigns \a value to the new elements.  Shrinking leaves the removed ones alive
+    * and unchanged (nothing is destroyed).
+    * \note Bounded by \c capacity(), like every other space check, so growing past it throws
+    * rather than reserving.  \c reserve() is the only member that changes the capacity.
     * \note \c resize(capacity(), \a value) is how to fill only the reserved-unused tail
-    * [\c size(), \c capacity()) and grow into it; \c fill_capacity() overwrites the live
+    * [\c size(), \c capacity()) and grow into it.  \c fill_capacity() overwrites the live
     * elements as well.
     * \exception std::bad_alloc if \a count > \c capacity().
     */
@@ -383,8 +386,8 @@ public:
 
     /**
     * \pre \c !is_full()
-    * \note "Emplace" cannot construct in place here: the slot already holds a live element, so
-    * a temporary \c T is constructed from \a args and move-assigned in -- equivalent to
+    * \note "Emplace" cannot construct in place here.  The slot already holds a live element, so
+    * a temporary \c T is constructed from \a args and move-assigned in, which is equivalent to
     * \c push_back(T(args...)).  Kept for API parity with \c std::inplace_vector.
     */
     template <class... Args>
@@ -464,13 +467,13 @@ public:
         return try_emplace_back(std::move(value));
     }
 
-    /// Fill all \c capacity() elements with \a value and set \c size() to \c capacity().
+    /// Fill all \c capacity() elements with \a value and set \c size() to \c capacity()
     /**
-    * The range filled is [0, \c capacity()) -- the live elements are overwritten too, not only
+    * The range filled is [0, \c capacity()), so the live elements are overwritten too, not only
     * the reserved-unused tail.  To leave [0, \c size()) alone and fill just the tail, growing
-    * into it, call \c resize(capacity(), \a value) instead; to fill just the live elements
+    * into it, call \c resize(capacity(), \a value) instead.  To fill just the live elements
     * without changing \c size(), call \c fill_size().
-    * \note Stops at \c capacity(), not \c max_size(): the unreserved slots are outside the
+    * \note Stops at \c capacity(), not \c max_size().  The unreserved slots are outside the
     * container's window and are left alone.
     */
     constexpr void fill_capacity(const T& value)
@@ -480,9 +483,9 @@ public:
         size_ = capacity();
     }
 
-    /// Fill the live elements [0, \c size()) with \a value; \c size() is unchanged.
+    /// Fill the live elements [0, \c size()) with \a value, leaving \c size() unchanged
     /**
-    * The complement of \c resize(capacity(), \a value), which fills the reserved-unused tail;
+    * The complement of \c resize(capacity(), \a value), which fills the reserved-unused tail.
     * \c fill_capacity() does both.
     */
     constexpr void fill_size(const T& value)
@@ -491,16 +494,17 @@ public:
         (void)std::ranges::fill(span(), value);
     }
 
-    /// Zeroize the reserved tail elements [\c size(), \c capacity()); \c size() is unchanged.
+    /// Zeroize the reserved tail [\c size(), \c capacity()), leaving \c size() unchanged
     /**
-    * Each tail element stays alive; its object representation is set to all-zero bytes (for
-    * scalar \c T, the value-initialized value).  At run time the stores happen even if nothing
-    * reads the tail afterward, so \c clear() followed by this scrubs everything up to
-    * \c capacity() -- for sensitive contents, where a plain fill is a dead store the optimizer
-    * may elide.  During constant evaluation, where there is no memory to scrub, the tail is
-    * value-assigned.
-    * \note This covers only [\c size(), \c capacity()); the slots beyond a reduced capacity are
-    * \c zeroize_unreserved()'s half.  \c clear() plus both calls scrubs the whole array.
+    * Each tail element stays alive.  Its object representation is set to all-zero bytes (for
+    * scalar \c T, the value-initialized value).  During constant evaluation, where there is no
+    * memory to scrub, the tail is value-assigned instead.
+    *
+    * At run time the stores happen even if nothing reads the tail afterward, so \c clear()
+    * followed by this scrubs everything up to \c capacity().  That matters for sensitive
+    * contents, where a plain fill is a dead store the optimizer may elide.
+    * \note This covers only [\c size(), \c capacity()).  The slots beyond a reduced capacity
+    * are \c zeroize_unreserved()'s half.  \c clear() plus both calls scrubs the whole array.
     */
     constexpr void zeroize_reserved_unused() noexcept
     requires std::is_trivially_copyable_v<T>
@@ -517,12 +521,12 @@ public:
         }
     }
 
-    /// Zeroize the unreserved slots [\c capacity(), \c max_size()); \c size() is unchanged.
+    /// Zeroize the unreserved slots [\c capacity(), \c max_size()), leaving \c size() unchanged
     /**
     * The other half of \c zeroize_reserved_unused(), covering the slots that a \c reserve()
     * shrink put outside the container's window.  Those slots stay alive and may still hold what
-    * they held while they were reserved, so scrubbing sensitive contents needs this call too;
-    * it is a no-op while \c capacity() \c == \c max_size().  Same guarantees as the reserved
+    * they held while they were reserved, so scrubbing sensitive contents needs this call too.
+    * It is a no-op while \c capacity() \c == \c max_size().  The guarantees match the reserved
     * half: non-elidable stores at run time, value-assignment during constant evaluation.
     */
     constexpr void zeroize_unreserved() noexcept
@@ -558,8 +562,8 @@ public:
     * \pre <code>[first, last)</code> is a valid range.  For a \c std::sized_sentinel_for this
     * keeps <code>last - first</code> non-negative, so the size check's cast to \c std::size_t
     * is well-defined.
-    * \note A \c std::sized_sentinel_for source is checked up front (all-or-nothing); otherwise
-    * the elements that fit are appended before \c std::bad_alloc is thrown.
+    * \note A \c std::sized_sentinel_for source is checked up front (all-or-nothing).  An
+    * unsized one appends the elements that fit before \c std::bad_alloc is thrown.
     * \exception std::bad_alloc if the source does not fit in \c reserved_unused().
     */
     template <std::input_iterator It, std::sentinel_for<It> S>
@@ -590,7 +594,8 @@ public:
     }
 
     /**
-    * \exception std::bad_alloc if \a il does not fit in \c reserved_unused() (nothing is appended).
+    * \exception std::bad_alloc if \a il does not fit in \c reserved_unused() (nothing is
+    * appended).
     */
     constexpr void append_range(const std::initializer_list<T> il)
     {
@@ -598,9 +603,9 @@ public:
     }
 
     /**
-    * \pre If \a rg is a contiguous range of \c T, it does not overlap this vector's storage:
-    * that case is forwarded to the \c std::span overload, which carries the same tag.
-    * \note Sized sources are checked up front (all-or-nothing); unsized sources append
+    * \pre If \a rg is a contiguous range of \c T, it does not overlap this vector's storage.
+    * That case is forwarded to the \c std::span overload, which carries the same tag.
+    * \note Sized sources are checked up front (all-or-nothing).  Unsized sources append
     * element-wise and may partially append before throwing \c std::bad_alloc.
     * \exception std::bad_alloc if the source does not fit in \c reserved_unused().
     */
@@ -648,8 +653,8 @@ public:
     * \pre <code>[first, last)</code> is a valid range.  For a \c std::sized_sentinel_for this
     * keeps <code>last - first</code> non-negative, so the size check's cast to \c std::size_t
     * is well-defined.
-    * \note A \c std::sized_sentinel_for source is checked up front (nothing appended on
-    * \c false); otherwise the elements that fit have already been appended when \c false is
+    * \note A \c std::sized_sentinel_for source is checked up front, so nothing is appended on
+    * \c false.  An unsized one has already appended the elements that fit when \c false is
     * returned (observe \c size()).
     */
     template <std::input_iterator It, std::sentinel_for<It> S>
@@ -687,9 +692,9 @@ public:
     }
 
     /**
-    * \pre If \a rg is a contiguous range of \c T, it does not overlap this vector's storage:
-    * that case is forwarded to the \c std::span overload, which carries the same tag.
-    * \note Sized sources are checked up front (nothing appended on \c false); unsized
+    * \pre If \a rg is a contiguous range of \c T, it does not overlap this vector's storage.
+    * That case is forwarded to the \c std::span overload, which carries the same tag.
+    * \note Sized sources are checked up front, so nothing is appended on \c false.  Unsized
     * sources append element-wise, so on \c false the elements that fit have already been
     * appended (observe \c size()).
     */
@@ -726,14 +731,14 @@ public:
         }
     }
 
-    /// \c clear() followed by \c append_range(), so the source is bounded by \c capacity().
+    /// \c clear() followed by \c append_range(), so the source is bounded by \c capacity()
     /**
     * \note Does not destroy elements.
     * \pre The source does not overlap this vector's storage.
     * \exception std::bad_alloc if the source does not fit in \c capacity().  The \c clear() has
-    * already happened by then, so a failed assign never leaves the previous contents in place:
-    * a sized source (checked up front) leaves the vector empty, while an unsized one leaves the
-    * elements that fit -- \c append_range's partial-append behavior, inherited.
+    * already happened by then, so a failed assign never leaves the previous contents in place.
+    * A sized source (checked up front) leaves the vector empty.  An unsized one leaves the
+    * elements that fit, inheriting \c append_range's partial-append behavior.
     */
     constexpr void assign_range(const std::span<const T> spn)
     {
@@ -787,8 +792,8 @@ public:
     }
 
     /**
-    * \note No \c std::assume_aligned<Align> is needed, unlike the heap-backed siblings: the array
-    * member itself carries the \c alignas(Align), so the compiler derives the alignment.
+    * \note No \c std::assume_aligned<Align> is needed, unlike the heap-backed siblings.  The
+    * array member itself carries the \c alignas(Align), so the compiler derives the alignment.
     */
     [[nodiscard]] constexpr T* data() noexcept { return std::data(data_); }
 
@@ -837,9 +842,9 @@ public:
 
     /**
     * \pre \a i < \c capacity()
-    * \note Unchecked and capacity-based: an index in [size(), capacity()) is a valid read,
+    * \note Unchecked and capacity-based.  An index in [size(), capacity()) is a valid read,
     * since every capacity slot holds a live element.  \c at() is the bounds-checked accessor.
-    * \note The bound is the \e current capacity: after a \c reserve() shrink, an index in
+    * \note The bound is the \e current capacity.  After a \c reserve() shrink, an index in
     * [capacity(), max_size()) is out of contract even though the slot is still alive.  Grow the
     * capacity back to reach it.
     */
@@ -862,8 +867,8 @@ public:
 
     /**
     * \returns A reference to the element at index \a i.
-    * \note The only bounds-checked accessor, and checked against \c size(), not \c capacity():
-    * an element in [size(), capacity()) is alive and \c operator[] reads it, but this rejects
+    * \note The only bounds-checked accessor, and checked against \c size(), not \c capacity().
+    * An element in [size(), capacity()) is alive and \c operator[] reads it, but this rejects
     * that index.
     * \exception std::out_of_range if \a i >= \c size().
     */
