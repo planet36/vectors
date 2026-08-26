@@ -201,6 +201,9 @@ public:
 
     constexpr aligned_byte_buffer() noexcept = default;
 
+    /**
+    * \exception std::bad_alloc if the allocation fails.
+    */
     constexpr aligned_byte_buffer(const aligned_byte_buffer& other)
         : size_{other.size_}, capacity_{other.capacity_}, data_{allocate_(other.capacity_)}
     {
@@ -215,6 +218,10 @@ public:
           data_{std::move(other.data_)}
     {}
 
+    /**
+    * \exception std::bad_alloc if the allocation fails.  Copy-and-swap, so a throw leaves this
+    * buffer unchanged.
+    */
     constexpr aligned_byte_buffer& operator=(const aligned_byte_buffer& other)
     {
         if (this == &other)
@@ -256,6 +263,9 @@ public:
     }
 
     /// Capacity is the size of \a spn.
+    /**
+    * \exception std::bad_alloc if the allocation fails.
+    */
     constexpr explicit aligned_byte_buffer(const std::span<const std::byte> spn)
         : aligned_byte_buffer(std::size(spn))
     {
@@ -263,6 +273,9 @@ public:
     }
 
     /// Capacity is the distance between \a first and \a last (forward iterators required).
+    /**
+    * \exception std::bad_alloc if the allocation fails.
+    */
     template <std::forward_iterator It, std::sentinel_for<It> S>
     constexpr explicit aligned_byte_buffer(It first, S last)
         : aligned_byte_buffer(static_cast<std::size_t>(std::ranges::distance(first, last)))
@@ -272,6 +285,9 @@ public:
     }
 
     /// Capacity is \a count.
+    /**
+    * \exception std::bad_alloc if the allocation fails.
+    */
     template <std::input_iterator It>
     constexpr explicit aligned_byte_buffer(It first, const std::size_t count)
         : aligned_byte_buffer(count)
@@ -279,11 +295,18 @@ public:
         common_append_range_(first, count);
     }
 
+    /// Capacity is the size of \a il.
+    /**
+    * \exception std::bad_alloc if the allocation fails.
+    */
     constexpr aligned_byte_buffer(const std::initializer_list<std::byte> il)
         : aligned_byte_buffer(std::span{std::data(il), std::size(il)})
     {}
 
     /// Capacity is the size of \a rg (forward range required).
+    /**
+    * \exception std::bad_alloc if the allocation fails.
+    */
     template <std::ranges::forward_range R>
     constexpr explicit aligned_byte_buffer(std::from_range_t, R&& rg)
         : aligned_byte_buffer(static_cast<std::size_t>(std::ranges::distance(rg)))
@@ -292,6 +315,10 @@ public:
             unchecked_emplace_back(std::forward<decltype(e)>(e));
     }
 
+    /**
+    * \exception std::bad_alloc if \a il does not fit in \c capacity().  The \c clear() has
+    * already happened by then, so the buffer is left empty.
+    */
     constexpr aligned_byte_buffer& operator=(const std::initializer_list<std::byte> il)
     {
         assign_range(il);
@@ -354,6 +381,9 @@ public:
         size_ = count;
     }
 
+    /**
+    * \exception std::bad_alloc if \a count > \c capacity().
+    */
     constexpr void resize(const std::size_t count) { resize(count, std::byte{}); }
 
     /**

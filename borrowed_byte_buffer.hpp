@@ -416,6 +416,9 @@ public:
         size_ = count;
     }
 
+    /**
+    * \exception std::bad_alloc if \a count > \c capacity().
+    */
     constexpr void resize(const std::size_t count) { resize(count, std::byte{}); }
 
     /**

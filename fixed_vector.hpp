@@ -264,6 +264,10 @@ public:
         append_range(std::forward<R>(rg));
     }
 
+    /**
+    * \exception std::bad_alloc if \a il does not fit in \c capacity().  The \c clear() has
+    * already happened by then, so the vector is left empty.
+    */
     constexpr fixed_vector& operator=(const std::initializer_list<T> il)
     {
         assign_range(il);
@@ -361,6 +365,9 @@ public:
         size_ = count;
     }
 
+    /**
+    * \exception std::bad_alloc if \a count > \c capacity().
+    */
     constexpr void resize(const std::size_t count) { resize(count, T{}); }
 
     /**
