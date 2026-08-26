@@ -4,7 +4,6 @@
 /**
 * \file
 * \author Steven Ward
-* \sa https://github.com/planet36/vectors
 *
 * Defines the class \c aligned_byte_buffer, a run-time-capacity, over-aligned buffer of
 * \c std::byte.
@@ -52,17 +51,22 @@
 *   - The \c emplace_back family accepts at most one argument, of type \c std::byte or an
 *     integral type (floating-point and other enumeration arguments are rejected).
 *
-* Like \c dynamic_fixed_vector: \c data() applies \c std::assume_aligned<Align> so caller loops
-* can vectorize, \c zeroize_reserved_unused() zeros the reserved tail with non-elidable stores
-* (\c clear() followed by it scrubs the whole buffer), capacity is fixed at construction,
-* \c operator[] is unchecked and capacity-based, \c at() is bounds-checked, capacity overflow
-* throws \c std::bad_alloc, and the \c try_* family returns \c bool.  The interface is annotated
-* \c constexpr, but over-aligned allocation is not usable in constant evaluation, so only empty
-* (non-allocating) instances are usable in constant expressions.
+* These carry over from \c dynamic_fixed_vector:
+*   - \c data() applies \c std::assume_aligned<Align> so caller loops can vectorize.
+*   - \c zeroize_reserved_unused() zeros the reserved tail with non-elidable stores.
+*     \c clear() followed by it scrubs the whole buffer.
+*   - Capacity is fixed at construction.
+*   - \c operator[] is unchecked, and its bound is \c capacity() rather than \c size().
+*     \c at() is the bounds-checked accessor.
+*   - Capacity overflow throws \c std::bad_alloc.  The \c try_* family returns \c bool
+*     instead of throwing.
 *
-* \invariant \c size() \c <= \c capacity().
+* The interface is annotated \c constexpr, but over-aligned allocation is not usable in constant
+* evaluation, so only empty (non-allocating) instances are usable in constant expressions.
+*
+* \invariant <code>size() <= capacity()</code>
 * \invariant \c data() is null \b exactly when \c capacity() is 0.  A capacity of 0 allocates
-* nothing, and the aligned \c ::operator \c new never returns null (it throws), so no other
+* nothing, and the aligned <code>::operator new</code> never returns null (it throws), so no other
 * state holds a null block.
 *
 * Together those make the preconditions below sufficient on their own.  \c !is_full(),
@@ -76,7 +80,7 @@ requires (std::has_single_bit(Align))
 class aligned_byte_buffer
 {
 private:
-    /// Stateless deleter that frees a block from the aligned \c ::operator \c new
+    /// Stateless deleter that frees a block from the aligned <code>::operator new</code>
     struct aligned_deleter
     {
         constexpr void operator()(std::byte* const p) const noexcept
@@ -94,8 +98,8 @@ private:
     /// Allocate an over-aligned, \b uninitialized block of \a cap bytes
     [[nodiscard]] static constexpr storage_ptr allocate_(const std::size_t cap)
     {
-        // Not an optimization.  ::operator new(0) returns a non-null block, so only this keeps
-        // the class invariant's "capacity 0 implies null data()" true.
+        // This early return is not an optimization.  ::operator new(0) returns a non-null
+        // block, so without it the invariant "capacity 0 implies null data()" would not hold.
         if (cap == 0)
             return nullptr;
 
@@ -134,17 +138,16 @@ private:
     /// True if \a R is a sized, contiguous range of \c std::byte
     /**
     * Such a range is handed to the \c std::span overload for its \c std::memcpy.  Overload
-    * resolution will not do this on its own.  For \c std::vector<std::byte>, say, the \c R&&
-    * template is an exact match while the \c std::span overload needs a user-defined
-    * conversion, so the template wins and the \c memcpy is dead code for callers who do not
-    * hand-write a span.
+    * resolution will not do that on its own.  Given a \c std::vector<std::byte>, the \c R&&
+    * template is an exact match, and the \c std::span overload needs a user-defined conversion.
+    * The template wins, so nothing but a hand-written span would ever reach the \c memcpy.
     */
     template <typename R>
     static constexpr bool is_bulk_appendable_ =
         std::ranges::contiguous_range<R> && std::ranges::sized_range<R> &&
         std::same_as<std::ranges::range_value_t<R>, std::byte>;
 
-    /// \a rg as a \c std::span of \c const \c std::byte, the form the \c memcpy overload takes
+    /// View \a rg as the \c std::span of \c const \c std::byte the \c memcpy overload takes
     template <typename R>
     requires is_bulk_appendable_<R>
     [[nodiscard]] static constexpr std::span<const std::byte> as_span_(R& rg)
@@ -152,18 +155,18 @@ private:
         return std::span{rg};
     }
 
-    /// Zero \a n bytes at \a p with stores the compiler must not optimize away
+    /// Zero \a n bytes at \a p with stores that the compiler must not optimize away
     /**
-    * Uses \c ::memset_explicit (C23) or \c explicit_bzero (glibc, BSDs) when the C library
+    * Uses \c ::memset_explicit (C23) or \c ::explicit_bzero (glibc, BSDs) when the C library
     * declares one, else writes through a \c volatile pointer.  Neither has a feature-test
     * macro, so availability is probed by unqualified name lookup on the dependent parameter
     * \a P.
     *
     * \note The lookup must stay unqualified.  Do \b not "modernize" it to
-    * \c std::memset_explicit.  libstdc++ 16 does not define that C++26 spelling at any
-    * \c -std, and a qualified name into a namespace lacking the member is a hard error rather
-    * than a substitution failure.  The \c requires probe therefore cannot reject it, and the
-    * build fails outright instead of reaching the branches below.
+    * \c std::memset_explicit.  libstdc++ 16 declares no such name at any \c -std.  A qualified
+    * name into a namespace that lacks the member is a hard error rather than a substitution
+    * failure, so the \c requires probe cannot reject it.  The build fails outright instead of
+    * falling through to the next branch.
     */
     template <typename P>
     static void zero_explicit_(P const p, const std::size_t n) noexcept
@@ -243,8 +246,7 @@ public:
 
     /// Reserve capacity \a capacity, leaving the buffer empty
     /**
-    * \exception std::bad_alloc if the allocation fails.  (No overflow guard is needed, since
-    * \c sizeof(std::byte) is 1 and the byte count is exactly \a capacity.)
+    * \exception std::bad_alloc if the allocation fails.
     */
     constexpr explicit aligned_byte_buffer(const std::size_t capacity)
         : capacity_{capacity}, data_{allocate_(capacity)}
@@ -490,11 +492,10 @@ public:
 
     /// Zero the reserved tail [\c size(), \c capacity()), leaving \c size() unchanged
     /**
-    * Replaces the unspecified reserved bytes with zeros, e.g. to pad to an alignment boundary
-    * before reading whole SIMD lanes past \c size(), or to keep stale heap bytes from leaking
-    * through beyond-size reads.  The stores happen even if nothing reads the tail afterward, so
-    * \c clear() followed by this scrubs the whole buffer.  That matters for sensitive contents,
-    * where a plain \c memset is a dead store the optimizer may elide.
+    * The zeros replace the otherwise unspecified reserved bytes.  Use it to pad to an alignment
+    * boundary before reading whole SIMD lanes past \c size(), or to keep stale heap bytes from
+    * leaking through beyond-size reads.  The stores are not elidable, unlike those of a plain
+    * \c memset, so \c clear() followed by this scrubs the whole buffer.
     */
     constexpr void zeroize_reserved_unused() noexcept
     {
@@ -504,8 +505,7 @@ public:
 
     /**
     * \pre \a spn does not overlap this buffer's storage.
-    * \exception std::bad_alloc if \a spn does not fit in \c reserved_unused()
-    * (nothing is appended).
+    * \exception std::bad_alloc if \a spn does not fit in \c reserved_unused().
     */
     constexpr void append_range(const std::span<const std::byte> spn)
     {
@@ -682,7 +682,7 @@ public:
     /// \c clear() followed by \c append_range(), so the source is bounded by \c capacity()
     /**
     * \note The capacity is kept, not resized to the source.
-    * \pre The source does not overlap this buffer's storage.
+    * \pre \a spn does not overlap this buffer's storage.
     * \exception std::bad_alloc if the source does not fit in \c capacity().  The \c clear() has
     * already happened by then, so a failed assign never leaves the previous contents in place.
     * A sized source (checked up front) leaves the buffer empty.  An unsized one leaves the
@@ -800,9 +800,9 @@ public:
 
     /**
     * \pre \a i < \c capacity()
-    * \note Unchecked and capacity-based.  Reading an index in [size(), capacity()) is valid
-    * but yields an unspecified (not indeterminate) byte.  \c at() is the bounds-checked
-    * accessor.
+    * \note The index is not checked, and the bound is \c capacity() rather than \c size().
+    * Reading an index in [\c size(), \c capacity()) is valid but yields an unspecified (not
+    * indeterminate) byte.
     */
     [[nodiscard]] constexpr std::byte& operator[](const std::size_t i) noexcept
     {
@@ -824,8 +824,8 @@ public:
     /**
     * \returns A reference to the byte at index \a i.
     * \note The only bounds-checked accessor, and checked against \c size(), not
-    * \c capacity().  \c operator[] reads an index in [size(), capacity()) and yields an
-    * unspecified byte, but this rejects that index.
+    * \c capacity().  \c operator[] can read an index in [\c size(), \c capacity()) and
+    * yields an unspecified byte, but this rejects that index.
     * \exception std::out_of_range if \a i >= \c size().
     */
     [[nodiscard]] constexpr std::byte& at(const std::size_t i)
@@ -883,10 +883,6 @@ public:
         return std::reverse_iterator(cbegin());
     }
 
-    /**
-    * \note Compares the live [0, \c size()) bytes by value (variable-time, per ordinary
-    * container semantics).  Use the free \c constant_time_equal for secret-dependent data.
-    */
     [[nodiscard]] constexpr bool operator==(const aligned_byte_buffer& rhs) const noexcept
     {
         return std::ranges::equal(span(), rhs.span());

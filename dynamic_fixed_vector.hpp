@@ -4,7 +4,6 @@
 /**
 * \file
 * \author Steven Ward
-* \sa https://github.com/planet36/vectors
 *
 * Defines the class \c dynamic_fixed_vector, a fixed-capacity vector whose capacity is
 * chosen at run time and whose storage may be over-aligned.
@@ -53,11 +52,15 @@
 *     \c constexpr, but over-aligned allocation is not usable in constant evaluation, so only
 *     empty (non-allocating) instances are usable in constant expressions.
 *
-* Like \c fixed_vector: all \c capacity() elements are alive from construction onward
-* (value-initialized by the reserve constructor, or constructed directly from the source by the
-* copy/fill/range constructors), elements are never explicitly destroyed, \c operator[] is
-* unchecked and capacity-based, \c at() is bounds-checked, capacity overflow throws
-* \c std::bad_alloc, and the \c try_* family returns \c bool.
+* These carry over from \c fixed_vector:
+*   - All \c capacity() elements are alive from construction onward.  The reserve constructor
+*     value-initializes them.  The copy, fill, and range constructors construct them directly
+*     from the source.
+*   - Elements are never explicitly destroyed.
+*   - \c operator[] is unchecked, and its bound is \c capacity() rather than \c size().
+*     \c at() is the bounds-checked accessor.
+*   - Capacity overflow throws \c std::bad_alloc.  The \c try_* family returns \c bool
+*     instead of throwing.
 *
 * \note \a Align defaults to <code>max(alignof(std::size_t), alignof(T))</code>, which is at
 * least a word.  The block is therefore word-aligned even for a narrow \a T.
@@ -72,8 +75,6 @@
 * so the members carrying them index \c data() without re-checking it for null.
 *
 * \warning This container is only suitable for trivially destructible types.
-*
-* \sa fixed_vector
 */
 template <typename T,
           std::size_t Align = std::max(alignof(std::size_t), alignof(T))>
@@ -106,8 +107,8 @@ private:
     */
     [[nodiscard]] static constexpr storage_ptr allocate_raw_(const std::size_t cap)
     {
-        // Not an optimization.  ::operator new(0) returns a non-null block, so only this keeps
-        // the class invariant's "capacity 0 implies null data()" true.
+        // This early return is not an optimization.  ::operator new(0) returns a non-null
+        // block, so without it the invariant "capacity 0 implies null data()" would not hold.
         if (cap == 0)
             return nullptr;
 
@@ -175,16 +176,16 @@ private:
     /// True if \a R is a sized, contiguous range of \c T
     /**
     * Such a range is handed to the \c std::span overload for its bulk copy.  Overload
-    * resolution will not do this on its own.  For \c std::vector<T>, say, the \c R&& template
-    * is an exact match while the \c std::span overload needs a user-defined conversion, so the
-    * template wins and the bulk path is dead code for callers who do not hand-write a span.
+    * resolution will not do that on its own.  Given a \c std::vector<T>, the \c R&& template is
+    * an exact match, and the \c std::span overload needs a user-defined conversion.  The
+    * template wins, so nothing but a hand-written span would ever reach the bulk copy.
     */
     template <typename R>
     static constexpr bool is_bulk_appendable_ =
         std::ranges::contiguous_range<R> && std::ranges::sized_range<R> &&
         std::same_as<std::ranges::range_value_t<R>, T>;
 
-    /// \a rg as a \c std::span of \c const \c T, the form the bulk-copy overload takes
+    /// View \a rg as the \c std::span of \c const \c T that the bulk-copy overload takes
     template <typename R>
     requires is_bulk_appendable_<R>
     [[nodiscard]] static constexpr std::span<const T> as_span_(R& rg)
@@ -200,10 +201,10 @@ private:
     * \a P.
     *
     * \note The lookup must stay unqualified.  Do \b not "modernize" it to
-    * \c std::memset_explicit.  libstdc++ 16 does not define that C++26 spelling at any
-    * \c -std, and a qualified name into a namespace lacking the member is a hard error rather
-    * than a substitution failure.  The \c requires probe therefore cannot reject it, and the
-    * build fails outright instead of reaching the branches below.
+    * \c std::memset_explicit.  libstdc++ 16 declares no such name at any \c -std.  A qualified
+    * name into a namespace that lacks the member is a hard error rather than a substitution
+    * failure, so the \c requires probe cannot reject it.  The build fails outright instead of
+    * falling through to the next branch.
     */
     template <typename P>
     static void zero_explicit_(P const p, const std::size_t n) noexcept
@@ -566,10 +567,9 @@ public:
 
     /// Zeroize the reserved tail [\c size(), \c capacity()), leaving \c size() unchanged
     /**
-    * Each tail element stays alive.  Its object representation is set to all-zero bytes (for
-    * scalar \c T, the value-initialized value).  The stores happen even if nothing reads the
-    * tail afterward, so \c clear() followed by this scrubs the whole buffer.  That matters for
-    * sensitive contents, where a plain fill is a dead store the optimizer may elide.
+    * Each tail element stays alive, with its object representation set to all-zero bytes.  For
+    * a scalar \c T that is the value-initialized value.  The stores are not elidable, unlike
+    * those of a plain fill, so \c clear() followed by this scrubs the whole buffer.
     */
     constexpr void zeroize_reserved_unused() noexcept
     requires std::is_trivially_copyable_v<T>
@@ -874,8 +874,9 @@ public:
 
     /**
     * \pre \a i < \c capacity()
-    * \note Unchecked and capacity-based.  An index in [size(), capacity()) is a valid read,
-    * since every capacity slot holds a live element.  \c at() is the bounds-checked accessor.
+    * \note The index is not checked, and the bound is \c capacity() rather than \c size().  An
+    * index in [size(), capacity()) is a valid read, since every capacity slot holds a live
+    * element.  \c at() is the bounds-checked accessor.
     */
     [[nodiscard]] constexpr T& operator[](const std::size_t i) noexcept
     {

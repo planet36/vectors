@@ -67,7 +67,7 @@ static_assert(!can_emplace_back<double>);   // floating point rejected
 static_assert(!can_emplace_back<int, int>); // arity > 1 rejected
 
 // The borrowing constructors accept only writable, trivially-copyable contiguous storage, and
-// never a source that would leave a dangling view.  These document the is_writable_borrow_
+// never a source that would leave a dangling view.  These document the borrowable_range
 // constraint as compile-time facts.
 template <typename... Args>
 constexpr bool can_construct =
@@ -699,7 +699,7 @@ test_comparisons()
 }
 
 static void
-test_constant_time_equal()
+test_equal_constant_time()
 {
     // Free function (from byte_compare.hpp) for secret-dependent data.  The container's
     // operator== stays variable-time.
@@ -709,10 +709,10 @@ test_constant_time_equal()
     const borrowed_byte_buffer a = borrowed_byte_buffer::adopting(sa);
     const borrowed_byte_buffer b = borrowed_byte_buffer::adopting(sb);
     const borrowed_byte_buffer c = borrowed_byte_buffer::adopting(sc);
-    CHECK(constant_time_equal(a.span(), b.span()));
-    CHECK(!constant_time_equal(a.span(), c.span()));
-    CHECK(!constant_time_equal(a.span(), a.span().first(2))); // unequal sizes
-    CHECK(constant_time_equal(std::span<const std::byte>{}, std::span<const std::byte>{}));
+    CHECK(equal_constant_time(a.span(), b.span()));
+    CHECK(!equal_constant_time(a.span(), c.span()));
+    CHECK(!equal_constant_time(a.span(), a.span().first(2))); // unequal sizes
+    CHECK(equal_constant_time(std::span<const std::byte>{}, std::span<const std::byte>{}));
 }
 
 // ---- Overlaying a typed object (the motivating use case) ----
@@ -821,7 +821,7 @@ main() // NOLINT(bugprone-exception-escape)
         test_reverse_iteration();
 
         test_comparisons();
-        test_constant_time_equal();
+        test_equal_constant_time();
 
         test_overlay_object();
 

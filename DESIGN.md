@@ -24,7 +24,7 @@ simpler and faster. `borrowed_byte_buffer` is the **non-owning** counterpart to
 `aligned_byte_buffer`: the same byte-buffer interface over storage it does not own. It allocates
 nothing, so it drops the whole ownership apparatus (aligned `new`/`delete`, the `unique_ptr`,
 deep copy, the `Align` parameter) and keeps only the size-cursor logic. The two byte buffers
-share `constant_time_equal`, factored into `byte_compare.hpp`.
+share `equal_constant_time`, factored into `byte_compare.hpp`.
 
 ## Shared invariants
 
@@ -303,29 +303,25 @@ types. The API and conventions are unchanged; the element type enables these dif
   determinate zeros — pad to an alignment boundary before whole-lane SIMD reads past `size()`,
   and stale heap bytes cannot leak through beyond-size reads.
 
-- **`constant_time_equal(span, span)`** — a namespace-scope helper in `byte_compare.hpp` (shared
-  with `borrowed_byte_buffer`, so it is defined once rather than in each byte header — a
-  `constexpr` free function is `inline`, so two definitions reachable in one translation unit
+- **`equal_constant_time(span, span)`** — a namespace-scope helper in `byte_compare.hpp` (shared
+  with `borrowed_byte_buffer`, so it is defined once rather than in each byte header; it is
+  explicitly `inline`, since two definitions of a non-inline function across translation units
   would violate the ODR), deliberately *not* used by the container: it OR-accumulates the XORed
-  byte pairs with no data-dependent branch or early exit,
-  so its timing depends only on the (normally public) lengths. Use it for secret-dependent
-  comparisons — e.g. MAC/tag verification — where `operator==`'s first-mismatch early exit leaks
-  the position of the first differing byte through timing; the container's own comparisons stay
-  variable-time, per ordinary container semantics.
+  byte pairs with no data-dependent branch or early exit, so its timing depends only on the
+  (normally public) lengths. Use it for secret-dependent comparisons — e.g. MAC/tag verification —
+  where `operator==`'s first-mismatch early exit leaks the position of the first differing byte
+  through timing; the container's own comparisons stay variable-time, per ordinary container
+  semantics.
 
-  The guarantee is *unenforced*, which is a real limitation and not an oversight. Branch-freedom
-  holds in the source, but the standard has no notion of timing, so nothing forbids a compiler
-  from proving the accumulator is monotone and short-circuiting the loop. Note this cuts the
-  opposite way from `zeroize_reserved_unused()`, which distrusts the optimizer and pays for
-  `memset_explicit` to defeat it. The difference is that a dead-store elision is *routine* —
-  compilers do it constantly, so the mitigation earns its cost — whereas short-circuiting an
-  OR-accumulation is a transformation no production compiler is known to make, and the available
-  defenses (an `asm` barrier, a volatile accumulator) are non-portable, un-`constexpr`, and would
-  block the vectorization that currently makes this fast. So the choice is: write the standard
-  idiom, verify the codegen, and record the verification. Checked for GCC 16 at `-O3
-  -march=native` — the loop vectorizes to a `vpxor`/`vpor` accumulation with a horizontal reduce,
-  and every surviving conditional branch tests a size rather than a content byte. That check is
-  tied to a compiler and flags, so it is worth repeating if either moves.
+  The standard has no notion of timing, so branch-freedom in the source is not by itself a
+  guarantee: nothing forbids a compiler from proving the accumulator is monotone and
+  short-circuiting the loop. The accumulator is therefore `volatile`, which obliges the compiler
+  to perform every accumulation in order. This is the same distrust of the optimizer that
+  `zeroize_reserved_unused()` pays for with `memset_explicit`. It costs the vectorization — a
+  `volatile` accumulator forces a load and a store per byte, where a plain one would fold into a
+  `vpxor`/`vpor` reduction — and that price is worth paying on the tag-sized inputs this is for.
+  It also costs `constexpr`: a `volatile` access is barred in constant evaluation, so the function
+  is a plain `inline` one.
 
 - **`constexpr` / `noexcept`** follow `dynamic_fixed_vector` (see above): empty instances are usable
   in constant expressions; capacity `> 0` requires a runtime allocation.
@@ -378,7 +374,7 @@ The whole object is `{ std::byte* data_, std::size_t capacity_, std::size_t size
   gets written to, and guessing wrong silently stores into memory the caller merely lent, so the
   expression is left ill-formed instead. `assign_range(il)` is the bulk store, and names itself.
   Construction closes the other reading: an `initializer_list`'s storage is `const`, so
-  `is_writable_borrow_` rejects it and there is no `borrowed_byte_buffer(initializer_list)` to
+  `borrowable_range` rejects it and there is no `borrowed_byte_buffer(initializer_list)` to
   rebind from either.
 
 - **Construction starts empty; `adopting` starts full.** The value constructors leave `size() == 0`
@@ -396,16 +392,14 @@ The whole object is `{ std::byte* data_, std::size_t capacity_, std::size_t size
   happen during template argument deduction, and even a CTAD'd `std::span{arr}` has a *static*
   extent that will not bind a `std::span<T, dynamic_extent>` parameter. A `contiguous_range`
   parameter binds `borrowed_byte_buffer{arr}` bare, for any `std::array` / `std::vector` /
-  `std::span` / C array / `std::string`. It is constrained (`is_writable_borrow_`) to reject what
-  would be unsound:
-  - **`contiguous_range` sits on the template parameter, the rest in the `bool` trait.** The split
-    is what keeps the `T*` overload compiling: a `constexpr bool` variable template instantiates
-    *every* operand of its initializer (it is one expression, not a short-circuiting constraint),
-    so `range_value_t<R>` would hard-error for a non-range `R`. Concept conjunction on the
-    *template parameter* does
-    short-circuit, so gating on `contiguous_range` there means the trait — and its `range_value_t`
-    — is only ever instantiated for actual ranges. (A concept would read better than a `bool`
-    trait, but a concept cannot be a class member.)
+  `std::span` / C array / `std::string`. It is constrained by the `borrowable_range` concept to
+  reject what would be unsound:
+  - **A concept, at namespace scope, rather than a `bool` trait inside the class.** A `constexpr
+    bool` variable template instantiates *every* operand of its initializer (it is one expression,
+    not a short-circuiting constraint), so `range_value_t<R>` would hard-error for a non-range `R`
+    such as the `T*` overload's argument. Concept conjunction short-circuits, so `contiguous_range`
+    as the first clause keeps `range_value_t` from ever being formed for a non-range. A concept
+    cannot be a class member, hence the forward declaration of `borrowed_byte_buffer` above it.
   - **The source must not be `borrowed_byte_buffer` itself** — required for correctness, not
     cosmetics. Without the exclusion, constructing from a *non-`const`* `borrowed_byte_buffer`
     lvalue would prefer the range template over the copy constructor (it binds a less-cv-qualified
@@ -421,10 +415,9 @@ The whole object is `{ std::byte* data_, std::size_t capacity_, std::size_t size
   (`borrowed_byte_buffer{&obj}`, capacity `sizeof(*&obj)`) needs a pointer constructor, but a plain
   `T*` parameter is, by partial ordering, *more specialized* than the range constructor's `R&&` —
   so a C array would decay to it and overlay only its first element. Deducing the parameter from
-  the un-decayed argument and requiring `std::is_pointer` (`is_object_ptr_`) rejects arrays (they
-  reach only the range constructor) while still accepting a genuine object pointer. Unlike
-  `is_writable_borrow_`, its traits (`remove_pointer`, `is_trivially_copyable`, `is_const`) are
-  total, so it can be a plain `bool` variable template.
+  the un-decayed argument and requiring `std::is_pointer` (the `borrowable_object_ptr` concept)
+  rejects arrays (they reach only the range constructor) while still accepting a genuine object
+  pointer.
 
 - **`data()` is not guaranteed null exactly when `capacity()` is 0.** `aligned_byte_buffer`
   guarantees that (its `allocate_` returns null for capacity 0); a caller can instead borrow a

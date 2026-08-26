@@ -4,7 +4,6 @@
 /**
 * \file
 * \author Steven Ward
-* \sa https://github.com/planet36/vectors
 *
 * Defines the class \c fixed_vector, a fixed-capacity vector with in-place storage.
 */
@@ -117,16 +116,16 @@ private:
     /// True if \a R is a sized, contiguous range of \c T
     /**
     * Such a range is handed to the \c std::span overload for its bulk copy.  Overload
-    * resolution will not do this on its own.  For \c std::vector<T>, say, the \c R&& template
-    * is an exact match while the \c std::span overload needs a user-defined conversion, so the
-    * template wins and the bulk path is dead code for callers who do not hand-write a span.
+    * resolution will not do that on its own.  Given a \c std::vector<T>, the \c R&& template is
+    * an exact match, and the \c std::span overload needs a user-defined conversion.  The
+    * template wins, so nothing but a hand-written span would ever reach the bulk copy.
     */
     template <typename R>
     static constexpr bool is_bulk_appendable_ =
         std::ranges::contiguous_range<R> && std::ranges::sized_range<R> &&
         std::same_as<std::ranges::range_value_t<R>, T>;
 
-    /// \a rg as a \c std::span of \c const \c T, the form the bulk-copy overload takes
+    /// View \a rg as the \c std::span of \c const \c T that the bulk-copy overload takes
     template <typename R>
     requires is_bulk_appendable_<R>
     [[nodiscard]] static constexpr std::span<const T> as_span_(R& rg)
@@ -142,10 +141,10 @@ private:
     * \a P.
     *
     * \note The lookup must stay unqualified.  Do \b not "modernize" it to
-    * \c std::memset_explicit.  libstdc++ 16 does not define that C++26 spelling at any
-    * \c -std, and a qualified name into a namespace lacking the member is a hard error rather
-    * than a substitution failure.  The \c requires probe therefore cannot reject it, and the
-    * build fails outright instead of reaching the branches below.
+    * \c std::memset_explicit.  libstdc++ 16 declares no such name at any \c -std.  A qualified
+    * name into a namespace that lacks the member is a hard error rather than a substitution
+    * failure, so the \c requires probe cannot reject it.  The build fails outright instead of
+    * falling through to the next branch.
     */
     template <typename P>
     static void zero_explicit_(P const p, const std::size_t n) noexcept
@@ -496,15 +495,13 @@ public:
 
     /// Zeroize the reserved tail [\c size(), \c capacity()), leaving \c size() unchanged
     /**
-    * Each tail element stays alive.  Its object representation is set to all-zero bytes (for
-    * scalar \c T, the value-initialized value).  During constant evaluation, where there is no
-    * memory to scrub, the tail is value-assigned instead.
-    *
-    * At run time the stores happen even if nothing reads the tail afterward, so \c clear()
-    * followed by this scrubs everything up to \c capacity().  That matters for sensitive
-    * contents, where a plain fill is a dead store the optimizer may elide.
-    * \note This covers only [\c size(), \c capacity()).  The slots beyond a reduced capacity
-    * are \c zeroize_unreserved()'s half.  \c clear() plus both calls scrubs the whole array.
+    * Each tail element stays alive, with its object representation set to all-zero bytes.  For
+    * a scalar \c T that is the value-initialized value.  Constant evaluation has no memory to
+    * scrub, so the tail is value-assigned there instead.  At run time the stores are not
+    * elidable, unlike those of a plain fill, so \c clear() followed by this scrubs everything
+    * up to \c capacity().
+    * \note The slots beyond a reduced capacity are \c zeroize_unreserved()'s half.  \c clear()
+    * plus both calls scrubs the whole array.
     */
     constexpr void zeroize_reserved_unused() noexcept
     requires std::is_trivially_copyable_v<T>
@@ -527,7 +524,7 @@ public:
     * shrink put outside the container's window.  Those slots stay alive and may still hold what
     * they held while they were reserved, so scrubbing sensitive contents needs this call too.
     * It is a no-op while \c capacity() \c == \c max_size().  The guarantees match the reserved
-    * half: non-elidable stores at run time, value-assignment during constant evaluation.
+    * half.
     */
     constexpr void zeroize_unreserved() noexcept
     requires std::is_trivially_copyable_v<T>
@@ -734,7 +731,7 @@ public:
     /// \c clear() followed by \c append_range(), so the source is bounded by \c capacity()
     /**
     * \note Does not destroy elements.
-    * \pre The source does not overlap this vector's storage.
+    * \pre \a spn does not overlap this buffer's storage.
     * \exception std::bad_alloc if the source does not fit in \c capacity().  The \c clear() has
     * already happened by then, so a failed assign never leaves the previous contents in place.
     * A sized source (checked up front) leaves the vector empty.  An unsized one leaves the
@@ -842,8 +839,9 @@ public:
 
     /**
     * \pre \a i < \c capacity()
-    * \note Unchecked and capacity-based.  An index in [size(), capacity()) is a valid read,
-    * since every capacity slot holds a live element.  \c at() is the bounds-checked accessor.
+    * \note The index is not checked, and the bound is \c capacity() rather than \c size().  An
+    * index in [size(), capacity()) is a valid read, since every capacity slot holds a live
+    * element.  \c at() is the bounds-checked accessor.
     * \note The bound is the \e current capacity.  After a \c reserve() shrink, an index in
     * [capacity(), max_size()) is out of contract even though the slot is still alive.  Grow the
     * capacity back to reach it.

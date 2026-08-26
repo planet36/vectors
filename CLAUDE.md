@@ -22,9 +22,10 @@ package manifest — the headers are standalone. A `Makefile` builds and runs th
   view. Same byte-buffer API as `aligned_byte_buffer` but over storage it does **not** own (a
   pointer or a contiguous range) — no allocation, shallow copy/move, no `Align` parameter, plus
   `adopting` named constructors. See its own "differences" note below.
-- `byte_compare.hpp` — the shared `constant_time_equal(span, span)` free function, `#include`d by
-  both byte buffers. It lives in its own header so it is defined once: a `constexpr` free function
-  is `inline`, so two definitions reachable in one TU would violate the ODR.
+- `byte_compare.hpp` — the shared `equal_constant_time(span, span)` free function, `#include`d by
+  both byte buffers. It lives in its own header so it is defined once. It is explicitly `inline`
+  (a `volatile` accumulator bars `constexpr`), so two definitions across TUs would violate the
+  ODR without it.
 
 Two documents accompany the headers; an API change should update both:
 
@@ -279,9 +280,10 @@ the fixed element type:
 - **Zeroization, emplace constraint, constant-time compare:** `zeroize_reserved_unused()` (see
   API conventions) additionally turns the *unspecified* reserved tail into determinate zeros
   (lane padding). `emplace_back` accepts at most one `std::byte`/integral argument (floats and
-  other enums rejected). The free function `constant_time_equal(span, span)` compares with no
-  data-dependent branches, for secret-dependent data (e.g. tag verification); the container's
-  `operator==` stays variable-time.
+  other enums rejected). The free function `equal_constant_time(span, span)` compares with no
+  data-dependent branches, for secret-dependent data (e.g. tag verification); its accumulator is
+  `volatile`, so it is `inline` rather than `constexpr`, and the container's `operator==` stays
+  variable-time.
 
 ### `borrowed_byte_buffer` differences (the non-owning byte buffer)
 
@@ -307,14 +309,16 @@ it, which removes the ownership machinery and changes construction:
   full (`size()==capacity()`) to read bytes already present. The range constructor takes a
   `contiguous_range` (bare `std::array` / `vector` / `span` / C array / `string`), **not**
   `std::span<T>` — deduction will not convert an array to a span. The single-object constructor
-  takes a **forwarding reference** (`is_object_ptr_`), so a C array reaches the range constructor
-  instead of decaying to a one-element `T*` view.
-- **Two constraints are subtle — do not "simplify" them.** `is_writable_borrow_` puts
-  `contiguous_range` on the *template parameter* (so `range_value_t` is not instantiated, and does
-  not hard-error, for the non-range `T*` path) and excludes `borrowed_byte_buffer` itself (else a
-  non-`const` buffer lvalue binds the range constructor over the copy constructor — less-cv-qualified
-  reference — and reinterprets its own bytes). It also rejects rvalue owning containers (would
-  dangle) and `const` elements (unwritable).
+  takes a **forwarding reference** (`borrowable_object_ptr`), so a C array reaches the range
+  constructor instead of decaying to a one-element `T*` view.
+- **The two constraints are namespace-scope concepts, not `bool` traits in the class** —
+  `borrowable_range` and `borrowable_object_ptr`, above the class, after a forward declaration of
+  it. Concept conjunction short-circuits, which is what keeps `range_value_t` from being formed
+  (and hard-erroring) for the non-range `T*` path; a `constexpr bool` variable template
+  instantiates every operand. Do not "simplify" `borrowable_range`'s clauses: it excludes
+  `borrowed_byte_buffer` itself (else a non-`const` buffer lvalue binds the range constructor over
+  the copy constructor — less-cv-qualified reference — and reinterprets its own bytes), and it
+  rejects rvalue owning containers (would dangle) and `const` elements (unwritable).
 - **`data()` is *not* null-iff-capacity-0** here (a caller may borrow a zero-length region at a
   non-null address); the mutating members' `!is_full()` / `!is_empty()` / `i < capacity()`
   preconditions still reach a non-null block via the constructor precondition that the source has
@@ -322,7 +326,7 @@ it, which removes the ownership machinery and changes construction:
 - **`constexpr`:** the borrowing constructors use `reinterpret_cast` (not usable in constant
   evaluation), so only the default instance is usable in constant expressions —
   `static_assert(constexpr_empty_ok())`.
-- **`constant_time_equal`** comes from `byte_compare.hpp` (shared with `aligned_byte_buffer`), not
+- **`equal_constant_time`** comes from `byte_compare.hpp` (shared with `aligned_byte_buffer`), not
   redefined here.
 
 ## API / error-handling conventions

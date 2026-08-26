@@ -33,7 +33,7 @@ allocates or frees, and copies shallowly (a second view of the same bytes). It h
 parameter, since it makes no promise about borrowed memory's alignment.
 
 All four share one append/access API. Learn one and you know the others; the two byte buffers add
-a free `constant_time_equal` (in `byte_compare.hpp`, which they both include).
+a free `equal_constant_time` (in `byte_compare.hpp`, which they both include).
 
 ## Requirements
 
@@ -130,7 +130,7 @@ For secret-dependent data, compare with the free function rather than `operator=
 first-mismatch early exit leaks the position of the first differing byte through timing:
 
 ```cpp
-if (constant_time_equal(tag, expected))   // no data-dependent branch or early exit
+if (equal_constant_time(tag, expected))   // no data-dependent branch or early exit
     accept();
 ```
 
@@ -154,7 +154,7 @@ in the region, use the `adopting` named constructors, which start full (`size() 
 
 ```cpp
 const auto view = borrowed_byte_buffer::adopting(storage);   // size == capacity
-if (constant_time_equal(view.span(), expected))
+if (equal_constant_time(view.span(), expected))
     accept();
 ```
 

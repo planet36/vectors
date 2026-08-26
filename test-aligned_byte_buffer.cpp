@@ -57,16 +57,6 @@ static_assert(can_emplace_back<>);          // appends byte{}
 static_assert(!can_emplace_back<double>);   // floating point rejected
 static_assert(!can_emplace_back<int, int>); // arity > 1 rejected
 
-// constant_time_equal() is usable in constant expressions (where timing is moot).
-static_assert([] {
-    constexpr std::array a{1_b, 2_b, 3_b};
-    constexpr std::array b{1_b, 2_b, 3_b};
-    constexpr std::array c{1_b, 2_b, 4_b};
-    return constant_time_equal(a, b) && !constant_time_equal(a, c) &&
-           !constant_time_equal(a, std::span<const std::byte>{}) &&
-           constant_time_equal(std::span<const std::byte>{}, {});
-}());
-
 // Only Align is a template parameter.  The requires clause reduces to has_single_bit(Align),
 // since alignof(std::byte) == 1 makes the Align >= alignof(T) constraint vacuous here.
 static_assert(alignof(std::byte) == 1);
@@ -678,16 +668,23 @@ test_comparisons()
 }
 
 static void
-test_constant_time_equal()
+test_equal_constant_time()
 {
     // Free function for secret-dependent data.  The container's operator== stays variable-time.
     const aligned_byte_buffer<16> a{1_b, 2_b, 3_b};
     const aligned_byte_buffer<16> b{1_b, 2_b, 3_b};
     const aligned_byte_buffer<16> c{1_b, 2_b, 4_b};
-    CHECK(constant_time_equal(a.span(), b.span()));
-    CHECK(!constant_time_equal(a.span(), c.span()));
-    CHECK(!constant_time_equal(a.span(), a.span().first(2))); // unequal sizes
-    CHECK(constant_time_equal(std::span<const std::byte>{}, std::span<const std::byte>{}));
+    CHECK(equal_constant_time(a.span(), b.span()));
+    CHECK(!equal_constant_time(a.span(), c.span()));
+    CHECK(!equal_constant_time(a.span(), a.span().first(2))); // unequal sizes
+    CHECK(equal_constant_time(std::span<const std::byte>{}, std::span<const std::byte>{}));
+
+    // A bare std::array converts to the std::span parameter.
+    const std::array sa{1_b, 2_b, 3_b};
+    const std::array sb{1_b, 2_b, 3_b};
+    const std::array sc{1_b, 2_b, 4_b};
+    CHECK(equal_constant_time(sa, sb));
+    CHECK(!equal_constant_time(sa, sc));
 }
 
 // ---- Custom alignment / SIMD buffer (the motivating use case) ----
@@ -794,7 +791,7 @@ main() // NOLINT(bugprone-exception-escape)
         test_reverse_iteration();
 
         test_comparisons();
-        test_constant_time_equal();
+        test_equal_constant_time();
 
         test_alignment();
         test_byte_storage_for_simd();
