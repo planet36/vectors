@@ -265,8 +265,7 @@ public:
     }
 
     /**
-    * \exception std::bad_alloc if \a il does not fit in \c capacity().  The \c clear() has
-    * already happened by then, so the vector is left empty.
+    * \exception std::bad_alloc if \a il does not fit in \c capacity().
     */
     constexpr fixed_vector& operator=(const std::initializer_list<T> il)
     {

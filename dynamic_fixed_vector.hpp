@@ -260,8 +260,7 @@ public:
     {}
 
     /**
-    * \exception std::bad_alloc if the allocation fails.  Copy-and-swap, so a throw leaves this
-    * vector unchanged.
+    * \exception std::bad_alloc if the allocation fails.
     */
     constexpr dynamic_fixed_vector& operator=(const dynamic_fixed_vector& other)
     {
@@ -307,7 +306,7 @@ public:
     /// Capacity is the size of \a spn.
     /**
     * \exception std::bad_alloc if the allocation fails, or if the byte count would overflow
-    * \c std::size_t -- the capacity constructor it delegates to carries that guard.
+    *            \c std::size_t.
     */
     constexpr explicit dynamic_fixed_vector(const std::span<const T> spn)
         : dynamic_fixed_vector(raw_alloc_t{}, std::size(spn))
@@ -319,7 +318,7 @@ public:
     /// Capacity is the distance between \a first and \a last (forward iterators required).
     /**
     * \exception std::bad_alloc if the allocation fails, or if the byte count would overflow
-    * \c std::size_t -- the capacity constructor it delegates to carries that guard.
+    *            \c std::size_t.
     */
     template <std::forward_iterator It, std::sentinel_for<It> S>
     constexpr explicit dynamic_fixed_vector(It first, S last)
@@ -337,7 +336,7 @@ public:
     /// Capacity is \a count.
     /**
     * \exception std::bad_alloc if the allocation fails, or if the byte count would overflow
-    * \c std::size_t -- the capacity constructor it delegates to carries that guard.
+    *            \c std::size_t.
     */
     template <std::input_iterator It>
     constexpr explicit dynamic_fixed_vector(It first, const std::size_t count)
@@ -353,7 +352,7 @@ public:
     /// Capacity is the size of \a il.
     /**
     * \exception std::bad_alloc if the allocation fails, or if the byte count would overflow
-    * \c std::size_t -- the capacity constructor it delegates to carries that guard.
+    *            \c std::size_t.
     */
     constexpr dynamic_fixed_vector(const std::initializer_list<T> il)
         : dynamic_fixed_vector(std::data(il), std::size(il))
@@ -362,7 +361,7 @@ public:
     /// Capacity is the size of \a rg (forward range required).
     /**
     * \exception std::bad_alloc if the allocation fails, or if the byte count would overflow
-    * \c std::size_t -- the capacity constructor it delegates to carries that guard.
+    *            \c std::size_t.
     */
     template <std::ranges::forward_range R>
     constexpr explicit dynamic_fixed_vector(std::from_range_t, R&& rg)
@@ -377,8 +376,7 @@ public:
     }
 
     /**
-    * \exception std::bad_alloc if \a il does not fit in \c capacity().  The \c clear() has
-    * already happened by then, so the vector is left empty.
+    * \exception std::bad_alloc if \a il does not fit in \c capacity().
     */
     constexpr dynamic_fixed_vector& operator=(const std::initializer_list<T> il)
     {

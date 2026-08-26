@@ -219,8 +219,7 @@ public:
     {}
 
     /**
-    * \exception std::bad_alloc if the allocation fails.  Copy-and-swap, so a throw leaves this
-    * buffer unchanged.
+    * \exception std::bad_alloc if the allocation fails.
     */
     constexpr aligned_byte_buffer& operator=(const aligned_byte_buffer& other)
     {
@@ -316,8 +315,7 @@ public:
     }
 
     /**
-    * \exception std::bad_alloc if \a il does not fit in \c capacity().  The \c clear() has
-    * already happened by then, so the buffer is left empty.
+    * \exception std::bad_alloc if \a il does not fit in \c capacity().
     */
     constexpr aligned_byte_buffer& operator=(const std::initializer_list<std::byte> il)
     {
