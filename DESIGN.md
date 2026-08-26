@@ -371,6 +371,16 @@ The whole object is `{ std::byte* data_, std::size_t capacity_, std::size_t size
   `Align` — a caller-*asserted* precondition rather than a guarantee — could restore the
   `assume_aligned`, but is out of scope until a caller needs it.)
 
+- **No `operator=(initializer_list)`.** The other three types have one, and there `v = {1, 2, 3}`
+  can only mean *replace the contents*: the container owns its storage, so an assignment has
+  nothing else to do. On a view the same expression also reads as *rebinding* — pointing it at
+  something new, which is what assigning to a `std::span` does. The two readings differ in who
+  gets written to, and guessing wrong silently stores into memory the caller merely lent, so the
+  expression is left ill-formed instead. `assign_range(il)` is the bulk store, and names itself.
+  Construction closes the other reading: an `initializer_list`'s storage is `const`, so
+  `is_writable_borrow_` rejects it and there is no `borrowed_byte_buffer(initializer_list)` to
+  rebind from either.
+
 - **Construction starts empty; `adopting` starts full.** The value constructors leave `size() == 0`
   and treat the region as scratch to build into, matching `aligned_byte_buffer(capacity)`. Because
   an overlay sits on memory that *already holds a value*, a second mode is genuinely useful:
