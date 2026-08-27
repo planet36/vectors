@@ -5,7 +5,8 @@
 * \file
 * \author Steven Ward
 *
-* Defines \c equal_constant_time, a timing-safe equality comparison of two \c std::byte spans.
+* Defines \c equal_constant_time, an equality comparison of two \c std::byte spans with no
+* early exit on the first difference.
 * Both \c aligned_byte_buffer.hpp and \c borrowed_byte_buffer.hpp include it.
 */
 
@@ -14,10 +15,15 @@
 #include <cstddef>
 #include <span>
 
-/// Compare two byte spans without an early exit on the first difference (for equal lengths)
+/// Compare two byte spans of equal size with no early exit on the first difference
 /**
-* Every byte is examined whatever the contents, so a verifier is not usable as a timing oracle
-* for an expected digest.  That matters when the digest is a MAC.
+* Use this in place of \c operator== or \c std::memcmp when either operand is secret.
+*
+* Every byte is examined whatever the contents.  The time to compare therefore does not
+* reveal how many leading bytes matched.
+*
+* Spans of unequal size compare unequal immediately, so a difference in length is not
+* concealed.  This function is for data whose length is not secret.
 *
 * C++ cannot express a timing guarantee.  \c diff is \c volatile so the compiler must perform
 * every accumulation, in order, rather than stop at the first difference.
