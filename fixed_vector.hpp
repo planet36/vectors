@@ -31,9 +31,8 @@
 
 /// A resizable array container with in-place storage and a compile-time capacity bound
 /**
-* \a N bounds the capacity.  It does not fix it.  Of the four containers here this is the only
-* one whose \c capacity() moves after construction (via \c reserve()).  The heap-backed siblings
-* settle theirs in the constructor, since moving it there would mean reallocating.
+* \a N bounds the capacity.  It does not fix it.  The capacity is a run-time value that
+* \c reserve() moves after construction, in either direction.
 *
 * This is similar to \c std::inplace_vector and \c boost::container::static_vector,
 * except for these important differences:
@@ -58,17 +57,13 @@
 * cannot weaken a type's natural alignment.  It is required as a diagnostic.  A weakened
 * \c alignas is ill-formed ([dcl.align]/5), yet GCC accepts it silently (Clang rejects it), so
 * without the constraint an under-alignment request would be quietly ignored.
-* \note In \c dynamic_fixed_vector the same bound is instead required for correctness.  Its
-* storage is raw bytes from the aligned \c ::operator \c new, which a smaller \a Align would
-* under-align.
 *
 * \note \a Align defaults to <code>max(alignof(std::size_t), alignof(T))</code>, which is at
 * least a word.  The storage is therefore word-aligned even for a narrow \a T.
 *
 * \invariant \c size() \c <= \c capacity() \c <= \c max_size(), which is \a N.
 * \invariant \c data() is never null.  The storage is an in-place \c std::array member, so there
-* is no empty state that lacks a block (hence none of the null handling in the heap-backed
-* siblings' \c data()).
+* is no empty state that lacks a block.
 *
 * \warning This container is only suitable for trivially destructible types.
 *
@@ -133,7 +128,7 @@ private:
         return std::span{rg};
     }
 
-    /// Zero \a n bytes at \a p with stores the compiler must not optimize away
+    /// Zero \a n bytes at \a p with stores the compiler must not elide
     /**
     * Uses \c ::memset_explicit (C23) or \c explicit_bzero (glibc, BSDs) when the C library
     * declares one, else writes through a \c volatile pointer.  Neither has a feature-test
@@ -141,10 +136,13 @@ private:
     * \a P.
     *
     * \note The lookup must stay unqualified.  Do \b not "modernize" it to
-    * \c std::memset_explicit.  libstdc++ 16 declares no such name at any \c -std.  A qualified
-    * name into a namespace that lacks the member is a hard error rather than a substitution
-    * failure, so the \c requires probe cannot reject it.  The build fails outright instead of
-    * falling through to the next branch.
+    * \c std::memset_explicit.  A qualified name into a namespace that lacks the member is a
+    * hard error rather than a substitution failure, so the \c requires probe cannot reject it.
+    * The build fails outright instead of falling through to the next branch.  libstdc++ 16
+    * declares no such name at any \c -std.
+    * \note A later release that adds it does not lift the rule.  \c <string.h> declares the C
+    * spelling at global scope, so the unqualified probe finds it there and this code needs no
+    * edit.
     */
     template <typename P>
     static void zero_explicit_(P const p, const std::size_t n) noexcept
@@ -188,8 +186,7 @@ public:
     constexpr fixed_vector() noexcept(std::is_nothrow_default_constructible_v<T>) = default;
     /**
     * \note Copy and move are member-wise (defaulted).  Moving a trivially copyable \c T leaves
-    * the source unchanged, \b not emptied.  The heap-backed siblings differ, since their move
-    * construction empties the source.
+    * the source unchanged, \b not emptied.
     */
     fixed_vector(const fixed_vector&) noexcept(std::is_nothrow_copy_constructible_v<T>) = default;
     fixed_vector(fixed_vector&&) noexcept(std::is_nothrow_move_constructible_v<T>) = default;
@@ -208,9 +205,9 @@ public:
 
     /// Create \a count value-initialized elements (\c size()==count)
     /**
-    * \note This creates elements, unlike the heap-backed siblings' \c X(n), which reserves
-    * capacity \a n and starts empty.  Capacity is already \a N at construction, so the argument
-    * can only mean the size.  Use \c reserve() to lower the capacity afterward.
+    * \note The argument is a size, not a capacity to reserve.  Capacity is already \a N at
+    * construction, so the argument can only mean the size.  Use \c reserve() to lower the
+    * capacity afterward.
     * \exception std::bad_alloc if \a count > \c max_size().
     */
     constexpr explicit fixed_vector(const std::size_t count)
@@ -691,9 +688,9 @@ public:
     /**
     * \pre If \a rg is a contiguous range of \c T, it does not overlap this vector's storage.
     * That case is forwarded to the \c std::span overload, which carries the same tag.
-    * \note Sized sources are checked up front, so nothing is appended on \c false.  Unsized
-    * sources append element-wise, so on \c false the elements that fit have already been
-    * appended (observe \c size()).
+    * \note Sized sources are checked up front.  When the result is \c false, nothing was
+    * appended.  Unsized sources append element-wise.  When the result is \c false, the elements
+    * that fit were appended already (observe \c size()).
     */
     template <std::ranges::input_range R>
     [[nodiscard]] constexpr bool try_append_range(R&& rg)
@@ -733,9 +730,9 @@ public:
     * \note Does not destroy elements.
     * \pre \a spn does not overlap this buffer's storage.
     * \exception std::bad_alloc if the source does not fit in \c capacity().  The \c clear() has
-    * already happened by then, so a failed assign never leaves the previous contents in place.
-    * A sized source (checked up front) leaves the vector empty.  An unsized one leaves the
-    * elements that fit, inheriting \c append_range's partial-append behavior.
+    * already happened by then, so the previous contents are gone whether the assign succeeds or
+    * fails.  A sized source (checked up front) leaves the vector empty.  An unsized one leaves
+    * the elements that fit, inheriting \c append_range's partial-append behavior.
     */
     constexpr void assign_range(const std::span<const T> spn)
     {
@@ -789,8 +786,8 @@ public:
     }
 
     /**
-    * \note No \c std::assume_aligned<Align> is needed, unlike the heap-backed siblings.  The
-    * array member itself carries the \c alignas(Align), so the compiler derives the alignment.
+    * \note No \c std::assume_aligned<Align> is needed here.  The array member itself carries
+    * the \c alignas(Align), so the compiler derives the alignment.
     */
     [[nodiscard]] constexpr T* data() noexcept { return std::data(data_); }
 
@@ -864,7 +861,7 @@ public:
     }
 
     /**
-    * \returns A reference to the element at index \a i.
+    * \return A reference to the element at index \a i.
     * \note The only bounds-checked accessor, and checked against \c size(), not \c capacity().
     * An element in [size(), capacity()) is alive and \c operator[] reads it, but this rejects
     * that index.

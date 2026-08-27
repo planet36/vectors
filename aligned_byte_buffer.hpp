@@ -35,29 +35,29 @@
 
 /// A resizable, fixed-capacity buffer of \c std::byte with over-alignable storage
 /**
-* This is the \c std::byte specialization of \c dynamic_fixed_vector.  The API is the same, but
-* the element type is fixed to \c std::byte so the implementation can be simpler and faster.
+* The capacity is a constructor argument rather than a template parameter, so \c capacity() and
+* \c max_size() are non-static.  It is settled at construction and never changes, since changing
+* it would mean reallocating.  The element type is fixed to \c std::byte, which is what lets the
+* implementation move bytes in bulk.
 *
-* Differences from \c dynamic_fixed_vector:
-*   - There is no element-type template parameter, only the alignment \a Align (a power of
-*     two, defaulting to 16).  \c aligned_byte_buffer<16> and \c aligned_byte_buffer<32> are
-*     distinct types.
-*   - Because \c sizeof(std::byte)==1, the allocation size is exactly the capacity.  There is
-*     no multiplication and no overflow check.
+* The properties that shape the interface:
+*   - The only template parameter is the alignment \a Align (a power of two, defaulting to 16).
+*     \c aligned_byte_buffer<16> and \c aligned_byte_buffer<32> are distinct types.
+*   - Storage is a heap block allocated with the aligned \c ::operator \c new and owned by a
+*     \c std::unique_ptr.  Because \c sizeof(std::byte)==1, the allocation size is exactly the
+*     capacity.  There is no multiplication and no overflow check.
+*   - \c data() applies \c std::assume_aligned<Align> so caller loops can vectorize.
 *   - Reserved-but-unused capacity is left \b uninitialized.  Storage lifetime is begun with
 *     \c std::start_lifetime_as_array (no whole-capacity zeroing).  Bytes that enter \c size()
 *     are always written.  Reading beyond \c size() via \c operator[] yields an \e unspecified
 *     byte value, which is well-defined (not UB) for \c std::byte.
-*   - The \c emplace_back family accepts at most one argument, of type \c std::byte or an
-*     integral type (floating-point and other enumeration arguments are rejected).
-*
-* These carry over from \c dynamic_fixed_vector:
-*   - \c data() applies \c std::assume_aligned<Align> so caller loops can vectorize.
-*   - \c zeroize_reserved_unused() zeros the reserved tail with non-elidable stores.
-*     \c clear() followed by it scrubs the whole buffer.
-*   - Capacity is fixed at construction.
 *   - \c operator[] is unchecked, and its bound is \c capacity() rather than \c size().
 *     \c at() is the bounds-checked accessor.
+*   - Nothing is zeroed on removal.  \c clear(), \c pop_back(), and \c resize() only change the
+*     size.  \c zeroize_reserved_unused() zeros the reserved tail with non-elidable stores, and
+*     \c clear() followed by it scrubs the whole buffer.
+*   - The \c emplace_back family accepts at most one argument, of type \c std::byte or an
+*     integral type (floating-point and other enumeration arguments are rejected).
 *   - Capacity overflow throws \c std::bad_alloc.  The \c try_* family returns \c bool
 *     instead of throwing.
 *
@@ -72,8 +72,6 @@
 * Together those make the preconditions below sufficient on their own.  \c !is_full(),
 * \c !is_empty(), and <code>i < capacity()</code> each imply a non-null, \a Align-aligned block,
 * so the members carrying them index \c data() without re-checking it for null.
-*
-* \sa dynamic_fixed_vector
 */
 template <std::size_t Align = 16>
 requires (std::has_single_bit(Align))
@@ -155,7 +153,7 @@ private:
         return std::span{rg};
     }
 
-    /// Zero \a n bytes at \a p with stores that the compiler must not optimize away
+    /// Zero \a n bytes at \a p with stores that the compiler must not elide
     /**
     * Uses \c ::memset_explicit (C23) or \c ::explicit_bzero (glibc, BSDs) when the C library
     * declares one, else writes through a \c volatile pointer.  Neither has a feature-test
@@ -163,10 +161,13 @@ private:
     * \a P.
     *
     * \note The lookup must stay unqualified.  Do \b not "modernize" it to
-    * \c std::memset_explicit.  libstdc++ 16 declares no such name at any \c -std.  A qualified
-    * name into a namespace that lacks the member is a hard error rather than a substitution
-    * failure, so the \c requires probe cannot reject it.  The build fails outright instead of
-    * falling through to the next branch.
+    * \c std::memset_explicit.  A qualified name into a namespace that lacks the member is a
+    * hard error rather than a substitution failure, so the \c requires probe cannot reject it.
+    * The build fails outright instead of falling through to the next branch.  libstdc++ 16
+    * declares no such name at any \c -std.
+    * \note A later release that adds it does not lift the rule.  \c <string.h> declares the C
+    * spelling at global scope, so the unqualified probe finds it there and this code needs no
+    * edit.
     */
     template <typename P>
     static void zero_explicit_(P const p, const std::size_t n) noexcept
@@ -235,7 +236,11 @@ public:
         return *this;
     }
 
-    /// Swap-based, so \a other is left holding this buffer's former contents, not emptied
+    /// Swap-based move assignment
+    /**
+    * \a other is left holding this buffer's former contents rather than being emptied.  That
+    * storage is freed when \a other is destroyed.
+    */
     constexpr aligned_byte_buffer& operator=(aligned_byte_buffer&& other) noexcept
     {
         swap(other);
@@ -273,7 +278,7 @@ public:
         common_append_range_(spn);
     }
 
-    /// Capacity is the distance between \a first and \a last (forward iterators required)
+    /// Capacity is the distance between \a first and \a last
     /**
     * \exception std::bad_alloc if the allocation fails.
     */
@@ -304,7 +309,7 @@ public:
         : aligned_byte_buffer(std::span{std::data(il), std::size(il)})
     {}
 
-    /// Capacity is the size of \a rg (forward range required)
+    /// Capacity is the size of \a rg
     /**
     * \exception std::bad_alloc if the allocation fails.
     */
@@ -354,9 +359,9 @@ public:
     [[nodiscard]] constexpr bool is_full() const noexcept { return size() == capacity(); }
 
     /**
-    * \note Does not zero the bytes.  They stay in the buffer, readable through \c operator[]
-    * as the now-reserved tail.  \c clear() followed by \c zeroize_reserved_unused() scrubs
-    * them.
+    * \note Does not zero the bytes.  They stay in the buffer.  Setting the size to 0 moves all
+    * of them into the reserved-unused tail, where \c operator[] still reads them.  \c clear()
+    * followed by \c zeroize_reserved_unused() scrubs them.
     */
     constexpr void clear() noexcept { size_ = 0; }
 
@@ -642,9 +647,9 @@ public:
     }
 
     /**
-    * \note Sized sources are checked up front, so nothing is appended on \c false.  Unsized
-    * sources append element-wise, so on \c false the bytes that fit have already been
-    * appended (observe \c size()).
+    * \note Sized sources are checked up front.  When the result is \c false, nothing was
+    * appended.  Unsized sources append element-wise.  When the result is \c false, the bytes
+    * that fit were appended already (observe \c size()).
     * \pre If \a rg is a contiguous range of \c std::byte, it does not overlap this buffer's
     * storage.  That case is forwarded to the \c std::span overload, which carries the same tag.
     */
@@ -684,9 +689,9 @@ public:
     * \note The capacity is kept, not resized to the source.
     * \pre \a spn does not overlap this buffer's storage.
     * \exception std::bad_alloc if the source does not fit in \c capacity().  The \c clear() has
-    * already happened by then, so a failed assign never leaves the previous contents in place.
-    * A sized source (checked up front) leaves the buffer empty.  An unsized one leaves the
-    * bytes that fit, inheriting \c append_range's partial-append behavior.
+    * already happened by then, so the previous contents are gone whether the assign succeeds or
+    * fails.  A sized source (checked up front) leaves the buffer empty.  An unsized one leaves
+    * the bytes that fit, inheriting \c append_range's partial-append behavior.
     */
     constexpr void assign_range(const std::span<const std::byte> spn)
     {
@@ -740,8 +745,8 @@ public:
     }
 
     /**
-    * \returns A pointer to the block, aligned to \a Align, or \c nullptr if \c capacity()
-    * is 0 (per the class invariant, that is the only case).
+    * \return A pointer to the block, aligned to \a Align, or \c nullptr if \c capacity()
+    * is 0.
     * \note The null test is not defensive.  \c std::assume_aligned requires a pointer to a
     * real object, so it may not be applied to the empty buffer's null block.
     */
@@ -822,7 +827,7 @@ public:
     }
 
     /**
-    * \returns A reference to the byte at index \a i.
+    * \return A reference to the byte at index \a i.
     * \note The only bounds-checked accessor, and checked against \c size(), not
     * \c capacity().  \c operator[] can read an index in [\c size(), \c capacity()) and
     * yields an unspecified byte, but this rejects that index.

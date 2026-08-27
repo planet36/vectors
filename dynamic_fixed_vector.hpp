@@ -33,34 +33,35 @@
 
 /// A resizable array container whose fixed capacity is set at run time
 /**
-* This is the run-time-capacity sibling of \c fixed_vector.  It behaves like \c fixed_vector
-* except:
-*   - The capacity (a.k.a. \c max_size()) is passed to the constructor instead of being a
-*     template parameter, so \c capacity() / \c max_size() are non-static.
+* The capacity (a.k.a. \c max_size()) is a constructor argument rather than a template
+* parameter, so \c capacity() and \c max_size() are non-static.  It is settled at construction
+* and never changes, since changing it would mean reallocating.
+*
+* The properties that shape the interface:
 *   - Storage is an over-alignable heap block allocated with the aligned \c ::operator \c new
 *     and owned by a \c std::unique_ptr.  \a Align may exceed \c alignof(T) (e.g. \c std::byte
 *     data aligned like a 16-byte SIMD lane).  \c data() applies \c std::assume_aligned<Align>
 *     (guarded for the null/empty case) so caller loops can vectorize on the known alignment.
-*   - The single-argument constructor reserves capacity and starts \b empty
-*     (\c size()==0), unlike \c fixed_vector where it created elements.
-*   - Range / iterator-sentinel constructors require \b forward iterators (the capacity must
-*     be computed up front).  Input-only sources use `dynamic_fixed_vector(capacity)` followed
-*     by \c append_range.
-*   - Copy makes a deep copy.  Move construction transfers ownership and leaves the source
-*     empty (capacity 0).  Move \e assignment swaps, so the source is left holding this
-*     vector's former buffer (freed when the source is destroyed).  The interface is annotated
-*     \c constexpr, but over-aligned allocation is not usable in constant evaluation, so only
-*     empty (non-allocating) instances are usable in constant expressions.
-*
-* These carry over from \c fixed_vector:
 *   - All \c capacity() elements are alive from construction onward.  The reserve constructor
 *     value-initializes them.  The copy, fill, and range constructors construct them directly
 *     from the source.
-*   - Elements are never explicitly destroyed.
+*   - Elements are never explicitly destroyed.  \c clear(), \c pop_back(), and \c resize()
+*     only change the size.
 *   - \c operator[] is unchecked, and its bound is \c capacity() rather than \c size().
-*     \c at() is the bounds-checked accessor.
+*     An index in [\c size(), \c capacity()) legitimately reads a live element.  \c at() is
+*     the bounds-checked accessor.
+*   - The single-argument constructor reserves capacity and starts \b empty (\c size()==0).
+*   - Range and iterator-sentinel constructors require \b forward iterators, since the capacity
+*     must be computed up front.  An input-only source needs `dynamic_fixed_vector(capacity)`
+*     followed by \c append_range.
+*   - Copy makes a deep copy.  Move construction transfers ownership and leaves the source
+*     empty (capacity 0).  Move \e assignment swaps, so the source is left holding this
+*     vector's former buffer (freed when the source is destroyed).
 *   - Capacity overflow throws \c std::bad_alloc.  The \c try_* family returns \c bool
 *     instead of throwing.
+*
+* The interface is annotated \c constexpr, but over-aligned allocation is not usable in constant
+* evaluation, so only empty (non-allocating) instances are usable in constant expressions.
 *
 * \note \a Align defaults to <code>max(alignof(std::size_t), alignof(T))</code>, which is at
 * least a word.  The block is therefore word-aligned even for a narrow \a T.
@@ -193,7 +194,7 @@ private:
         return std::span{rg};
     }
 
-    /// Zero \a n bytes at \a p with stores the compiler must not optimize away
+    /// Zero \a n bytes at \a p with stores the compiler must not elide
     /**
     * Uses \c ::memset_explicit (C23) or \c explicit_bzero (glibc, BSDs) when the C library
     * declares one, else writes through a \c volatile pointer.  Neither has a feature-test
@@ -201,10 +202,13 @@ private:
     * \a P.
     *
     * \note The lookup must stay unqualified.  Do \b not "modernize" it to
-    * \c std::memset_explicit.  libstdc++ 16 declares no such name at any \c -std.  A qualified
-    * name into a namespace that lacks the member is a hard error rather than a substitution
-    * failure, so the \c requires probe cannot reject it.  The build fails outright instead of
-    * falling through to the next branch.
+    * \c std::memset_explicit.  A qualified name into a namespace that lacks the member is a
+    * hard error rather than a substitution failure, so the \c requires probe cannot reject it.
+    * The build fails outright instead of falling through to the next branch.  libstdc++ 16
+    * declares no such name at any \c -std.
+    * \note A later release that adds it does not lift the rule.  \c <string.h> declares the C
+    * spelling at global scope, so the unqualified probe finds it there and this code needs no
+    * edit.
     */
     template <typename P>
     static void zero_explicit_(P const p, const std::size_t n) noexcept
@@ -274,7 +278,11 @@ public:
         return *this;
     }
 
-    /// Swap-based, so \a other is left holding this vector's former buffer, not emptied
+    /// Swap-based move assignment
+    /**
+    * \a other is left holding this vector's former buffer rather than being emptied.  That
+    * buffer is freed when \a other is destroyed.
+    */
     constexpr dynamic_fixed_vector& operator=(dynamic_fixed_vector&& other) noexcept
     {
         swap(other);
@@ -316,7 +324,7 @@ public:
             std::uninitialized_copy_n(std::data(spn), capacity(), data());
     }
 
-    /// Capacity is the distance between \a first and \a last (forward iterators required)
+    /// Capacity is the distance between \a first and \a last
     /**
     * \exception std::bad_alloc if the allocation fails, or if the byte count would overflow
     *            \c std::size_t.
@@ -359,7 +367,7 @@ public:
         : dynamic_fixed_vector(std::data(il), std::size(il))
     {}
 
-    /// Capacity is the size of \a rg (forward range required)
+    /// Capacity is the size of \a rg
     /**
     * \exception std::bad_alloc if the allocation fails, or if the byte count would overflow
     *            \c std::size_t.
@@ -426,7 +434,7 @@ public:
     * [\c size(), \c capacity()) and grow into it.  \c fill_capacity() overwrites the live
     * elements as well.
     * \note Bounded by \c capacity(), which is settled at construction, so growing past it
-    * throws rather than reallocating.  There is no \c reserve() here (\c fixed_vector has one).
+    * throws rather than reallocating.  There is no \c reserve().
     * \exception std::bad_alloc if \a count > \c capacity().
     */
     constexpr void resize(const std::size_t count, const T& value)
@@ -719,9 +727,9 @@ public:
     }
 
     /**
-    * \note Sized sources are checked up front, so nothing is appended on \c false.  Unsized
-    * sources append element-wise, so on \c false the elements that fit have already been
-    * appended (observe \c size()).
+    * \note Sized sources are checked up front.  When the result is \c false, nothing was
+    * appended.  Unsized sources append element-wise.  When the result is \c false, the elements
+    * that fit were appended already (observe \c size()).
     * \pre If \a rg is a contiguous range of \c T, it does not overlap this vector's storage.
     * That case is forwarded to the \c std::span overload, which carries the same tag.
     */
@@ -761,9 +769,9 @@ public:
     * \note Does not destroy elements.  The capacity is kept, not resized to the source.
     * \pre The source does not overlap this vector's storage.
     * \exception std::bad_alloc if the source does not fit in \c capacity().  The \c clear() has
-    * already happened by then, so a failed assign never leaves the previous contents in place.
-    * A sized source (checked up front) leaves the vector empty.  An unsized one leaves the
-    * elements that fit, inheriting \c append_range's partial-append behavior.
+    * already happened by then, so the previous contents are gone whether the assign succeeds or
+    * fails.  A sized source (checked up front) leaves the vector empty.  An unsized one leaves
+    * the elements that fit, inheriting \c append_range's partial-append behavior.
     */
     constexpr void assign_range(const std::span<const T> spn)
     {
@@ -814,8 +822,8 @@ public:
     }
 
     /**
-    * \returns A pointer to the block, aligned to \a Align, or \c nullptr if \c capacity()
-    * is 0 (per the class invariant, that is the only case).
+    * \return A pointer to the block, aligned to \a Align, or \c nullptr if \c capacity()
+    * is 0.
     * \note The null test is not defensive.  \c std::assume_aligned requires a pointer to a
     * real object, so it may not be applied to the empty container's null block.
     */
@@ -896,7 +904,7 @@ public:
     }
 
     /**
-    * \returns A reference to the element at index \a i.
+    * \return A reference to the element at index \a i.
     * \note The only bounds-checked accessor, and checked against \c size(), not
     * \c capacity().  An element in [size(), capacity()) is alive and \c operator[] reads it,
     * but this rejects that index.

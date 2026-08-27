@@ -79,38 +79,28 @@ concept borrowable_object_ptr =
 
 /// A non-owning, run-time-capacity buffer of \c std::byte overlaying borrowed storage
 /**
-* Same append interface as \c aligned_byte_buffer (\c is_full, \c reserved_unused,
-* \c append_range, \c push_back, ...), but it \b borrows the bytes it operates on instead of
-* owning them.  Construction takes a pointer or a contiguous range whose lifetime the caller
-* manages, and the buffer never allocates or frees.  Read it as \c aligned_byte_buffer with the
-* ownership removed, which is the container it is closest to and the one the differences below
-* are stated against.
+* The bytes belong to the caller.  Construction takes a pointer or a contiguous range whose
+* lifetime the caller manages, and the buffer never allocates or frees.  What it adds is a
+* fixed-capacity append interface (\c is_full, \c reserved_unused, \c append_range,
+* \c push_back, ...) over memory it does not own.
 *
-* Differences from \c aligned_byte_buffer:
+* The properties that shape the interface:
 *   - \b Non-owning.  Just a pointer + capacity + size, with no allocation, a trivial
 *     destructor, and defaulted special members.  Copy and move are shallow (both objects then
 *     view the same bytes, and move does not empty the source).  The type is trivially copyable
 *     and cheap to pass by value.  Keeping the borrowed storage alive for the buffer's lifetime
 *     is the caller's responsibility.  A destroyed source leaves a dangling view.
 *   - \b Capacity is supplied, not allocated.  There is no reserve / fill / iterator /
-*     initializer-list / from-range \e element-copying constructor (those exist on
-*     \c aligned_byte_buffer to size and fill owned storage).  A borrowed buffer is instead
+*     initializer-list / from-range \e element-copying constructor.  A borrowed buffer is
 *     built directly over existing memory (a pointer, or a contiguous range whose storage it
 *     \e overlays rather than copies), then filled via \c append_range / \c assign_range.
 *   - \b Construction leaves \c size()==0, so the region is treated as empty space to build
 *     into.  To instead adopt bytes already present in the region (for reading, iterating, or
 *     comparing), use the \c adopting named constructors, which start \c size()==capacity().
-*   - \b No \a Align parameter.  \c aligned_byte_buffer over-aligns its own allocation and
-*     applies \c std::assume_aligned.  Borrowed memory carries no such promise, so \c data()
-*     returns the raw pointer unadorned.
+*   - \b No \a Align parameter.  Borrowed memory carries no alignment promise, so \c data()
+*     returns the raw pointer unadorned, with no \c std::assume_aligned.
 *   - \b No \c operator=(initializer_list).  Writing through a view-like type via assignment
 *     reads as rebinding rather than a bulk store.  Use \c assign_range for that.
-*
-* The element type of a source is constrained to \c std::is_trivially_copyable_v (its object
-* representation is what gets written and later read back) and must be non-\c const (the view
-* writes through it).
-*
-* These carry over from \c aligned_byte_buffer:
 *   - The reserved tail [\c size(), \c capacity()) is left as-is.  Borrowed bytes are neither
 *     zeroed nor read on construction.
 *   - \c operator[] is unchecked, and its bound is \c capacity() rather than \c size().
@@ -120,29 +110,27 @@ concept borrowable_object_ptr =
 *   - \c zeroize_reserved_unused() and the free \c equal_constant_time (from
 *     \c byte_compare.hpp) are available.
 *
+* The element type of a source is constrained to \c std::is_trivially_copyable_v (its object
+* representation is what gets written and later read back) and must be non-\c const (the view
+* writes through it).
+*
 * Nearly the whole interface is \c constexpr, but forming a byte view over an object needs a
 * \c reinterpret_cast, which is barred in constant evaluation, so only the default (empty)
 * instance is usable in constant expressions.
 *
-* \note A read past \c size() returns the caller's own bytes, which is \b not the same
-* situation as \c aligned_byte_buffer's, though both containers promise the same thing about
-* it, namely nothing.  There the tail is heap storage that was never written, so the byte really
-* is arbitrary, and only \c std::byte's exemption from the indeterminate-value rules keeps the
-* read out of UB.
-* \note Here the tail is memory the caller owns and most likely initialized, so the byte is
-* usually perfectly determinate.  It is also the caller's data, which a beyond-size read (or an
-* \c operator== after a \c resize, or a \c span() handed onward) will disclose.  Call
+* \note A read past \c size() returns the caller's own bytes.  The container promises nothing
+* about their value.  In practice the tail is memory the caller owns and most likely
+* initialized, so the byte is usually perfectly determinate.
+* \note Those bytes are the caller's data, which a beyond-size read (or an \c operator== after
+* a \c resize, or a \c span() handed onward) will disclose.  Call
 * \c zeroize_reserved_unused() when the tail must not leak.
 *
 * \invariant \c size() \c <= \c capacity().
-* \note Unlike \c aligned_byte_buffer, \c data() is \b not guaranteed null exactly when
-* \c capacity() is 0.  A caller may borrow a zero-length region at a non-null address.  The
-* mutating members index \c data() only under \c !is_full() / \c !is_empty() /
-* <code>i < capacity()</code>, each of which implies <code>capacity() > 0</code> and therefore
-* (by the constructor precondition that the source points to at least \c capacity() writable
-* bytes) a non-null, indexable block.
-*
-* \sa aligned_byte_buffer
+* \note \c data() carries no null-when-empty guarantee.  A caller may borrow a zero-length
+* region at a non-null address.  The mutating members index \c data() only under
+* \c !is_full() / \c !is_empty() / <code>i < capacity()</code>, each of which implies
+* <code>capacity() > 0</code> and therefore (by the constructor precondition that the source
+* points to at least \c capacity() writable bytes) a non-null, indexable block.
 */
 class borrowed_byte_buffer
 {
@@ -202,7 +190,7 @@ private:
     static constexpr std::size_t object_ptr_size_ =
         sizeof(std::remove_pointer_t<std::remove_cvref_t<P>>);
 
-    /// Zero \a n bytes at \a p with stores the compiler must not optimize away
+    /// Zero \a n bytes at \a p with stores the compiler must not elide
     /**
     * Uses \c ::memset_explicit (C23) or \c explicit_bzero (glibc, BSDs) when the C library
     * declares one, else writes through a \c volatile pointer.  Neither has a feature-test
@@ -210,10 +198,13 @@ private:
     * \a P.
     *
     * \note The lookup must stay unqualified.  Do \b not "modernize" it to
-    * \c std::memset_explicit.  libstdc++ 16 declares no such name at any \c -std.  A qualified
-    * name into a namespace that lacks the member is a hard error rather than a substitution
-    * failure, so the \c requires probe cannot reject it.  The build fails outright instead of
-    * falling through to the next branch.
+    * \c std::memset_explicit.  A qualified name into a namespace that lacks the member is a
+    * hard error rather than a substitution failure, so the \c requires probe cannot reject it.
+    * The build fails outright instead of falling through to the next branch.  libstdc++ 16
+    * declares no such name at any \c -std.
+    * \note A later release that adds it does not lift the rule.  \c <string.h> declares the C
+    * spelling at global scope, so the unqualified probe finds it there and this code needs no
+    * edit.
     */
     template <typename P>
     static void zero_explicit_(P const p, const std::size_t n) noexcept
@@ -386,9 +377,9 @@ public:
     [[nodiscard]] constexpr bool is_full() const noexcept { return size() == capacity(); }
 
     /**
-    * \note Does not zero the bytes.  They stay in the borrowed region, readable through
-    * \c operator[] as the now-reserved tail.  \c clear() followed by
-    * \c zeroize_reserved_unused() scrubs them.
+    * \note Does not zero the bytes.  They stay in the borrowed region.  Setting the size to 0
+    * moves all of them into the reserved-unused tail, where \c operator[] still reads them.
+    * \c clear() followed by \c zeroize_reserved_unused() scrubs them.
     */
     constexpr void clear() noexcept { size_ = 0; }
 
@@ -675,9 +666,9 @@ public:
     }
 
     /**
-    * \note Sized sources are checked up front, so nothing is appended on \c false.  Unsized
-    * sources append element-wise, so on \c false the bytes that fit have already been
-    * appended (observe \c size()).
+    * \note Sized sources are checked up front.  When the result is \c false, nothing was
+    * appended.  Unsized sources append element-wise.  When the result is \c false, the bytes
+    * that fit were appended already (observe \c size()).
     * \pre If \a rg is a contiguous range of \c std::byte, it does not overlap this buffer's
     * storage.  That case is forwarded to the \c std::span overload, which carries the same tag.
     */
@@ -718,9 +709,9 @@ public:
     * region the buffer views.
     * \pre \a spn does not overlap this buffer's storage.
     * \exception std::bad_alloc if the source does not fit in \c capacity().  The \c clear() has
-    * already happened by then, so a failed assign never leaves the previous contents in place.
-    * A sized source (checked up front) leaves the buffer empty.  An unsized one leaves the
-    * bytes that fit, inheriting \c append_range's partial-append behavior.
+    * already happened by then, so the previous contents are gone whether the assign succeeds or
+    * fails.  A sized source (checked up front) leaves the buffer empty.  An unsized one leaves
+    * the bytes that fit, inheriting \c append_range's partial-append behavior.
     */
     constexpr void assign_range(const std::span<const std::byte> spn)
     {
@@ -774,8 +765,7 @@ public:
     }
 
     /**
-    * \returns The borrowed pointer, raw and with no assumed alignment, unlike
-    * \c aligned_byte_buffer.
+    * \return The borrowed pointer, raw and with no assumed alignment.
     */
     [[nodiscard]] constexpr std::byte* data() noexcept { return data_; }
 
@@ -846,7 +836,7 @@ public:
     }
 
     /**
-    * \returns A reference to the byte at index \a i.
+    * \return A reference to the byte at index \a i.
     * \note The only bounds-checked accessor, and checked against \c size(), not
     * \c capacity().  \c operator[] reads an index in [size(), capacity()) and returns the
     * borrowed region's own byte, but this rejects that index.
