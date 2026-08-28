@@ -57,9 +57,9 @@ so the container promises nothing about a read past `size()` — for a different
 - **`append_range` / `assign_range`** are overloaded for span, iterator+sentinel, iterator+count,
   `initializer_list`, and input ranges; `assign_range` is `clear()` followed by `append_range`.
   Overloads that can know the source size up front (span, iterator+count, `initializer_list`,
-  sized ranges, sized sentinels) validate before writing and are all-or-nothing; truly unsized
-  sources append element-wise, so an overflowing append may add the elements that fit before
-  throwing (or returning `false` from `try_*`).
+  sized ranges, sized sentinels) validate before writing, so nothing is appended when they
+  throw. Truly unsized sources append element-wise, so an overflowing append may add the
+  elements that fit before throwing (or returning `false` from `try_*`).
 - **The input-range overload forwards a sized contiguous range of exactly the element type to the
   span overload**, so an ordinary `std::vector<T>` / `std::array<T, N>` lands on the bulk copy
   (`std::ranges::copy`, or `memcpy` in the byte buffer) instead of being appended element-wise.

@@ -350,8 +350,8 @@ it, which removes the ownership machinery and changes construction:
 - `unchecked_*` variants skip the capacity check and assume `!is_full()` — the checked
   `emplace_back`/`push_back`/`append_range` delegate to them after validating.
 - Append overloads that can know the source size up front (span, iterator+count,
-  `initializer_list`, sized ranges/sentinels) are all-or-nothing; truly unsized sources append
-  element-wise and may partially append before throwing / returning `false`.
+  `initializer_list`, sized ranges/sentinels) append nothing when they throw; truly unsized
+  sources append element-wise and may partially append before throwing / returning `false`.
 - `zeroize_reserved_unused()` (all four; trivially copyable element types only) zeroizes the
   reserved tail with non-elidable stores (`memset_explicit`/`explicit_bzero` when the libc
   declares one — detected by *unqualified* name lookup, there is no feature-test macro — else a

@@ -53,7 +53,7 @@ fixed_vector<int, 8> v{1, 2, 3};   // size 3, capacity 8, max_size 8
 v.push_back(4);                    // throws std::bad_alloc if full
 if (!v.try_push_back(5))           // returns false instead of throwing
     handle_full();
-v.append_range(std::array{6, 7});  // sized source: all-or-nothing
+v.append_range(std::array{6, 7});  // sized source: appends all of it or throws
 
 assert(v.size() == 7);
 assert(v.at(6) == 7);              // at() throws std::out_of_range
@@ -227,8 +227,8 @@ full — but every member above behaves identically once constructed.
 `append_range` and `assign_range` are each overloaded for a span, iterator + sentinel,
 iterator + count, `initializer_list`, and an arbitrary input range; `assign_range` is `clear()`
 followed by `append_range`. Overloads that can know the source size up front validate before
-writing and are all-or-nothing; truly unsized sources append element-wise and may leave the
-elements that fit in place before throwing (or returning `false`).
+writing, so nothing is appended when they throw. Truly unsized sources append element-wise and
+may leave the elements that fit in place before throwing (or returning `false`).
 
 Passing a contiguous range of the element type — a `std::vector<T>`, a `std::array<T, N>`, a
 span — gets the bulk copy (`memcpy` in the byte buffer) without the call site doing anything
