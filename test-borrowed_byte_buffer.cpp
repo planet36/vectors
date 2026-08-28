@@ -481,7 +481,7 @@ static void
 test_append_range_unsized_partial()
 {
     // No up-front size check is possible for an unsized source, so the bytes that fit are
-    // appended before std::bad_alloc is thrown (the sized overloads are all-or-nothing).
+    // appended before std::bad_alloc is thrown.  A sized overload would have appended nothing.
     std::array<std::byte, 4> s{};
     borrowed_byte_buffer v{s};
     v.append_range({1_b, 2_b});

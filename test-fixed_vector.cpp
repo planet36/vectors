@@ -590,7 +590,7 @@ static void
 test_append_range_unsized_partial()
 {
     // No up-front size check is possible for an unsized source, so the elements that fit are
-    // appended before std::bad_alloc is thrown (the sized overloads are all-or-nothing).
+    // appended before std::bad_alloc is thrown.  A sized overload would have appended nothing.
     fixed_vector<int, 4> v;
     v.append_range({1, 2});
     CHECK_THROWS(std::bad_alloc, v.append_range(std::views::iota(1, 10) | std::views::filter(is_odd)));
