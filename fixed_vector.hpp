@@ -485,7 +485,7 @@ public:
         if consteval
         {
             for (std::size_t i = size(); i < capacity(); ++i)
-                data_[i] = T{};
+                data()[i] = T{};
         }
         else
         {
@@ -507,7 +507,7 @@ public:
         if consteval
         {
             for (std::size_t i = capacity(); i < max_size(); ++i)
-                data_[i] = T{};
+                data()[i] = T{};
         }
         else
         {
@@ -822,7 +822,7 @@ public:
 #if defined(DEBUG)
         assert(i < capacity());
 #endif
-        return data_[i];
+        return data()[i];
     }
 
     /// \copydoc operator[](std::size_t)
@@ -831,7 +831,7 @@ public:
 #if defined(DEBUG)
         assert(i < capacity());
 #endif
-        return data_[i];
+        return data()[i];
     }
 
     /**
@@ -842,14 +842,14 @@ public:
     [[nodiscard]] constexpr T& at(const std::size_t i)
     {
         check_idx_(i);
-        return data_[i];
+        return data()[i];
     }
 
     /// \copydoc at(std::size_t)
     [[nodiscard]] constexpr const T& at(const std::size_t i) const
     {
         check_idx_(i);
-        return data_[i];
+        return data()[i];
     }
 
     [[nodiscard]] constexpr T* begin() noexcept { return data(); }
