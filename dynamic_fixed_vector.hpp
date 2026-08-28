@@ -215,13 +215,13 @@ private:
     template <typename P>
     static void zero_explicit_(P const p, const std::size_t n) noexcept
     {
-        if constexpr (requires { memset_explicit(p, 0, n); })
+        if constexpr (requires { ::memset_explicit(p, 0, n); })
         {
-            memset_explicit(p, 0, n);
+            (void)::memset_explicit(p, 0, n);
         }
-        else if constexpr (requires { explicit_bzero(p, n); })
+        else if constexpr (requires { ::explicit_bzero(p, n); })
         {
-            explicit_bzero(p, n);
+            ::explicit_bzero(p, n);
         }
         else
         {
