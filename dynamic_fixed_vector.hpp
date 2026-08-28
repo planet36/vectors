@@ -143,9 +143,11 @@ private:
 
     /// Allocate \a capacity slots with \c size()==capacity but no lifetimes begun
     /**
-    * The delegating constructor's body must begin the lifetime of every element.  A throwing
-    * element constructor still frees the block (owned by \c data_).  The already-constructed
-    * elements need no destruction (\c T is trivially destructible).
+    * The delegating constructor's body must begin the lifetime of every element.  It is
+    * private because it leaves the invariant broken until that body runs: \c size() elements
+    * are claimed and none exist, so every accessor is UB.  A throwing element constructor
+    * still frees the block (owned by \c data_).  The already-constructed elements need no
+    * destruction (\c T is trivially destructible).
     */
     constexpr dynamic_fixed_vector(raw_alloc_t, const std::size_t capacity)
         : size_{capacity}, capacity_{capacity}, data_{allocate_raw_(capacity)}
@@ -196,9 +198,9 @@ private:
         return std::span{rg};
     }
 
-    /// Zero \a n bytes at \a p with stores the compiler must not elide
+    /// Zero \a n bytes at \a p with stores that the compiler must not elide
     /**
-    * Uses \c ::memset_explicit (C23) or \c explicit_bzero (glibc, BSDs) when the C library
+    * Uses \c ::memset_explicit (C23) or \c ::explicit_bzero (glibc, BSDs) when the C library
     * declares one, else writes through a \c volatile pointer.  Neither has a feature-test
     * macro, so availability is probed by unqualified name lookup on the dependent parameter
     * \a P.
@@ -280,8 +282,8 @@ public:
 
     /// Swap-based move assignment
     /**
-    * \a other is left holding this vector's former buffer rather than being emptied.  That
-    * buffer is freed when \a other is destroyed.
+    * \a other is left holding this vector's former contents rather than being emptied.  That
+    * storage is freed when \a other is destroyed.
     */
     constexpr dynamic_fixed_vector& operator=(dynamic_fixed_vector&& other) noexcept
     {
@@ -427,8 +429,8 @@ public:
 
     /// Resize to \a count elements
     /**
-    * Growing assigns \a value to the new elements.  Shrinking leaves the removed ones alive
-    * and unchanged (nothing is destroyed).
+    * Growing assigns \a value to the new elements.  Shrinking leaves the removed ones
+    * unchanged (nothing is destroyed).
     * \note \c resize(capacity(), \a value) is how to fill only the reserved-unused tail
     * [\c size(), \c capacity()) and grow into it.  \c fill_capacity() overwrites the live
     * elements as well.

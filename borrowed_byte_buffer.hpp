@@ -190,9 +190,9 @@ private:
     static constexpr std::size_t object_ptr_size_ =
         sizeof(std::remove_pointer_t<std::remove_cvref_t<P>>);
 
-    /// Zero \a n bytes at \a p with stores the compiler must not elide
+    /// Zero \a n bytes at \a p with stores that the compiler must not elide
     /**
-    * Uses \c ::memset_explicit (C23) or \c explicit_bzero (glibc, BSDs) when the C library
+    * Uses \c ::memset_explicit (C23) or \c ::explicit_bzero (glibc, BSDs) when the C library
     * declares one, else writes through a \c volatile pointer.  Neither has a feature-test
     * macro, so availability is probed by unqualified name lookup on the dependent parameter
     * \a P.
@@ -506,12 +506,12 @@ public:
             (void)std::memset(data(), std::to_integer<int>(value), size());
     }
 
-    /// Zero the reserved tail [\c size(), \c capacity()), leaving \c size() unchanged
+    /// Zeroize the reserved tail [\c size(), \c capacity()), leaving \c size() unchanged
     /**
     * The zeros replace the borrowed bytes in the tail.  Use it to pad to an alignment boundary
     * before reading whole SIMD lanes past \c size(), or to keep the caller's bytes from leaking
     * through beyond-size reads.  The stores are not elidable, unlike those of a plain
-    * \c memset, so \c clear() followed by this scrubs the whole borrowed region.
+    * \c std::memset, so \c clear() followed by this scrubs the whole borrowed region.
     */
     constexpr void zeroize_reserved_unused() noexcept
     {

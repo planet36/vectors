@@ -126,9 +126,9 @@ private:
         return std::span{rg};
     }
 
-    /// Zero \a n bytes at \a p with stores the compiler must not elide
+    /// Zero \a n bytes at \a p with stores that the compiler must not elide
     /**
-    * Uses \c ::memset_explicit (C23) or \c explicit_bzero (glibc, BSDs) when the C library
+    * Uses \c ::memset_explicit (C23) or \c ::explicit_bzero (glibc, BSDs) when the C library
     * declares one, else writes through a \c volatile pointer.  Neither has a feature-test
     * macro, so availability is probed by unqualified name lookup on the dependent parameter
     * \a P.

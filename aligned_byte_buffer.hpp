@@ -486,12 +486,12 @@ public:
             (void)std::memset(data(), std::to_integer<int>(value), size());
     }
 
-    /// Zero the reserved tail [\c size(), \c capacity()), leaving \c size() unchanged
+    /// Zeroize the reserved tail [\c size(), \c capacity()), leaving \c size() unchanged
     /**
     * The zeros replace the otherwise unspecified reserved bytes.  Use it to pad to an alignment
     * boundary before reading whole SIMD lanes past \c size(), or to keep stale heap bytes from
     * leaking through beyond-size reads.  The stores are not elidable, unlike those of a plain
-    * \c memset, so \c clear() followed by this scrubs the whole buffer.
+    * \c std::memset, so \c clear() followed by this scrubs the whole buffer.
     */
     constexpr void zeroize_reserved_unused() noexcept
     {
