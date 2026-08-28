@@ -151,7 +151,7 @@ private:
     constexpr void common_append_range_(const std::span<const std::byte> spn) noexcept
     {
         if (!spn.empty())
-            std::memcpy(end(), std::data(spn), std::size(spn));
+            (void)std::memcpy(end(), std::data(spn), std::size(spn));
         size_ += std::size(spn);
     }
 
@@ -397,7 +397,7 @@ public:
             throw std::bad_alloc{};
 
         if (count > size())
-            std::memset(end(), std::to_integer<int>(value), count - size());
+            (void)std::memset(end(), std::to_integer<int>(value), count - size());
 
         size_ = count;
     }
@@ -495,7 +495,7 @@ public:
     constexpr void fill_capacity(const std::byte value) noexcept
     {
         if (capacity() != 0)
-            std::memset(data(), std::to_integer<int>(value), capacity());
+            (void)std::memset(data(), std::to_integer<int>(value), capacity());
         size_ = capacity();
     }
 
@@ -503,7 +503,7 @@ public:
     constexpr void fill_size(const std::byte value) noexcept
     {
         if (size() != 0)
-            std::memset(data(), std::to_integer<int>(value), size());
+            (void)std::memset(data(), std::to_integer<int>(value), size());
     }
 
     /// Zero the reserved tail [\c size(), \c capacity()), leaving \c size() unchanged

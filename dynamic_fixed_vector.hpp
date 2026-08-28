@@ -131,8 +131,10 @@ private:
     {
         // Own the raw block first so a throwing value-init still frees it.
         storage_ptr up = allocate_raw_(cap);
+
         if (cap != 0)
-            std::uninitialized_value_construct_n(up.get(), cap);
+            (void)std::uninitialized_value_construct_n(up.get(), cap);
+
         return up;
     }
 
@@ -253,7 +255,7 @@ public:
         // Copy the entire capacity buffer (faithful to beyond-size operator[] reads),
         // beginning each element's lifetime directly, with no value-init-then-overwrite.
         if (this->capacity() != 0)
-            std::uninitialized_copy_n(other.data(), this->capacity(), data());
+            (void)std::uninitialized_copy_n(other.data(), this->capacity(), data());
     }
 
     constexpr dynamic_fixed_vector(dynamic_fixed_vector&& other) noexcept
@@ -306,7 +308,7 @@ public:
         : dynamic_fixed_vector(raw_alloc_t{}, capacity)
     {
         if (this->capacity() != 0)
-            std::uninitialized_fill_n(data(), this->capacity(), value);
+            (void)std::uninitialized_fill_n(data(), this->capacity(), value);
     }
 
     /// Capacity is the size of \a spn
@@ -318,7 +320,7 @@ public:
         : dynamic_fixed_vector(raw_alloc_t{}, std::size(spn))
     {
         if (capacity() != 0)
-            std::uninitialized_copy_n(std::data(spn), capacity(), data());
+            (void)std::uninitialized_copy_n(std::data(spn), capacity(), data());
     }
 
     /// Capacity is the distance between \a first and \a last
@@ -334,7 +336,7 @@ public:
         std::size_t i = 0;
         for (; first != last; ++first)
         {
-            std::construct_at(data() + i, *first);
+            (void)std::construct_at(data() + i, *first);
             ++i;
         }
     }
@@ -350,7 +352,7 @@ public:
     {
         for (std::size_t i = 0; i < count; ++i)
         {
-            std::construct_at(data() + i, *first);
+            (void)std::construct_at(data() + i, *first);
             ++first;
         }
     }
@@ -376,7 +378,7 @@ public:
         std::size_t i = 0;
         for (auto&& e : std::forward<R>(rg))
         {
-            std::construct_at(data() + i, std::forward<decltype(e)>(e));
+            (void)std::construct_at(data() + i, std::forward<decltype(e)>(e));
             ++i;
         }
     }
