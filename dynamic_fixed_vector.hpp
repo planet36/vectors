@@ -177,9 +177,9 @@ private:
     /// True if \a R is a sized, contiguous range of \c T
     /**
     * Such a range is handed to the \c std::span overload for its bulk copy.  Overload
-    * resolution will not do that on its own.  Given a \c std::vector<T>, the \c R&& template is
-    * an exact match, and the \c std::span overload needs a user-defined conversion.  The
-    * template wins, so nothing but a hand-written span would ever reach the bulk copy.
+    * resolution will not do that on its own, since the \c R&& template is an exact match for a
+    * \c std::vector<T> where the \c std::span overload needs a user-defined conversion.
+    * Without this test, only a hand-written span would ever reach the bulk copy.
     */
     template <typename R>
     static constexpr bool is_bulk_appendable_ =
@@ -201,14 +201,12 @@ private:
     * macro, so availability is probed by unqualified name lookup on the dependent parameter
     * \a P.
     *
-    * \note The lookup must stay unqualified.  Do \b not "modernize" it to
+    * \note The lookup must stay unqualified, so do \b not "modernize" it to
     * \c std::memset_explicit.  A qualified name into a namespace that lacks the member is a
-    * hard error rather than a substitution failure, so the \c requires probe cannot reject it.
-    * The build fails outright instead of falling through to the next branch.  libstdc++ 16
-    * declares no such name at any \c -std.
-    * \note A later release that adds it does not lift the rule.  \c <string.h> declares the C
-    * spelling at global scope, so the unqualified probe finds it there and this code needs no
-    * edit.
+    * hard error rather than a substitution failure, so the \c requires probe cannot reject it
+    * and the build fails outright.  libstdc++ 16 declares no such name at any \c -std, and a
+    * later release that adds it would not lift the rule, since \c <string.h> declares the C
+    * spelling at global scope where the unqualified probe already finds it.
     */
     template <typename P>
     static void zero_explicit_(P const p, const std::size_t n) noexcept
@@ -294,8 +292,7 @@ public:
     /// Reserve capacity \a capacity, leaving the vector empty
     /**
     * \exception std::bad_alloc if the allocation fails, or if <code>capacity * sizeof(T)</code>
-    * would overflow \c std::size_t (\c allocate_raw_ guards it, since the language's array-new
-    * check does not apply when the size is computed by hand).
+    * would overflow \c std::size_t.
     */
     constexpr explicit dynamic_fixed_vector(const std::size_t capacity)
         : capacity_{capacity}, data_{allocate_(capacity)}
@@ -422,7 +419,7 @@ public:
     [[nodiscard]] constexpr bool is_full() const noexcept { return size() == capacity(); }
 
     /**
-    * \note Does not destroy elements.
+    * \note The elements are not destroyed.
     */
     constexpr void clear() noexcept { size_ = 0; }
 
@@ -433,8 +430,6 @@ public:
     * \note \c resize(capacity(), \a value) is how to fill only the reserved-unused tail
     * [\c size(), \c capacity()) and grow into it.  \c fill_capacity() overwrites the live
     * elements as well.
-    * \note Bounded by \c capacity(), which is settled at construction, so growing past it
-    * throws rather than reallocating.  There is no \c reserve().
     * \exception std::bad_alloc if \a count > \c capacity().
     */
     constexpr void resize(const std::size_t count, const T& value)
@@ -454,8 +449,9 @@ public:
     constexpr void resize(const std::size_t count) { resize(count, T{}); }
 
     /**
-    * \note Does not destroy elements.
-    * \note No-op if empty (unlike \c std::inplace_vector::pop_back, where that is UB).
+    * \note The removed element is not destroyed.
+    * \note Popping an empty vector is a no-op, unlike \c std::inplace_vector::pop_back, where
+    * it is UB.
     */
     constexpr void pop_back() noexcept
     {
@@ -550,10 +546,9 @@ public:
 
     /// Fill all \c capacity() elements with \a value and set \c size() to \c capacity()
     /**
-    * The range filled is [0, \c capacity()), so the live elements are overwritten too, not only
-    * the reserved-unused tail.  To leave [0, \c size()) alone and fill just the tail, growing
-    * into it, call \c resize(capacity(), \a value) instead.  To fill just the live elements
-    * without changing \c size(), call \c fill_size().
+    * The live elements are overwritten too, not only the reserved-unused tail.  To fill just
+    * the tail and grow into it, call \c resize(capacity(), \a value) instead.  To fill just the
+    * live elements, call \c fill_size().
     */
     constexpr void fill_capacity(const T& value)
         noexcept(std::is_nothrow_copy_assignable_v<T>)
@@ -563,10 +558,6 @@ public:
     }
 
     /// Fill the live elements [0, \c size()) with \a value, leaving \c size() unchanged
-    /**
-    * The complement of \c resize(capacity(), \a value), which fills the reserved-unused tail.
-    * \c fill_capacity() does both.
-    */
     constexpr void fill_size(const T& value)
         noexcept(std::is_nothrow_copy_assignable_v<T>)
     {
@@ -575,9 +566,9 @@ public:
 
     /// Zeroize the reserved tail [\c size(), \c capacity()), leaving \c size() unchanged
     /**
-    * Each tail element stays alive, with its object representation set to all-zero bytes.  For
-    * a scalar \c T that is the value-initialized value.  The stores are not elidable, unlike
-    * those of a plain fill, so \c clear() followed by this scrubs the whole buffer.
+    * The tail elements stay alive with an all-zero object representation, which for a scalar
+    * \c T is the value-initialized value.  Unlike a plain fill, the stores are not elidable, so
+    * \c clear() followed by this scrubs the whole buffer.
     */
     constexpr void zeroize_reserved_unused() noexcept
     requires std::is_trivially_copyable_v<T>
@@ -588,8 +579,8 @@ public:
 
     /**
     * \pre \a spn does not overlap this vector's storage.
-    * \exception std::bad_alloc if \a spn does not fit in \c reserved_unused()
-    * (nothing is appended).
+    * \note The check is made up front, so nothing is appended when it throws.
+    * \exception std::bad_alloc if \a spn does not fit in \c reserved_unused().
     */
     constexpr void append_range(const std::span<const T> spn)
     {
@@ -603,8 +594,8 @@ public:
     * \pre <code>[first, last)</code> is a valid range.  For a \c std::sized_sentinel_for this
     * keeps <code>last - first</code> non-negative, so the size check's cast to \c std::size_t
     * is well-defined.
-    * \note A \c std::sized_sentinel_for source is checked up front (all-or-nothing).  An
-    * unsized one appends the elements that fit before \c std::bad_alloc is thrown.
+    * \note A \c std::sized_sentinel_for source is checked up front, so nothing is appended when
+    * it throws.  An unsized one appends the elements that fit before throwing.
     * \exception std::bad_alloc if the source does not fit in \c reserved_unused().
     */
     template <std::input_iterator It, std::sentinel_for<It> S>
@@ -621,7 +612,8 @@ public:
     }
 
     /**
-    * \exception std::bad_alloc if \a count > \c reserved_unused() (nothing is appended).
+    * \note The check is made up front, so nothing is appended when it throws.
+    * \exception std::bad_alloc if \a count > \c reserved_unused().
     */
     template <std::input_iterator It>
     constexpr void append_range(It first, const std::size_t count)
@@ -633,8 +625,8 @@ public:
     }
 
     /**
-    * \exception std::bad_alloc if \a il does not fit in \c reserved_unused() (nothing is
-    * appended).
+    * \note The check is made up front, so nothing is appended when it throws.
+    * \exception std::bad_alloc if \a il does not fit in \c reserved_unused().
     */
     constexpr void append_range(const std::initializer_list<T> il)
     {
@@ -642,10 +634,9 @@ public:
     }
 
     /**
-    * \note Sized sources are checked up front (all-or-nothing).  Unsized sources append
-    * element-wise and may partially append before throwing \c std::bad_alloc.
-    * \pre If \a rg is a contiguous range of \c T, it does not overlap this vector's storage.
-    * That case is forwarded to the \c std::span overload, which carries the same tag.
+    * \pre \a rg does not overlap this vector's storage if it is a contiguous range of \c T.
+    * \note A sized source is checked up front, so nothing is appended when it throws.  An
+    * unsized one appends the elements that fit before throwing.
     * \exception std::bad_alloc if the source does not fit in \c reserved_unused().
     */
     template <std::ranges::input_range R>
@@ -690,7 +681,7 @@ public:
     * is well-defined.
     * \note A \c std::sized_sentinel_for source is checked up front, so nothing is appended on
     * \c false.  An unsized one has already appended the elements that fit when \c false is
-    * returned (observe \c size()).
+    * returned.
     */
     template <std::input_iterator It, std::sentinel_for<It> S>
     [[nodiscard]] constexpr bool try_append_range(It first, S last)
@@ -727,11 +718,9 @@ public:
     }
 
     /**
-    * \note Sized sources are checked up front.  When the result is \c false, nothing was
-    * appended.  Unsized sources append element-wise.  When the result is \c false, the elements
-    * that fit were appended already (observe \c size()).
-    * \pre If \a rg is a contiguous range of \c T, it does not overlap this vector's storage.
-    * That case is forwarded to the \c std::span overload, which carries the same tag.
+    * \pre \a rg does not overlap this vector's storage if it is a contiguous range of \c T.
+    * \note A sized source is checked up front, so nothing is appended on \c false.  An unsized
+    * one has already appended the elements that fit when \c false is returned.
     */
     template <std::ranges::input_range R>
     [[nodiscard]] constexpr bool try_append_range(R&& rg)
@@ -766,12 +755,13 @@ public:
 
     /// \c clear() followed by \c append_range(), so the source is bounded by \c capacity()
     /**
-    * \note Does not destroy elements.  The capacity is kept, not resized to the source.
     * \pre The source does not overlap this vector's storage.
-    * \exception std::bad_alloc if the source does not fit in \c capacity().  The \c clear() has
-    * already happened by then, so the previous contents are gone whether the assign succeeds or
-    * fails.  A sized source (checked up front) leaves the vector empty.  An unsized one leaves
-    * the elements that fit, inheriting \c append_range's partial-append behavior.
+    * \note The replaced elements are not destroyed, and the capacity is kept rather than
+    * resized to the source.
+    * \note The \c clear() happens first, so the previous contents are gone whether the assign
+    * succeeds or fails.  A sized source then leaves the vector empty, and an unsized one leaves
+    * the elements that fit.
+    * \exception std::bad_alloc if the source does not fit in \c capacity().
     */
     constexpr void assign_range(const std::span<const T> spn)
     {
@@ -882,9 +872,8 @@ public:
 
     /**
     * \pre \a i < \c capacity()
-    * \note The index is not checked, and the bound is \c capacity() rather than \c size().  An
-    * index in [size(), capacity()) is a valid read, since every capacity slot holds a live
-    * element.  \c at() is the bounds-checked accessor.
+    * \note The index is unchecked and bounded by \c capacity(), not \c size(), so an index in
+    * [size(), capacity()) reads a live element.  \c at() is the bounds-checked accessor.
     */
     [[nodiscard]] constexpr T& operator[](const std::size_t i) noexcept
     {
@@ -904,10 +893,8 @@ public:
     }
 
     /**
-    * \return A reference to the element at index \a i.
-    * \note The only bounds-checked accessor, and checked against \c size(), not
-    * \c capacity().  An element in [size(), capacity()) is alive and \c operator[] reads it,
-    * but this rejects that index.
+    * \note This is the only bounds-checked accessor, and it checks against \c size(), so it
+    * rejects an index in [size(), capacity()) that \c operator[] would read.
     * \exception std::out_of_range if \a i >= \c size().
     */
     [[nodiscard]] constexpr T& at(const std::size_t i)

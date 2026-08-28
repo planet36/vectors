@@ -136,9 +136,9 @@ private:
     /// True if \a R is a sized, contiguous range of \c std::byte
     /**
     * Such a range is handed to the \c std::span overload for its \c std::memcpy.  Overload
-    * resolution will not do that on its own.  Given a \c std::vector<std::byte>, the \c R&&
-    * template is an exact match, and the \c std::span overload needs a user-defined conversion.
-    * The template wins, so nothing but a hand-written span would ever reach the \c memcpy.
+    * resolution will not do that on its own, since the \c R&& template is an exact match for a
+    * \c std::vector<std::byte> where the \c std::span overload needs a user-defined conversion.
+    * Without this test, only a hand-written span would ever reach the \c memcpy.
     */
     template <typename R>
     static constexpr bool is_bulk_appendable_ =
@@ -160,14 +160,12 @@ private:
     * macro, so availability is probed by unqualified name lookup on the dependent parameter
     * \a P.
     *
-    * \note The lookup must stay unqualified.  Do \b not "modernize" it to
+    * \note The lookup must stay unqualified, so do \b not "modernize" it to
     * \c std::memset_explicit.  A qualified name into a namespace that lacks the member is a
-    * hard error rather than a substitution failure, so the \c requires probe cannot reject it.
-    * The build fails outright instead of falling through to the next branch.  libstdc++ 16
-    * declares no such name at any \c -std.
-    * \note A later release that adds it does not lift the rule.  \c <string.h> declares the C
-    * spelling at global scope, so the unqualified probe finds it there and this code needs no
-    * edit.
+    * hard error rather than a substitution failure, so the \c requires probe cannot reject it
+    * and the build fails outright.  libstdc++ 16 declares no such name at any \c -std, and a
+    * later release that adds it would not lift the rule, since \c <string.h> declares the C
+    * spelling at global scope where the unqualified probe already finds it.
     */
     template <typename P>
     static void zero_explicit_(P const p, const std::size_t n) noexcept
@@ -359,9 +357,9 @@ public:
     [[nodiscard]] constexpr bool is_full() const noexcept { return size() == capacity(); }
 
     /**
-    * \note Does not zero the bytes.  They stay in the buffer.  Setting the size to 0 moves all
-    * of them into the reserved-unused tail, where \c operator[] still reads them.  \c clear()
-    * followed by \c zeroize_reserved_unused() scrubs them.
+    * \note The bytes are not zeroed but stay in the buffer, and setting the size to 0 moves
+    * all of them into the reserved-unused tail, where \c operator[] still reads them.
+    * \c clear() followed by \c zeroize_reserved_unused() scrubs them.
     */
     constexpr void clear() noexcept { size_ = 0; }
 
@@ -371,8 +369,6 @@ public:
     * \note \c resize(capacity(), \a value) is how to fill only the reserved-unused tail
     * [\c size(), \c capacity()) and grow into it.  \c fill_capacity() overwrites the live
     * bytes as well.
-    * \note Bounded by \c capacity(), which is settled at construction, so growing past it
-    * throws rather than reallocating.
     * \exception std::bad_alloc if \a count > \c capacity().
     */
     constexpr void resize(const std::size_t count, const std::byte value)
@@ -392,7 +388,8 @@ public:
     constexpr void resize(const std::size_t count) { resize(count, std::byte{}); }
 
     /**
-    * \note No-op if empty (unlike \c std::inplace_vector::pop_back, where that is UB).
+    * \note Popping an empty buffer is a no-op, unlike \c std::inplace_vector::pop_back,
+    * where it is UB.
     */
     constexpr void pop_back() noexcept
     {
@@ -404,10 +401,9 @@ public:
 
     /**
     * \pre \c !is_full()
-    * \note Accepts no argument (appends \c std::byte{}) or one \c std::byte / integral
-    * argument, converted as by \c static_cast (out-of-range integers truncate mod 256).
-    * Floating-point and other enumeration arguments are rejected.  Cast explicitly if that is
-    * intended.
+    * \note An integral argument is converted as by \c static_cast, so an out-of-range value
+    * truncates mod 256.  Floating-point and other enumeration arguments are rejected, so cast
+    * explicitly if that is intended.
     * \note "Emplace" is assignment here.  The slot already holds a live byte, so this is
     * equivalent to \c push_back(std::byte(args...)).
     */
@@ -472,10 +468,9 @@ public:
 
     /// Fill all \c capacity() bytes with \a value and set \c size() to \c capacity()
     /**
-    * The range filled is [0, \c capacity()), so the live bytes are overwritten too, not only
-    * the reserved-unused tail.  To leave [0, \c size()) alone and fill just the tail, growing
-    * into it, call \c resize(capacity(), \a value) instead.  To fill just the live bytes
-    * without changing \c size(), call \c fill_size().
+    * The live bytes are overwritten too, not only the reserved-unused tail.  To fill just the
+    * tail and grow into it, call \c resize(capacity(), \a value) instead.  To fill just the
+    * live bytes, call \c fill_size().
     */
     constexpr void fill_capacity(const std::byte value) noexcept
     {
@@ -485,10 +480,6 @@ public:
     }
 
     /// Fill the live bytes [0, \c size()) with \a value, leaving \c size() unchanged
-    /**
-    * The complement of \c resize(capacity(), \a value), which fills the reserved-unused tail.
-    * \c fill_capacity() does both.
-    */
     constexpr void fill_size(const std::byte value) noexcept
     {
         if (size() != 0)
@@ -510,6 +501,7 @@ public:
 
     /**
     * \pre \a spn does not overlap this buffer's storage.
+    * \note The check is made up front, so nothing is appended when it throws.
     * \exception std::bad_alloc if \a spn does not fit in \c reserved_unused().
     */
     constexpr void append_range(const std::span<const std::byte> spn)
@@ -524,8 +516,8 @@ public:
     * \pre <code>[first, last)</code> is a valid range.  For a \c std::sized_sentinel_for this
     * keeps <code>last - first</code> non-negative, so the size check's cast to \c std::size_t
     * is well-defined.
-    * \note A \c std::sized_sentinel_for source is checked up front (all-or-nothing).  An
-    * unsized one appends the bytes that fit before \c std::bad_alloc is thrown.
+    * \note A \c std::sized_sentinel_for source is checked up front, so nothing is appended when
+    * it throws.  An unsized one appends the bytes that fit before throwing.
     * \exception std::bad_alloc if the source does not fit in \c reserved_unused().
     */
     template <std::input_iterator It, std::sentinel_for<It> S>
@@ -542,7 +534,8 @@ public:
     }
 
     /**
-    * \exception std::bad_alloc if \a count > \c reserved_unused() (nothing is appended).
+    * \note The check is made up front, so nothing is appended when it throws.
+    * \exception std::bad_alloc if \a count > \c reserved_unused().
     */
     template <std::input_iterator It>
     constexpr void append_range(It first, const std::size_t count)
@@ -554,8 +547,8 @@ public:
     }
 
     /**
-    * \exception std::bad_alloc if \a il does not fit in \c reserved_unused() (nothing is
-    * appended).
+    * \note The check is made up front, so nothing is appended when it throws.
+    * \exception std::bad_alloc if \a il does not fit in \c reserved_unused().
     */
     constexpr void append_range(const std::initializer_list<std::byte> il)
     {
@@ -563,10 +556,10 @@ public:
     }
 
     /**
-    * \note Sized sources are checked up front (all-or-nothing).  Unsized sources append
-    * element-wise and may partially append before throwing \c std::bad_alloc.
-    * \pre If \a rg is a contiguous range of \c std::byte, it does not overlap this buffer's
-    * storage.  That case is forwarded to the \c std::span overload, which carries the same tag.
+    * \pre \a rg does not overlap this buffer's storage if it is a contiguous range of
+    * \c std::byte.
+    * \note A sized source is checked up front, so nothing is appended when it throws.  An
+    * unsized one appends the bytes that fit before throwing.
     * \exception std::bad_alloc if the source does not fit in \c reserved_unused().
     */
     template <std::ranges::input_range R>
@@ -610,7 +603,7 @@ public:
     * is well-defined.
     * \note A \c std::sized_sentinel_for source is checked up front, so nothing is appended on
     * \c false.  An unsized one has already appended the bytes that fit when \c false is
-    * returned (observe \c size()).
+    * returned.
     */
     template <std::input_iterator It, std::sentinel_for<It> S>
     [[nodiscard]] constexpr bool try_append_range(It first, S last)
@@ -647,11 +640,10 @@ public:
     }
 
     /**
-    * \note Sized sources are checked up front.  When the result is \c false, nothing was
-    * appended.  Unsized sources append element-wise.  When the result is \c false, the bytes
-    * that fit were appended already (observe \c size()).
-    * \pre If \a rg is a contiguous range of \c std::byte, it does not overlap this buffer's
-    * storage.  That case is forwarded to the \c std::span overload, which carries the same tag.
+    * \pre \a rg does not overlap this buffer's storage if it is a contiguous range of
+    * \c std::byte.
+    * \note A sized source is checked up front, so nothing is appended on \c false.  An unsized
+    * one has already appended the bytes that fit when \c false is returned.
     */
     template <std::ranges::input_range R>
     [[nodiscard]] constexpr bool try_append_range(R&& rg)
@@ -688,10 +680,10 @@ public:
     /**
     * \note The capacity is kept, not resized to the source.
     * \pre \a spn does not overlap this buffer's storage.
-    * \exception std::bad_alloc if the source does not fit in \c capacity().  The \c clear() has
-    * already happened by then, so the previous contents are gone whether the assign succeeds or
-    * fails.  A sized source (checked up front) leaves the buffer empty.  An unsized one leaves
-    * the bytes that fit, inheriting \c append_range's partial-append behavior.
+    * \note The \c clear() happens first, so the previous contents are gone whether the assign
+    * succeeds or fails.  A sized source then leaves the buffer empty, and an unsized one leaves
+    * the bytes that fit.
+    * \exception std::bad_alloc if the source does not fit in \c capacity().
     */
     constexpr void assign_range(const std::span<const std::byte> spn)
     {
@@ -805,9 +797,9 @@ public:
 
     /**
     * \pre \a i < \c capacity()
-    * \note The index is not checked, and the bound is \c capacity() rather than \c size().
-    * Reading an index in [\c size(), \c capacity()) is valid but yields an unspecified (not
-    * indeterminate) byte.
+    * \note The index is unchecked and bounded by \c capacity(), not \c size(), so
+    * an index in [\c size(), \c capacity()) is a valid read that yields an
+    * unspecified (not indeterminate) byte.
     */
     [[nodiscard]] constexpr std::byte& operator[](const std::size_t i) noexcept
     {
@@ -827,10 +819,9 @@ public:
     }
 
     /**
-    * \return A reference to the byte at index \a i.
-    * \note The only bounds-checked accessor, and checked against \c size(), not
-    * \c capacity().  \c operator[] can read an index in [\c size(), \c capacity()) and
-    * yields an unspecified byte, but this rejects that index.
+    * \note This is the only bounds-checked accessor, and it checks against \c size(), so it
+    * rejects an index in [\c size(), \c capacity()) where \c operator[] yields an
+    * unspecified byte.
     * \exception std::out_of_range if \a i >= \c size().
     */
     [[nodiscard]] constexpr std::byte& at(const std::size_t i)
