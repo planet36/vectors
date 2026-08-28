@@ -204,17 +204,13 @@ private:
     * declares one, else writes through a \c volatile pointer.  Neither has a feature-test
     * macro, so availability is probed by unqualified name lookup on the dependent parameter
     * \a P.
-    *
-    * \note The lookup must stay unqualified, so do \b not "modernize" it to
-    * \c std::memset_explicit.  A qualified name into a namespace that lacks the member is a
-    * hard error rather than a substitution failure, so the \c requires probe cannot reject it
-    * and the build fails outright.  libstdc++ 16 declares no such name at any \c -std, and a
-    * later release that adds it would not lift the rule, since \c <string.h> declares the C
-    * spelling at global scope where the unqualified probe already finds it.
     */
     template <typename P>
     static void zero_explicit_(P const p, const std::size_t n) noexcept
     {
+        // Do not change these to std::memset_explicit.  A name qualified into a namespace
+        // that lacks the member is a hard error, not a substitution failure, so the probe
+        // could not reject it.
         if constexpr (requires { ::memset_explicit(p, 0, n); })
         {
             (void)::memset_explicit(p, 0, n);
