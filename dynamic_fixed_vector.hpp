@@ -549,11 +549,6 @@ public:
     }
 
     /// Fill all \c capacity() elements with \a value and set \c size() to \c capacity()
-    /**
-    * The live elements are overwritten too, not only the reserved-unused tail.  To fill just
-    * the tail and grow into it, call \c resize(capacity(), \a value) instead.  To fill just the
-    * live elements, call \c fill_size().
-    */
     constexpr void fill_capacity(const T& value)
         noexcept(std::is_nothrow_copy_assignable_v<T>)
     {
@@ -569,11 +564,6 @@ public:
     }
 
     /// Zeroize the reserved tail [\c size(), \c capacity()), leaving \c size() unchanged
-    /**
-    * The tail elements stay alive with an all-zero object representation, which for a scalar
-    * \c T is the value-initialized value.  Unlike a plain fill, the stores are not elidable, so
-    * \c clear() followed by this scrubs the whole buffer.
-    */
     constexpr void zeroize_reserved_unused() noexcept
     requires std::is_trivially_copyable_v<T>
     {

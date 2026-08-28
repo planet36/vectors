@@ -487,11 +487,6 @@ public:
     }
 
     /// Fill all \c capacity() bytes with \a value and set \c size() to \c capacity()
-    /**
-    * The live bytes are overwritten too, not only the reserved-unused tail.  To fill just the
-    * tail and grow into it, call \c resize(capacity(), \a value) instead.  To fill just the
-    * live bytes, call \c fill_size().
-    */
     constexpr void fill_capacity(const std::byte value) noexcept
     {
         if (capacity() != 0)
@@ -507,12 +502,6 @@ public:
     }
 
     /// Zeroize the reserved tail [\c size(), \c capacity()), leaving \c size() unchanged
-    /**
-    * The zeros replace the borrowed bytes in the tail.  Use it to pad to an alignment boundary
-    * before reading whole SIMD lanes past \c size(), or to keep the caller's bytes from leaking
-    * through beyond-size reads.  The stores are not elidable, unlike those of a plain
-    * \c std::memset, so \c clear() followed by this scrubs the whole borrowed region.
-    */
     constexpr void zeroize_reserved_unused() noexcept
     {
         if (reserved_unused() != 0)

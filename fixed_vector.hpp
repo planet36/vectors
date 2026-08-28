@@ -451,12 +451,6 @@ public:
     }
 
     /// Fill all \c capacity() elements with \a value and set \c size() to \c capacity()
-    /**
-    * The live elements are overwritten too, not only the reserved-unused tail.  To fill just
-    * the tail and grow into it, call \c resize(capacity(), \a value) instead.  To fill just the
-    * live elements, call \c fill_size().
-    * \note The unreserved slots beyond \c capacity() are left alone.
-    */
     constexpr void fill_capacity(const T& value)
         noexcept(std::is_nothrow_copy_assignable_v<T>)
     {
@@ -472,13 +466,6 @@ public:
     }
 
     /// Zeroize the reserved tail [\c size(), \c capacity()), leaving \c size() unchanged
-    /**
-    * The tail elements stay alive with an all-zero object representation, which for a scalar
-    * \c T is the value-initialized value.  Unlike a plain fill, the stores are not elidable, so
-    * \c clear() followed by this scrubs everything up to \c capacity().  Constant evaluation
-    * has no memory to scrub, so the tail is value-assigned there instead.
-    * \note \c zeroize_unreserved() covers the slots beyond a reduced capacity.
-    */
     constexpr void zeroize_reserved_unused() noexcept
     requires std::is_trivially_copyable_v<T>
     {
@@ -495,12 +482,6 @@ public:
     }
 
     /// Zeroize the unreserved slots [\c capacity(), \c max_size()), leaving \c size() unchanged
-    /**
-    * A \c reserve() shrink leaves these slots alive and still holding what they held while they
-    * were reserved, so a full scrub needs this call alongside \c zeroize_reserved_unused().  It
-    * is a no-op while \c capacity() \c == \c max_size(), and the guarantees match the reserved
-    * half.
-    */
     constexpr void zeroize_unreserved() noexcept
     requires std::is_trivially_copyable_v<T>
     {
