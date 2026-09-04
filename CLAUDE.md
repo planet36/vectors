@@ -40,6 +40,10 @@ The invariants are therefore stated in all three files, and they drift independe
 is the authority for the *why* and `README.md` for the user-facing summary; where this file
 disagrees with either, assume `DESIGN.md` is right and this file is what needs fixing.
 
+`COMMENT-STYLE.md` — the prose rules for code comments, doc blocks, and commit messages here.
+It governs how prose is written rather than what the code does, so an API change does not
+update it. It is written to be copied into any repo, so it names nothing specific to this one.
+
 ## Build & test
 
 Requires **GCC 16 / `-std=c++23`** (uses `std::from_range_t`, `std::start_lifetime_as_array`,
