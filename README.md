@@ -6,18 +6,18 @@ A header-only C++ library of **fixed-capacity vectors**: resizable sequences tha
 reallocate, never grow past their capacity, and never individually destroy an element. The
 storage is sized once — at compile time or at construction — and is never resized after that.
 
-Each header is standalone — drop it in an include path and `#include` it. There is no package
-manifest, and using the library needs no build system; the `Makefile` here only builds and runs
-the tests.
+The headers are in `include/`. Each one is standalone — drop it in an include path and
+`#include` it. There is no package manifest, and using the library needs no build system; the
+`Makefile` here only builds and runs the tests.
 
 ## The containers
 
 | Header | Type | Storage sized at | Storage |
 |---|---|---|---|
-| `fixed_vector.hpp` | `fixed_vector<T, N, Align>` | compile time (`N`) | in-place `std::array<T, N>`, no heap |
-| `dynamic_fixed_vector.hpp` | `dynamic_fixed_vector<T, Align>` | run time (constructor) | one over-alignable heap block |
-| `aligned_byte_buffer.hpp` | `aligned_byte_buffer<Align>` | run time (constructor) | one over-alignable heap block |
-| `borrowed_byte_buffer.hpp` | `borrowed_byte_buffer` | run time (constructor) | **borrowed** — overlays storage it does not own |
+| `include/fixed_vector.hpp` | `fixed_vector<T, N, Align>` | compile time (`N`) | in-place `std::array<T, N>`, no heap |
+| `include/dynamic_fixed_vector.hpp` | `dynamic_fixed_vector<T, Align>` | run time (constructor) | one over-alignable heap block |
+| `include/aligned_byte_buffer.hpp` | `aligned_byte_buffer<Align>` | run time (constructor) | one over-alignable heap block |
+| `include/borrowed_byte_buffer.hpp` | `borrowed_byte_buffer` | run time (constructor) | **borrowed** — overlays storage it does not own |
 
 All four report a run-time `capacity()`. Only `fixed_vector` lets you move it after construction
 (`reserve()`, within its `N` slots); for the other three the constructor argument settles it,
@@ -264,7 +264,7 @@ variant — see below for why both. Each program is self-contained, so building 
 too:
 
 ```sh
-g++ -std=c++23 test-fixed_vector.cpp -o test-fixed_vector && ./test-fixed_vector
+g++ -std=c++23 -Iinclude test-fixed_vector.cpp -o test-fixed_vector && ./test-fixed_vector
 ```
 
 | Program | Covers |

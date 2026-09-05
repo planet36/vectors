@@ -8,7 +8,7 @@ export LC_ALL = C
 # same name, and the second to run would clobber the first's dep file.
 DEPFLAGS = -MMD -MP -MF $@.d
 
-#CPPFLAGS =
+CPPFLAGS = -I ./include
 
 CXXFLAGS = -std=c++23
 CXXFLAGS += -pipe -Wall -Wextra -Wpedantic -Wfatal-errors
@@ -17,10 +17,10 @@ CXXFLAGS += -Wno-unused-function
 RELEASE_CXXFLAGS = -O3 -flto=auto
 RELEASE_CXXFLAGS += -march=native
 
-# DEBUG turns on the headers' precondition asserts.  -UNDEBUG keeps them on even if NDEBUG
-# arrives from the environment's CPPFLAGS: assert() obeys NDEBUG, so without this a debug build
-# could quietly check nothing.  It only wins because the recipe puts DEBUG_CXXFLAGS after
-# CPPFLAGS -- -D/-U are applied in command-line order.
+# DEBUG turns on the headers' precondition asserts.  -UNDEBUG guards them: assert() obeys
+# NDEBUG, so an NDEBUG reaching this build would disable every assert while the debug build
+# still looked like it worked.  The -U only wins because the recipe puts DEBUG_CXXFLAGS after
+# CPPFLAGS, and -D/-U are applied in command-line order, so do not reorder them.
 DEBUG_CXXFLAGS = -Og -ggdb3
 DEBUG_CXXFLAGS += -DDEBUG -UNDEBUG
 

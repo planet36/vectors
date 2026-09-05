@@ -5,27 +5,29 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 A header-only C++ library of fixed-capacity vectors. Consuming it needs no build system or
-package manifest — the headers are standalone. A `Makefile` builds and runs the test programs.
+package manifest — the headers are standalone. They live in `include/`; the test suites and
+`test_utils.hpp` stay at the top level. A `Makefile` builds and runs the test programs, putting
+`include/` on the include path (`CPPFLAGS`) so no source names the directory.
 
-- `fixed_vector.hpp` — `fixed_vector<T, N, Align>`: storage is an in-place `std::array<T, N>`
-  (no heap allocation), so `N` is a **compile-time** bound — but `capacity()` is a run-time
-  value in `[0, N]` that `reserve()` moves; `max_size()` is the `static` one reporting `N`.
-  Fully `constexpr`.
-- `dynamic_fixed_vector.hpp` — `dynamic_fixed_vector<T, Align>`: the same container shape
+- `include/fixed_vector.hpp` — `fixed_vector<T, N, Align>`: storage is an in-place
+  `std::array<T, N>` (no heap allocation), so `N` is a **compile-time** bound — but `capacity()`
+  is a run-time value in `[0, N]` that `reserve()` moves; `max_size()` is the `static` one
+  reporting `N`. Fully `constexpr`.
+- `include/dynamic_fixed_vector.hpp` — `dynamic_fixed_vector<T, Align>`: the same container shape
   with capacity chosen at **run time** (constructor argument) and heap storage that may be
   **over-aligned** (`Align` can exceed `alignof(T)` — e.g. `std::byte` data aligned to 16 for
   SIMD). See its own "Design invariants" note below.
-- `aligned_byte_buffer.hpp` — `aligned_byte_buffer<Align>`: the `std::byte` specialization of
-  `dynamic_fixed_vector` (element type fixed to `std::byte`, so only `Align` is a template
-  parameter, default 16). Same API, simpler and faster — see its differences below.
-- `borrowed_byte_buffer.hpp` — `borrowed_byte_buffer`: a **non-owning**, run-time-capacity byte
-  view. Same byte-buffer API as `aligned_byte_buffer` but over storage it does **not** own (a
-  pointer or a contiguous range) — no allocation, shallow copy/move, no `Align` parameter, plus
-  `adopting` named constructors. See its own "differences" note below.
-- `byte_compare.hpp` — the shared `equal_constant_time(span, span)` free function, `#include`d by
-  both byte buffers. It lives in its own header so it is defined once. It is explicitly `inline`
-  (a `volatile` accumulator bars `constexpr`), so two definitions across TUs would violate the
-  ODR without it.
+- `include/aligned_byte_buffer.hpp` — `aligned_byte_buffer<Align>`: the `std::byte`
+  specialization of `dynamic_fixed_vector` (element type fixed to `std::byte`, so only `Align` is
+  a template parameter, default 16). Same API, simpler and faster — see its differences below.
+- `include/borrowed_byte_buffer.hpp` — `borrowed_byte_buffer`: a **non-owning**,
+  run-time-capacity byte view. Same byte-buffer API as `aligned_byte_buffer` but over storage it
+  does **not** own (a pointer or a contiguous range) — no allocation, shallow copy/move, no
+  `Align` parameter, plus `adopting` named constructors. See its own "differences" note below.
+- `include/byte_compare.hpp` — the shared `equal_constant_time(span, span)` free function,
+  `#include`d by both byte buffers. It lives in its own header so it is defined once. It is
+  explicitly `inline` (a `volatile` accumulator bars `constexpr`), so two definitions across TUs
+  would violate the ODR without it.
 
 Two documents accompany the headers; an API change should update both:
 
@@ -64,8 +66,8 @@ Notes:
 - `make test` is that contract applied to all four programs in both variants: a passing run
   prints nothing at all. `set -e` stops at the first program that fails, and make names the
   target it was under. A single program still builds and runs by hand — `g++ -std=c++23
-  test-fixed_vector.cpp -o test-fixed_vector && ./test-fixed_vector` — since nothing in the
-  suites needs the Makefile.
+  -Iinclude test-fixed_vector.cpp -o test-fixed_vector && ./test-fixed_vector` — since nothing in
+  the suites needs the Makefile beyond that `-I`.
 - **`make lint` is advisory and is not part of `make test`.** The recipe is prefixed with `-`, so
   a nonzero clang-tidy exit does not fail the build, and the checks are configured in
   `.clang-tidy` (`bugprone-*`, `cert-*`, `cppcoreguidelines-*`, `readability-*`, … minus a long
@@ -120,10 +122,10 @@ Notes:
   `DEBUG_CXXFLAGS`, which explains each). The debug and release binaries have different names,
   so neither build ever silently serves the other's stale binary. Two of those flags are
   subtler than they look:
-  - **`-UNDEBUG` is not decorative.** `assert` obeys `NDEBUG`, so an `NDEBUG` arriving from the
-    environment's `CPPFLAGS` would disable every assert while the debug build still looked like
-    it worked. It only wins because the recipe puts `DEBUG_CXXFLAGS` after `CPPFLAGS`; `-D`/`-U`
-    apply in command-line order, so don't reorder them.
+  - **`-UNDEBUG` guards the asserts.** `assert` obeys `NDEBUG`, so an `NDEBUG` reaching this
+    build would disable every assert while the debug build still looked like it worked. The `-U`
+    only wins because the recipe puts `DEBUG_CXXFLAGS` after `CPPFLAGS`, and `-D`/`-U` apply in
+    command-line order, so don't reorder them.
   - **`-D_FORTIFY_SOURCE=3` requires the `-Og`.** At `-O0` it warns and silently degrades to
     level 0. It does stay live under ASan.
 - `test_utils.hpp` holds the shared harness: `CHECK` / `CHECK_THROWS`, `run_tests`, and the
