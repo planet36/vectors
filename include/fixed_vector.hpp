@@ -60,7 +60,7 @@
 *
 * \note The default \a Align keeps the storage word-aligned even for a narrow \a T.
 *
-* \invariant \c size() \c <= \c capacity() \c <= \c max_size(), which is \a N.
+* \invariant <code>size() <= capacity() <= max_size()</code>, and \c max_size() is \a N.
 * \invariant \c data() is never null, since \a N > 0 and the storage is an in-place member.
 *
 * \warning This container is only suitable for trivially destructible types.
@@ -176,11 +176,12 @@ public:
     */
     constexpr fixed_vector() noexcept(std::is_nothrow_default_constructible_v<T>) = default;
 
+    fixed_vector(const fixed_vector&) noexcept(std::is_nothrow_copy_constructible_v<T>) = default;
+
     /**
     * \note A move does \b not empty the source.  The elements are moved one by one, and a
     * trivially copyable \c T leaves the source unchanged.
     */
-    fixed_vector(const fixed_vector&) noexcept(std::is_nothrow_copy_constructible_v<T>) = default;
     fixed_vector(fixed_vector&&) noexcept(std::is_nothrow_move_constructible_v<T>) = default;
     fixed_vector& operator=(const fixed_vector&) noexcept(std::is_nothrow_copy_assignable_v<T>) = default;
     fixed_vector& operator=(fixed_vector&&) noexcept(std::is_nothrow_move_assignable_v<T>) = default;
@@ -329,7 +330,7 @@ public:
     /**
     * Growing assigns \a value to the new elements.  Shrinking leaves the removed ones alive
     * and unchanged (nothing is destroyed).
-    * \note \c resize(capacity(), \a value) is how to fill only the reserved-unused tail
+    * \note <code>resize(capacity(), value)</code> is how to fill only the reserved-unused tail
     * [\c size(), \c capacity()) and grow into it.  \c fill_capacity() overwrites the live
     * elements as well.
     * \exception std::bad_alloc if \a count > \c capacity().
@@ -367,7 +368,7 @@ public:
     * \pre \c !is_full()
     * \note "Emplace" cannot construct in place here.  The slot already holds a live element, so
     * a temporary \c T is constructed from \a args and move-assigned in, which is equivalent to
-    * \c push_back(T(args...)).  Kept for API parity with \c std::inplace_vector.
+    * \c push_back(T(args...)).  It is kept for API parity with \c std::inplace_vector.
     */
     template <class... Args>
     requires std::constructible_from<T, Args...> && std::assignable_from<T&, T>

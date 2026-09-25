@@ -2,12 +2,12 @@
 
 Upstream: <https://github.com/planet36/vectors>
 
-A header-only C++ library of **fixed-capacity vectors**: resizable sequences that never
-reallocate, never grow past their capacity, and never individually destroy an element. The
+This is a header-only C++ library of **fixed-capacity vectors**: resizable sequences that never
+reallocate, never grow past their capacity, and never individually destroy an element.  The
 storage is sized once — at compile time or at construction — and is never resized after that.
 
-The headers are in `include/`. Each one is standalone — drop it in an include path and
-`#include` it. There is no package manifest, and using the library needs no build system; the
+The headers are in `include/`.  Each one is standalone: drop it in an include path and
+`#include` it.  There is no package manifest, and using the library needs no build system.  The
 `Makefile` here only builds and runs the tests.
 
 ## The containers
@@ -19,21 +19,22 @@ The headers are in `include/`. Each one is standalone — drop it in an include 
 | `include/aligned_byte_buffer.hpp` | `aligned_byte_buffer<Align>` | run time (constructor) | one over-alignable heap block |
 | `include/borrowed_byte_buffer.hpp` | `borrowed_byte_buffer` | run time (constructor) | **borrowed** — overlays storage it does not own |
 
-All four report a run-time `capacity()`. Only `fixed_vector` lets you move it after construction
-(`reserve()`, within its `N` slots); for the other three the constructor argument settles it,
-since changing it there would mean reallocating.
+All four report a run-time `capacity()`.  Only `fixed_vector` lets you move it after
+construction (`reserve()`, within its `N` slots).  For the other three the constructor argument
+settles it, since changing it there would mean reallocating.
 
-`dynamic_fixed_vector` is the heap-allocating analogue of `fixed_vector`. `aligned_byte_buffer`
+`dynamic_fixed_vector` is the heap-allocating analogue of `fixed_vector`.  `aligned_byte_buffer`
 is its `std::byte` specialization, kept as a separate type so it can be simpler and faster: the
 element type is fixed, so only the alignment is a template parameter, bulk operations drop to
 `memcpy` / `memset`, and the reserved tail is left uninitialized rather than zeroed.
-`borrowed_byte_buffer` is the **non-owning** counterpart to `aligned_byte_buffer`: the same
-byte-buffer API over memory the caller owns — it overlays an array, object, or span, never
-allocates or frees, and copies shallowly (a second view of the same bytes). It has no `Align`
+
+`borrowed_byte_buffer` is the **non-owning** counterpart to `aligned_byte_buffer`, with the same
+byte-buffer API over memory the caller owns.  It overlays an array, object, or span, never
+allocates or frees, and copies shallowly (a second view of the same bytes).  It has no `Align`
 parameter, since it makes no promise about borrowed memory's alignment.
 
-All four share one append/access API. Learn one and you know the others; the two byte buffers add
-a free `equal_constant_time` (in `byte_compare.hpp`, which they both include).
+All four share one append/access API, so learning one teaches the others.  The two byte buffers
+add a free `equal_constant_time` (in `byte_compare.hpp`, which they both include).
 
 ## Requirements
 
@@ -62,7 +63,7 @@ v.clear();                         // size becomes 0; the elements stay alive
 assert(v[0] == 1);                 // still readable — operator[] is capacity-based
 ```
 
-`N` is the number of slots, reported by `max_size()`. The *capacity* — the limit every space
+`N` is the number of slots, reported by `max_size()`.  The *capacity* — the limit every space
 check consults — starts at `N` and moves at run time:
 
 ```cpp
@@ -77,8 +78,8 @@ v.reserve(8);                      // grow back: the regained slots hold what th
 assert(v[4] == 5);
 ```
 
-Essentially the whole interface is `constexpr`, so a `fixed_vector` works as compile-time scratch
-space:
+Essentially the whole interface is `constexpr`, so a `fixed_vector` works as compile-time
+scratch space:
 
 ```cpp
 constexpr int sum_first_n(const int n)
@@ -106,9 +107,9 @@ v.push_back(1.5F);
 v.append_range(src);                    // src is any range of float
 ```
 
-The one-argument constructor **reserves** capacity and starts empty — unlike `fixed_vector`, where
-`fixed_vector<T, N>(count)` creates `count` elements. `Align` may exceed `alignof(T)`, and `data()`
-applies `std::assume_aligned<Align>` so caller loops can vectorize on it.
+The one-argument constructor **reserves** capacity and starts empty, unlike `fixed_vector`,
+where `fixed_vector<T, N>(count)` creates `count` elements.  `Align` may exceed `alignof(T)`,
+and `data()` applies `std::assume_aligned<Align>` so caller loops can vectorize on it.
 
 ### `aligned_byte_buffer` — a SIMD-aligned byte buffer
 
@@ -148,9 +149,10 @@ process(buf.span());                    // hand the live bytes to intrinsics
 ```
 
 Construction borrows a pointer or any writable contiguous range (`std::array`, `std::vector`,
-`std::span`, a C array, `std::string`) — passed bare, no `std::span{...}` wrapper — and starts
-**empty**, treating the region as scratch to build into. To instead read bytes *already present*
-in the region, use the `adopting` named constructors, which start full (`size() == capacity()`):
+`std::span`, a C array, `std::string`) and starts **empty**, treating the region as scratch to
+build into.  The range is passed bare, with no `std::span{...}` wrapper.  To instead read bytes
+*already present* in the region, use the `adopting` named constructors, which start full
+(`size() == capacity()`):
 
 ```cpp
 const auto view = borrowed_byte_buffer::adopting(storage);   // size == capacity
@@ -158,42 +160,44 @@ if (equal_constant_time(view.span(), expected))
     accept();
 ```
 
-It owns nothing, so copy and move are shallow — the copy views the same bytes, and a moved-from
-buffer is left pointing at the same storage, not emptied. The caller keeps the borrowed storage
+It owns nothing, so copy and move are shallow: the copy views the same bytes, and a moved-from
+buffer is left pointing at the same storage, not emptied.  The caller keeps the borrowed storage
 alive for the buffer's lifetime.
 
 ## What makes these different from `std::inplace_vector`
 
-These are deliberate departures from standard-container semantics, not oversights. The short
-version:
+These are deliberate departures from standard-container semantics, not oversights.  Here is the
+short version:
 
-- **Every capacity slot holds a live element from construction onward.** Capacity is not raw
-  storage awaiting placement-new. (The exception is the byte buffers, and they differ from each
-  other: `aligned_byte_buffer` leaves its reserved tail uninitialized, so a read past `size()`
-  gives an *unspecified* `std::byte` — well-defined, not UB. `borrowed_byte_buffer` inherits
-  whatever the borrowed region held, so the same read is typically determinate and returns the
-  caller's own bytes; neither container promises a value, but only the second can disclose one.)
-- **Elements are never individually destroyed.** `clear()`, `pop_back()`, and `resize()` only
+- **Every capacity slot holds a live element from construction onward.**  Capacity is not raw
+  storage awaiting placement-new.  The byte buffers are the exception, and they differ from each
+  other.  `aligned_byte_buffer` leaves its reserved tail uninitialized, so a read past `size()`
+  gives an *unspecified* `std::byte`, which is well-defined, not UB.  `borrowed_byte_buffer`
+  inherits whatever the borrowed region held, so the same read is typically determinate and
+  returns the caller's own bytes.  Neither container promises a value, but only the second can
+  disclose one.
+- **Elements are never individually destroyed.**  `clear()`, `pop_back()`, and `resize()` only
   adjust the size counter, so the element type must be trivially destructible (enforced by a
-  `requires` clause). A consequence: `emplace_back` cannot construct in place — the slot is already
-  occupied — so it builds a temporary and assigns it, equivalent to `push_back(T(args...))`.
-- **`operator[]` is unchecked and capacity-based.** An index in `[size(), capacity())` legitimately
-  reads a live element. `at()` is the only bounds-checked accessor.
+  `requires` clause).  One consequence is that `emplace_back` cannot construct in place, because
+  the slot is already occupied.  It builds a temporary and assigns it instead, which is
+  equivalent to `push_back(T(args...))`.
+- **`operator[]` is unchecked and capacity-based.**  An index in `[size(), capacity())`
+  legitimately reads a live element.  `at()` is the only bounds-checked accessor.
 - **Capacity overflow throws `std::bad_alloc`**, not `std::length_error`.
-- **`fixed_vector::reserve()` shrinks as well as grows, and never (de)allocates.** Its storage is
-  always the whole `std::array<T, N>`; capacity is just the limit the space checks consult, so
-  `reserve()` is O(1), shrinking below `size()` truncates `size()` (destroying nothing), and
-  growing back exposes the slots exactly as they were left. `std::vector::reserve` can do none of
-  those things.
+- **`fixed_vector::reserve()` shrinks as well as grows, and never (de)allocates.**  Its storage
+  is always the whole `std::array<T, N>`, and capacity is just the limit the space checks
+  consult.  So `reserve()` is O(1), shrinking below `size()` truncates `size()` (destroying
+  nothing), and growing back exposes the slots exactly as they were left.
+  `std::vector::reserve` can do none of those things.
 
 [`DESIGN.md`](DESIGN.md) explains the reasoning behind each of these, plus the allocation
 strategy, the alignment defaults, the `constexpr` limits of the heap-backed types, and the edge
-cases worth knowing (zero capacity is both empty and full; `append_range(span)` assumes no
+cases worth knowing (zero capacity is both empty and full, and `append_range(span)` assumes no
 aliasing).
 
 ## API at a glance
 
-Common to all four types:
+These members are common to all four types:
 
 | Group | Members |
 |---|---|
@@ -207,45 +211,47 @@ Common to all four types:
 | Bulk | `fill_capacity`, `fill_size`, `assign_range`, `zeroize_reserved_unused` |
 | Compare | `operator==`, `operator<=>` — gated on the element type supporting them; unconditional in the byte buffers |
 
-Note which range each fill covers: `fill_capacity(value)` fills **`[0, capacity())`** — the live
-elements included — and sets `size()` to `capacity()`. To fill only the reserved-unused tail
+Note which range each fill covers.  `fill_capacity(value)` fills **`[0, capacity())`**, the live
+elements included, and sets `size()` to `capacity()`.  To fill only the reserved-unused tail
 `[size(), capacity())` and grow into it, leaving `[0, size())` as it is, call
-`resize(capacity(), value)`; to fill only the live elements without changing `size()`, call
+`resize(capacity(), value)`.  To fill only the live elements without changing `size()`, call
 `fill_size(value)`.
 
 `fixed_vector` adds three members for the capacity it alone can move: `reserve`, `unreserved`
 (how many slots lie between `capacity()` and `max_size()`), and `zeroize_unreserved`.
 
 The three owning types build and fill their storage through the same constructor set (a single
-count/capacity argument, count + fill value, span, iterator pair, `initializer_list`, range) —
-differing in the one place noted above: `fixed_vector<T, N>(count)` creates `count` elements,
-while the runtime types' `X(capacity)` reserves and starts empty. `borrowed_byte_buffer` differs
-only in construction: it has no count/fill/range *element-copying* constructors — it is built over
-existing memory (a pointer or a contiguous range) and its `adopting` named constructors start it
-full — but every member above behaves identically once constructed.
+count/capacity argument, count + fill value, span, iterator pair, `initializer_list`, and
+range).  They differ in the one place noted above: `fixed_vector<T, N>(count)` creates `count`
+elements, while the runtime types' `X(capacity)` reserves and starts empty.
+
+`borrowed_byte_buffer` differs only in construction.  It has no count/fill/range
+*element-copying* constructors, because it is built over existing memory (a pointer or a
+contiguous range), and its `adopting` named constructors start it full.  Every member above
+behaves identically once it is constructed.
 
 `append_range` and `assign_range` are each overloaded for a span, iterator + sentinel,
-iterator + count, `initializer_list`, and an arbitrary input range; `assign_range` is `clear()`
-followed by `append_range`. Overloads that can know the source size up front validate before
-writing, so nothing is appended when they throw. Truly unsized sources append element-wise and
+iterator + count, `initializer_list`, and an arbitrary input range.  `assign_range` is `clear()`
+followed by `append_range`.  Overloads that can know the source size up front validate before
+writing, so nothing is appended when they throw.  Truly unsized sources append element-wise and
 may leave the elements that fit in place before throwing (or returning `false`).
 
-Passing a contiguous range of the element type — a `std::vector<T>`, a `std::array<T, N>`, a
-span — gets the bulk copy (`memcpy` in the byte buffer) without the call site doing anything
-special; the source must not overlap the container's own storage. Anything else appends
+Passing a contiguous range of the element type — a `std::vector<T>`, a `std::array<T, N>`, or
+a span — gets the bulk copy (`memcpy` in the byte buffers) without the call site doing anything
+special.  The source must not overlap the container's own storage.  Anything else appends
 element-wise.
 
 `zeroize_reserved_unused()` zeroizes `[size(), capacity())` with stores the optimizer may not
 elide — `memset_explicit` / `explicit_bzero` when the C library declares one, otherwise volatile
-writes. `clear()` followed by it scrubs everything up to `capacity()`; in a `fixed_vector` whose
-capacity has been reduced, `zeroize_unreserved()` covers the rest (`[capacity(), max_size())`),
-which is otherwise still holding whatever it held while reserved.
+writes.  `clear()` followed by it scrubs everything up to `capacity()`.  In a `fixed_vector`
+whose capacity has been reduced, `zeroize_unreserved()` covers the rest
+(`[capacity(), max_size())`), which otherwise still holds whatever it held while reserved.
 
 ## Building and running the tests
 
-There is no test framework and no runner. Each type has one standalone program that exercises
+There is no test framework and no runner.  Each type has one standalone program that exercises
 every member, and the exit status is the whole contract: **a test passes when it prints nothing
-and exits 0**. On the first failed check it prints one line to stderr and exits non-zero
+and exits 0**.  On the first failed check it prints one line to stderr and exits non-zero
 immediately:
 
 ```
@@ -259,9 +265,9 @@ make lint   # optional: clang-tidy over the suites and headers, per .clang-tidy
 ```
 
 `make test` applies that same contract to the suite: it prints nothing and exits 0 when every
-program passes, and stops at the first one that doesn't. It runs the tests twice, once per build
-variant — see below for why both. Each program is self-contained, so building one by hand works
-too:
+program passes, and stops at the first one that doesn't.  It runs the tests twice, once per
+build variant (see below for why both).  Each program is self-contained, so building one by hand
+works too:
 
 ```sh
 g++ -std=c++23 -Iinclude test-fixed_vector.cpp -o test-fixed_vector && ./test-fixed_vector
@@ -275,57 +281,62 @@ g++ -std=c++23 -Iinclude test-fixed_vector.cpp -o test-fixed_vector && ./test-fi
 | `test-borrowed_byte_buffer.cpp` | `borrowed_byte_buffer` |
 
 All four share `test_utils.hpp`, which holds `CHECK` / `CHECK_THROWS` / `run_tests` and a few
-helpers. Each program is a list of `test_<member>()` functions called from `main()`, one per
-member, so `main()` doubles as the coverage checklist. Nothing calls `abort()` — a failing test
-exits, it does not dump core.
+helpers.  Each program is a list of `test_<member>()` functions called from `main()`, one per
+member, so `main()` doubles as the coverage checklist.  Nothing calls `abort()`, so a failing
+test exits rather than dumping core.
 
-`test-fixed_vector.cpp` also drives the container through a `static_assert` block ahead of
-`main()`, so a regression there fails the compile rather than the run; the heap-backed suites can
-only do that for their empty and zero-capacity cases. See [`DESIGN.md`](DESIGN.md) for why.
+`test-fixed_vector.cpp` also drives the container through `static_assert` blocks ahead of
+`main()`, so a regression there fails the compile rather than the run.  The heap-backed suites
+can do that only for their empty and zero-capacity cases, and [`DESIGN.md`](DESIGN.md) explains
+why.
 
 ### The two build variants
 
-`make test` runs the suite twice, because neither build subsumes the other. The variants are two
-sets of binaries rather than two targets — `make` builds both, `make test` runs both:
+`make test` runs the suite twice, because neither build subsumes the other.  The variants are
+two sets of binaries rather than two targets, so `make` builds both and `make test` runs both:
 
 - **release** — `test-*`, built at `-O3 -flto=auto -march=native`.
 - **debug** — `test-*.debug`, built with asserts, libstdc++ debug mode, fortified string ops,
   and ASan/UBSan.
 
-The **debug** build catches what the release build hides. The two heap-backed types hand-manage
+The **debug** build catches what the release build hides.  The two heap-backed types hand-manage
 aligned memory, the byte buffers intentionally read partially-uninitialized (or borrowed)
 storage, and `borrowed_byte_buffer` forms its view through a `reinterpret_cast`, so the
 sanitizers have real work to do — and the asserts check preconditions the release build ignores
 outright.
 
 The **release** build catches what `-Og` structurally cannot, because the optimizer only *acts*
-on the code's promises once it is optimizing. `-Og` leaves `-fstrict-aliasing` off (it turns on
+on the code's promises once it is optimizing.  `-Og` leaves `-fstrict-aliasing` off (it turns on
 at `-O2`), and it never cashes in `data()`'s `assume_aligned<Align>` — a caller loop over
 `data()` compiles to no SIMD at all at `-Og`, while `-O3 -march=native` emits an aligned
-`vmovdqa` that faults the moment that promise is untrue. Testing only the debug build would
+`vmovdqa` that faults the moment that promise is untrue.  Testing only the debug build would
 leave the library's whole reason for `assume_aligned` unexercised.
 
-Both are expected to be clean. The two variants' binaries are named differently, so they coexist
-rather than shadowing each other and neither build ever silently serves the other's stale binary.
+Both are expected to be clean.  The two variants' binaries are named differently, so they
+coexist rather than shadowing each other and neither build ever silently serves the other's
+stale binary.
 
-`-DDEBUG` turns on the headers' own precondition checks: every `\pre` the headers document and
-can check cheaply — `!is_full()` for the `unchecked_*` family, `!is_empty()` for `front`/`back`,
-`i < capacity()` for `operator[]`, and the source-size check on `borrowed_byte_buffer`'s range
-constructor — becomes an `assert` that aborts on a violation. They check
-the *documented* contract, not `std::vector`'s: `operator[]` asserts `i < capacity()`, so
-reading a live element past `size()` stays legal — and in a `fixed_vector` that bound is the
-*current* capacity, so an index the container's window no longer covers trips it even though the
-slot is still alive. Each assert is inside `#if defined(DEBUG)`,
-so a release build has no trace of one.
+`-DDEBUG` turns on the headers' own precondition checks.  Every `\pre` the headers document and
+can check cheaply becomes an `assert` that aborts on a violation: `!is_full()` for the
+`unchecked_*` family, `!is_empty()` for `front`/`back`, `i < capacity()` for `operator[]`, and
+the source-size check on `borrowed_byte_buffer`'s range constructor.  Each assert is inside
+`#if defined(DEBUG)`, so a release build has no trace of one.
 
-The headers sit next to the tests, so the commands above work as written.
+The asserts check the *documented* contract, not `std::vector`'s.  `operator[]` asserts
+`i < capacity()`, so reading a live element past `size()` stays legal.  In a `fixed_vector` that
+bound is the *current* capacity, so an index the container's window no longer covers trips it
+even though the slot is still alive.
 
-`make lint` is separate from all of this: it runs clang-tidy with the checks in `.clang-tidy` and
-is advisory — its recipe ignores the exit status. It currently prints nothing: the cases aimed at
-code that exists to be warned about (the borrowed C array, the `std::move` of a trivially copyable
-view, the deliberately un-forwarded forwarding reference, the element-wise append loop) are
-silenced in place with `NOLINT` comments, so the comments are where that reasoning lives.
-Passing `make test` is the contract; `make lint` is a reading aid.
+The headers live in `include/`, which the Makefile puts on the include path and the hand-built
+command above passes as `-Iinclude`, so no source names the directory.
+
+`make lint` is separate from all of this.  It runs clang-tidy with the checks in `.clang-tidy`
+and is advisory, since its recipe ignores the exit status.  It currently prints nothing: the
+cases aimed at code that exists to be warned about (the borrowed C array, the `std::move` of a
+trivially copyable view, the deliberately un-forwarded forwarding reference, and the
+element-wise append loop) are silenced in place with `NOLINT` comments, so the comments are
+where that reasoning lives.  Passing `make test` is the contract, and `make lint` is a reading
+aid.
 
 ## License
 

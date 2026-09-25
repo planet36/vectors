@@ -37,11 +37,12 @@
 * parameter, so \c capacity() and \c max_size() are non-static.  It is settled at construction
 * and never changes, since changing it would mean reallocating.
 *
-* The properties that shape the interface:
-*   - Storage is an over-alignable heap block allocated with the aligned \c ::operator \c new
-*     and owned by a \c std::unique_ptr.  \a Align may exceed \c alignof(T) (e.g. \c std::byte
-*     data aligned like a 16-byte SIMD lane).  \c data() applies \c std::assume_aligned<Align>
-*     (guarded for the null/empty case) so caller loops can vectorize on the known alignment.
+* These properties shape the interface:
+*   - Storage is an over-alignable heap block allocated with the aligned
+*     <code>::operator new</code> and owned by a \c std::unique_ptr.  \a Align may exceed
+*     \c alignof(T) (e.g. \c std::byte data aligned like a 16-byte SIMD lane).  \c data()
+*     applies \c std::assume_aligned<Align> (guarded for the null/empty case) so caller loops
+*     can vectorize on the known alignment.
 *   - All \c capacity() elements are alive from construction onward.  The reserve constructor
 *     value-initializes them.  The copy, fill, and range constructors construct them directly
 *     from the source.
@@ -52,8 +53,8 @@
 *     the bounds-checked accessor.
 *   - The single-argument constructor reserves capacity and starts \b empty (\c size()==0).
 *   - Range and iterator-sentinel constructors require \b forward iterators, since the capacity
-*     must be computed up front.  An input-only source needs `dynamic_fixed_vector(capacity)`
-*     followed by \c append_range.
+*     must be computed up front.  An input-only source needs
+*     \c dynamic_fixed_vector(capacity) followed by \c append_range.
 *   - Copy makes a deep copy.  Move construction transfers ownership and leaves the source
 *     empty (capacity 0).  Move \e assignment swaps, so the source is left holding this
 *     vector's former buffer (freed when the source is destroyed).
@@ -66,10 +67,10 @@
 * \note \a Align defaults to <code>max(alignof(std::size_t), alignof(T))</code>, which is at
 * least a word.  The block is therefore word-aligned even for a narrow \a T.
 *
-* \invariant \c size() \c <= \c capacity().
+* \invariant <code>size() <= capacity()</code>
 * \invariant \c data() is null \b exactly when \c capacity() is 0.  A capacity of 0 allocates
-* nothing, and the aligned \c ::operator \c new never returns null (it throws), so no other
-* state holds a null block.
+* nothing, and the aligned <code>::operator new</code> never returns null (it throws), so no
+* other state holds a null block.
 *
 * Together those make the preconditions below sufficient on their own.  \c !is_full(),
 * \c !is_empty(), and <code>i < capacity()</code> each imply a non-null, \a Align-aligned block,
@@ -85,7 +86,7 @@ requires std::default_initializable<T> && std::movable<T> &&
 class dynamic_fixed_vector
 {
 private:
-    /// Stateless deleter that frees a block from the aligned \c ::operator \c new
+    /// Stateless deleter that frees a block from the aligned <code>::operator new</code>
     struct aligned_deleter
     {
         constexpr void operator()(T* const p) const noexcept
@@ -250,8 +251,8 @@ public:
     constexpr dynamic_fixed_vector(const dynamic_fixed_vector& other)
         : size_{other.size_}, capacity_{other.capacity_}, data_{allocate_raw_(other.capacity_)}
     {
-        // Copy the entire capacity buffer (faithful to beyond-size operator[] reads),
-        // beginning each element's lifetime directly, with no value-init-then-overwrite.
+        // Copy the entire capacity buffer, so beyond-size operator[] reads match the source.
+        // Each element's lifetime begins directly from the copy, with no value-init first.
         if (this->capacity() != 0)
             (void)std::uninitialized_copy_n(other.data(), this->capacity(), data());
     }
@@ -427,7 +428,7 @@ public:
     /**
     * Growing assigns \a value to the new elements.  Shrinking leaves the removed ones
     * unchanged (nothing is destroyed).
-    * \note \c resize(capacity(), \a value) is how to fill only the reserved-unused tail
+    * \note <code>resize(capacity(), value)</code> is how to fill only the reserved-unused tail
     * [\c size(), \c capacity()) and grow into it.  \c fill_capacity() overwrites the live
     * elements as well.
     * \exception std::bad_alloc if \a count > \c capacity().
@@ -465,7 +466,7 @@ public:
     * \pre \c !is_full()
     * \note "Emplace" cannot construct in place here.  The slot already holds a live element,
     * so a temporary \c T is constructed from \a args and move-assigned in, which is equivalent
-    * to \c push_back(T(args...)).  Kept for API parity with \c std::inplace_vector.
+    * to \c push_back(T(args...)).  It is kept for API parity with \c std::inplace_vector.
     */
     template <class... Args>
     requires std::constructible_from<T, Args...> && std::assignable_from<T&, T>

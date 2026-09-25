@@ -38,8 +38,8 @@ test_fail(const std::string_view file, const int line, const std::string_view fu
 
 /// Fail unless the expression is true
 /**
-* Variadic so that an expression containing an unparenthesized comma -- e.g.
-* \c CHECK(fixed_vector<int,5>::max_size()==5) -- does not need the extra parens \c assert
+* The macro is variadic, so an expression containing an unparenthesized comma, such as
+* \c CHECK(fixed_vector<int,5>::max_size()==5), does not need the extra parens \c assert
 * required.  (\c max_size() is the \c static one.  \c capacity() is a run-time value and needs
 * an object.)
 */
@@ -150,7 +150,7 @@ template <typename V>
 [[nodiscard]] bool
 data_null_iff_empty(const V& v) noexcept
 {
-    // Deliberately called on moved-from objects to check the class invariant survives the move.
+    // Callers pass moved-from objects on purpose, to check that the class invariant survives.
     // NOLINTNEXTLINE(clang-analyzer-cplusplus.Move)
     return (v.data() == nullptr) == (v.capacity() == 0);
 }

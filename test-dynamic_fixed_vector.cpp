@@ -19,9 +19,9 @@
 
 constexpr auto is_odd = [](const int x) { return x % 2 != 0; };
 
-// Compile-time check that empty / zero-capacity instances are usable in constant expressions.
-// (The allocating paths are not, since over-aligned allocation is not usable in constant
-// evaluation, so only the non-allocating members are exercised here.)
+// Check at compile time that empty / zero-capacity instances are usable in constant
+// expressions.  (The allocating paths are not, since over-aligned allocation is not usable in
+// constant evaluation, so only the non-allocating members are exercised here.)
 // NOLINTBEGIN(readability-simplify-boolean-expr)
 constexpr bool
 constexpr_empty_ok()
@@ -227,8 +227,8 @@ test_swap()
 static void
 test_data_null_iff_capacity_zero()
 {
-    // The class invariant the \pre !is_full() / !is_empty() members rely on to reach the
-    // storage without re-checking data() for null.  One direction is free (the throwing
+    // This is the class invariant the \pre !is_full() / !is_empty() members rely on to reach
+    // the storage without re-checking data() for null.  One direction is free (the throwing
     // ::operator new never returns null), but "capacity 0 -> null" is not.  ::operator new(0)
     // returns a *non-null* block, so allocate_raw_'s early return is the only thing making it
     // true.  Cover each structurally distinct way to reach capacity 0, not every permutation.
@@ -243,7 +243,7 @@ test_data_null_iff_capacity_zero()
     { const dynamic_fixed_vector<int> v(empty.begin(), empty.end());  CHECK(data_null_iff_empty(v)); }
     { const dynamic_fixed_vector<int> v(std::from_range, empty);      CHECK(data_null_iff_empty(v)); }
 
-    // Capacity 0 reached by transfer rather than by construction.
+    // These reach capacity 0 by transfer rather than by construction.
     {
         dynamic_fixed_vector<int> a(3);
         const dynamic_fixed_vector<int> b = std::move(a);
@@ -296,8 +296,8 @@ test_data_null_iff_capacity_zero()
 static void
 test_capacity_max_size()
 {
-    // Non-static and reporting the runtime capacity, deliberately not a SIZE_MAX-ish value like
-    // std::vector::max_size().
+    // max_size() is non-static and reports the run-time capacity, deliberately not a
+    // SIZE_MAX-ish value like std::vector::max_size().
     const dynamic_fixed_vector<int> v(10);
     CHECK(v.capacity() == 10);
     CHECK(v.max_size() == 10);
@@ -408,7 +408,7 @@ test_try_push_back_try_emplace_back()
     CHECK(v.try_push_back(2)); // &&
     CHECK(v.try_emplace_back(3));
     CHECK(v.is_full());
-    // Full -> false, no throw.
+    // A full container returns false rather than throwing.
     CHECK(!v.try_push_back(x)); // const&
     CHECK(!v.try_push_back(4)); // &&
     CHECK(!v.try_emplace_back(5));
@@ -446,7 +446,7 @@ test_zeroize_reserved_unused()
     CHECK(v.size() == 2);
     CHECK(v.capacity() == 5);
     CHECK(to_ivec(v) == std::vector({9, 9}));
-    // operator[] is capacity-based, so the tail is now zero
+    // operator[] is capacity-based, so the tail is now zero.
     for (std::size_t i = v.size(); i < v.capacity(); ++i)
         CHECK(v[i] == 0);
     // Scrub the whole buffer with clear() + zeroize_reserved_unused() (non-elidable stores).
@@ -561,7 +561,7 @@ test_assign_range_unsized_partial()
     w.append_range({9, 9, 9, 9});
     CHECK_THROWS(std::bad_alloc, w.assign_range({1, 2, 3, 4, 5}));
     CHECK(w.is_empty());
-    CHECK(w[0] == 9); // nothing was written; the old elements are alive, just outside size()
+    CHECK(w[0] == 9); // nothing written: the old elements live on, just outside size()
 }
 
 // ---- Element access ----
@@ -599,7 +599,8 @@ test_operator_index()
     v[1] = 99;
     CHECK(v[1] == 99);
     // Indexes 3 and 4 are >= size() but < capacity(), so they are live and value-initialized.
-    // Deterministic here, unlike aligned_byte_buffer, whose reserved tail is unspecified.
+    // They are deterministic here, unlike aligned_byte_buffer, whose reserved tail is
+    // unspecified.
     CHECK(v[3] == 0);
     CHECK(v[4] == 0);
 }

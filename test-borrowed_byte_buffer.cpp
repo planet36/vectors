@@ -25,7 +25,7 @@ constexpr auto is_odd = [](const int x) { return x % 2 != 0; };
 static_assert(std::is_trivially_copyable_v<borrowed_byte_buffer>);
 static_assert(std::is_trivially_destructible_v<borrowed_byte_buffer>);
 
-// Compile-time check that the default (empty, non-borrowing) instance is usable in constant
+// Check at compile time that the default (empty, non-borrowing) instance is usable in constant
 // expressions.  The borrowing constructors are not, because forming a byte view needs a
 // reinterpret_cast, which is barred in constant evaluation.  Only the default instance and the
 // non-borrowing members are exercised here.
@@ -66,15 +66,15 @@ static_assert(can_emplace_back<>);          // appends byte{}
 static_assert(!can_emplace_back<double>);   // floating point rejected
 static_assert(!can_emplace_back<int, int>); // arity > 1 rejected
 
-// The borrowing constructors accept only writable, trivially-copyable contiguous storage, and
+// The borrowing constructors accept only writable, trivially copyable contiguous storage, and
 // never a source that would leave a dangling view.  These document the borrowable_range
 // constraint as compile-time facts.
 template <typename... Args>
 constexpr bool can_construct =
     requires(Args&&... args) { borrowed_byte_buffer{std::forward<Args>(args)...}; };
 
-// Accepted: lvalue contiguous containers, an rvalue std::span (a borrowed_range), a single
-// object pointer, and the (void*, size_t) primitive.
+// These are accepted: lvalue contiguous containers, an rvalue std::span (a borrowed_range), a
+// single object pointer, and the (void*, size_t) primitive.
 static_assert(can_construct<std::array<std::byte, 8>&>);
 static_assert(can_construct<std::vector<std::byte>&>);
 static_assert(can_construct<std::vector<int>&>);
@@ -82,8 +82,8 @@ static_assert(can_construct<std::string&>);
 static_assert(can_construct<std::span<std::byte>>); // rvalue span is safe (non-owning)
 static_assert(can_construct<int*>);
 static_assert(can_construct<void*, std::size_t>);
-// Rejected: rvalue owning containers (would dangle), const elements (unwritable), a non-range
-// non-pointer, and a const single object.
+// These are rejected: rvalue owning containers (would dangle), const elements (unwritable), a
+// non-range non-pointer, and a const single object.
 static_assert(!can_construct<std::vector<std::byte>>);
 static_assert(!can_construct<std::array<std::byte, 8>>);
 static_assert(!can_construct<std::string>);
@@ -134,7 +134,8 @@ test_ctor_range()
     CHECK(vv.capacity() == 5);
     CHECK(vv.data() == vec.data());
 
-    std::vector<int> vi(3); // element type need not be std::byte; capacity is the byte size
+    // The element type need not be std::byte.  The capacity is the byte size.
+    std::vector<int> vi(3);
     const borrowed_byte_buffer vvi{vi};
     CHECK(vvi.capacity() == 3 * sizeof(int));
     CHECK(vvi.data() == reinterpret_cast<const std::byte*>(vi.data()));
@@ -189,7 +190,7 @@ test_adopting()
     CHECK(v2.capacity() == 2);
     CHECK(to_ivec(v2) == std::vector({1, 2}));
 
-    // adopting(void*, capacity).
+    // adopting(void*, capacity) adopts raw bytes.
     void* const p = a.data();
     const auto v3 = borrowed_byte_buffer::adopting(p, 3);
     CHECK(v3.size() == 3);
@@ -409,7 +410,7 @@ test_try_push_back_try_emplace_back()
     CHECK(v.try_push_back(1_b));
     CHECK(v.try_emplace_back(2));
     CHECK(v.is_full());
-    // Full -> false, no throw.
+    // A full container returns false rather than throwing.
     CHECK(!v.try_push_back(3_b));
     CHECK(!v.try_emplace_back(4));
     CHECK(to_ivec(v) == std::vector({1, 2}));
@@ -444,7 +445,7 @@ test_zeroize_reserved_unused()
     s.fill(0xEE_b); // pre-dirty the borrowed region to prove the tail is really zeroed
     borrowed_byte_buffer v{s};
     v.append_range({1_b, 2_b, 3_b});
-    v.zeroize_reserved_unused(); // [size, capacity) is now zero; size unchanged
+    v.zeroize_reserved_unused(); // [size, capacity) is now zero, size unchanged
     CHECK(v.size() == 3);
     CHECK(v.capacity() == 8);
     CHECK(to_ivec(v) == std::vector({1, 2, 3}));
@@ -677,7 +678,8 @@ test_reverse_iteration()
 static void
 test_comparisons()
 {
-    // Unconditional (std::byte is always comparable) and capacity takes no part in the result.
+    // Comparison is unconditional (std::byte is always comparable), and capacity takes no
+    // part in the result.
     std::array<std::byte, 10> s{};
     borrowed_byte_buffer a{s};
     a.append_range({1_b, 2_b, 3_b});
@@ -701,8 +703,8 @@ test_comparisons()
 static void
 test_equal_constant_time()
 {
-    // Free function (from byte_compare.hpp) for secret-dependent data.  The container's
-    // operator== stays variable-time.
+    // equal_constant_time is a free function (from byte_compare.hpp) for secret-dependent data.
+    // The container's operator== stays variable-time.
     std::array<std::byte, 3> sa{1_b, 2_b, 3_b};
     std::array<std::byte, 3> sb{1_b, 2_b, 3_b};
     std::array<std::byte, 3> sc{1_b, 2_b, 4_b};

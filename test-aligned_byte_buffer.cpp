@@ -17,9 +17,9 @@
 
 constexpr auto is_odd = [](const int x) { return x % 2 != 0; };
 
-// Compile-time check that empty / zero-capacity instances are usable in constant expressions.
-// (The allocating paths are not, since over-aligned allocation is not usable in constant
-// evaluation, so only the non-allocating members are exercised here.)
+// Check at compile time that empty / zero-capacity instances are usable in constant
+// expressions.  (The allocating paths are not, since over-aligned allocation is not usable in
+// constant evaluation, so only the non-allocating members are exercised here.)
 // NOLINTBEGIN(readability-simplify-boolean-expr)
 constexpr bool
 constexpr_empty_ok()
@@ -76,7 +76,7 @@ test_ctor_default()
 static void
 test_ctor_capacity()
 {
-    // Reserves capacity and starts empty.  The reserved bytes are left uninitialized (no
+    // X(n) reserves capacity and starts empty.  The reserved bytes are left uninitialized (no
     // whole-capacity memset), unlike dynamic_fixed_vector's value-initialized tail.
     const aligned_byte_buffer<16> v(64);
     CHECK(v.size() == 0);
@@ -234,8 +234,8 @@ test_swap()
 static void
 test_data_null_iff_capacity_zero()
 {
-    // The class invariant the \pre !is_full() / !is_empty() members rely on to reach the
-    // storage without re-checking data() for null.  One direction is free (the throwing
+    // This is the class invariant the \pre !is_full() / !is_empty() members rely on to reach
+    // the storage without re-checking data() for null.  One direction is free (the throwing
     // ::operator new never returns null), but "capacity 0 -> null" is not.  ::operator new(0)
     // returns a *non-null* block, so allocate_'s early return is the only thing making it
     // true.  Cover each structurally distinct way to reach capacity 0, not every permutation.
@@ -249,7 +249,7 @@ test_data_null_iff_capacity_zero()
     { const aligned_byte_buffer<16> b(empty.begin(), empty.end());       CHECK(data_null_iff_empty(b)); }
     { const aligned_byte_buffer<16> b(std::from_range, empty);           CHECK(data_null_iff_empty(b)); }
 
-    // Capacity 0 reached by transfer rather than by construction.
+    // These reach capacity 0 by transfer rather than by construction.
     {
         aligned_byte_buffer<16> a(8);
         const aligned_byte_buffer<16> b = std::move(a);
@@ -302,8 +302,8 @@ test_data_null_iff_capacity_zero()
 static void
 test_capacity_max_size()
 {
-    // Non-static and reporting the runtime capacity, deliberately not a SIZE_MAX-ish value like
-    // std::vector::max_size().
+    // max_size() is non-static and reports the run-time capacity, deliberately not a
+    // SIZE_MAX-ish value like std::vector::max_size().
     const aligned_byte_buffer<16> v(10);
     CHECK(v.capacity() == 10);
     CHECK(v.max_size() == 10);
@@ -400,7 +400,7 @@ test_try_push_back_try_emplace_back()
     CHECK(v.try_push_back(1_b));
     CHECK(v.try_emplace_back(2));
     CHECK(v.is_full());
-    // Full -> false, no throw.
+    // A full container returns false rather than throwing.
     CHECK(!v.try_push_back(3_b));
     CHECK(!v.try_emplace_back(4));
     CHECK(to_ivec(v) == std::vector({1, 2}));
@@ -432,7 +432,7 @@ test_zeroize_reserved_unused()
 {
     aligned_byte_buffer<16> v(8);
     v.append_range({1_b, 2_b, 3_b});
-    v.zeroize_reserved_unused(); // [size, capacity) is now zero; size unchanged
+    v.zeroize_reserved_unused(); // [size, capacity) is now zero, size unchanged
     CHECK(v.size() == 3);
     CHECK(v.capacity() == 8);
     CHECK(to_ivec(v) == std::vector({1, 2, 3}));
@@ -545,7 +545,7 @@ test_assign_range_unsized_partial()
     w.append_range({9_b, 9_b, 9_b, 9_b});
     CHECK_THROWS(std::bad_alloc, w.assign_range({1_b, 2_b, 3_b, 4_b, 5_b}));
     CHECK(w.is_empty());
-    CHECK(w[0] == 9_b); // nothing was written; the byte is still there, just outside size()
+    CHECK(w[0] == 9_b); // nothing written: the byte is still there, just outside size()
 }
 
 // ---- Element access ----
@@ -650,7 +650,8 @@ test_reverse_iteration()
 static void
 test_comparisons()
 {
-    // Unconditional (std::byte is always comparable) and capacity takes no part in the result.
+    // Comparison is unconditional (std::byte is always comparable), and capacity takes no
+    // part in the result.
     aligned_byte_buffer<16> a(10);
     a.append_range({1_b, 2_b, 3_b});
     const aligned_byte_buffer<16> b{1_b, 2_b, 3_b}; // capacity 3
@@ -670,7 +671,8 @@ test_comparisons()
 static void
 test_equal_constant_time()
 {
-    // Free function for secret-dependent data.  The container's operator== stays variable-time.
+    // equal_constant_time is a free function for secret-dependent data.  The container's
+    // operator== stays variable-time.
     const aligned_byte_buffer<16> a{1_b, 2_b, 3_b};
     const aligned_byte_buffer<16> b{1_b, 2_b, 3_b};
     const aligned_byte_buffer<16> c{1_b, 2_b, 4_b};
@@ -692,7 +694,7 @@ test_equal_constant_time()
 static void
 test_alignment()
 {
-    // Over-alignment honored for several Align values.
+    // Over-alignment is honored for several Align values.
     const auto check_align = []<std::size_t A>()
     {
         aligned_byte_buffer<A> buf(64);

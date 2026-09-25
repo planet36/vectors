@@ -25,16 +25,19 @@ DEBUG_CXXFLAGS = -Og -ggdb3
 DEBUG_CXXFLAGS += -DDEBUG -UNDEBUG
 
 # _GLIBCXX_DEBUG is what checks the std::vector iterators the tests hand to the range APIs.
-# That covers the one precondition the headers cannot assert for themselves -- "[first, last)
-# is a valid range" -- which otherwise surfaces as a bogus std::bad_alloc from the capacity
-# check, an invalid iterator having produced a garbage distance.  _GLIBCXX_ASSERTIONS is
-# implied by it, kept explicit to say so.  SANITIZE_VECTOR only reaches the tests' own
-# std::vector; the containers here have no unused capacity for it to poison.
+# That covers the one precondition the headers cannot assert for themselves, that [first, last)
+# is a valid range.  A violation otherwise surfaces as a bogus std::bad_alloc from the capacity
+# check, because an invalid iterator produces a garbage distance.  _GLIBCXX_ASSERTIONS is
+# implied by it and is kept explicit to say so.
 DEBUG_CXXFLAGS += -D_GLIBCXX_ASSERTIONS -D_GLIBCXX_DEBUG -D_GLIBCXX_DEBUG_PEDANTIC
+
+# This reaches only the tests' own std::vector, since the containers here have no unused
+# capacity for it to poison.
 DEBUG_CXXFLAGS += -D_GLIBCXX_SANITIZE_VECTOR
 
-# Fortifies the memcpy/memset that aligned_byte_buffer leans on.  Needs the -Og above: at -O0
-# it warns and silently degrades to level 0.  It stays live under ASan (verified: level 3).
+# This fortifies the memcpy/memset that the byte buffers lean on.  It needs the -Og above,
+# because at -O0 it warns and silently degrades to level 0.  It stays live under ASan (verified
+# at level 3).
 DEBUG_CXXFLAGS += -D_FORTIFY_SOURCE=3
 
 # Cover what no assert can: the aligned heap block, and the byte buffer's reads of its
@@ -52,9 +55,11 @@ DEPS = $(addsuffix .d,$(BINS) $(DEBUG_BINS))
 
 all: $(BINS) $(DEBUG_BINS)
 
-# Must precede the match-anything rule below, which would otherwise take x.debug and look for
-# x.debug.cpp.
-# The built-in recipe for the implicit rule uses $^ instead of $<
+# This rule must precede the match-anything rule below, which would otherwise take x.debug and
+# look for x.debug.cpp.
+#
+# Both recipes use $< where the built-in recipe for the implicit rule uses $^, which would also
+# pass along the headers that the dep files add as prerequisites.
 %.debug: %.cpp
 	$(CXX) $(DEPFLAGS) $(CPPFLAGS) $(CXXFLAGS) $(DEBUG_CXXFLAGS) $(LDFLAGS) $< -o $@ $(LDLIBS)
 

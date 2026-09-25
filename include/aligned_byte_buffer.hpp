@@ -40,12 +40,12 @@
 * it would mean reallocating.  The element type is fixed to \c std::byte, which is what lets the
 * implementation move bytes in bulk.
 *
-* The properties that shape the interface:
+* These properties shape the interface:
 *   - The only template parameter is the alignment \a Align (a power of two, defaulting to 16).
 *     \c aligned_byte_buffer<16> and \c aligned_byte_buffer<32> are distinct types.
-*   - Storage is a heap block allocated with the aligned \c ::operator \c new and owned by a
-*     \c std::unique_ptr.  Because \c sizeof(std::byte)==1, the allocation size is exactly the
-*     capacity.  There is no multiplication and no overflow check.
+*   - Storage is a heap block allocated with the aligned <code>::operator new</code> and owned
+*     by a \c std::unique_ptr.  Because \c sizeof(std::byte)==1, the allocation size is exactly
+*     the capacity.  There is no multiplication and no overflow check.
 *   - \c data() applies \c std::assume_aligned<Align> so caller loops can vectorize.
 *   - Reserved-but-unused capacity is left \b uninitialized.  Storage lifetime is begun with
 *     \c std::start_lifetime_as_array (no whole-capacity zeroing).  Bytes that enter \c size()
@@ -66,8 +66,8 @@
 *
 * \invariant <code>size() <= capacity()</code>
 * \invariant \c data() is null \b exactly when \c capacity() is 0.  A capacity of 0 allocates
-* nothing, and the aligned <code>::operator new</code> never returns null (it throws), so no other
-* state holds a null block.
+* nothing, and the aligned <code>::operator new</code> never returns null (it throws), so no
+* other state holds a null block.
 *
 * Together those make the preconditions below sufficient on their own.  \c !is_full(),
 * \c !is_empty(), and <code>i < capacity()</code> each imply a non-null, \a Align-aligned block,
@@ -362,7 +362,7 @@ public:
     /// Resize to \a count bytes
     /**
     * Growing sets the new bytes to \a value.  Shrinking leaves the removed ones unchanged.
-    * \note \c resize(capacity(), \a value) is how to fill only the reserved-unused tail
+    * \note <code>resize(capacity(), value)</code> is how to fill only the reserved-unused tail
     * [\c size(), \c capacity()) and grow into it.  \c fill_capacity() overwrites the live
     * bytes as well.
     * \exception std::bad_alloc if \a count > \c capacity().
@@ -661,8 +661,8 @@ public:
 
     /// \c clear() followed by \c append_range(), so the source is bounded by \c capacity()
     /**
+    * \pre The source does not overlap this buffer's storage.
     * \note The capacity is kept, not resized to the source.
-    * \pre \a spn does not overlap this buffer's storage.
     * \note The \c clear() happens first, so the previous contents are gone whether the assign
     * succeeds or fails.  A sized source then leaves the buffer empty, and an unsized one leaves
     * the bytes that fit.

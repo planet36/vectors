@@ -38,7 +38,7 @@ class borrowed_byte_buffer;
 * This constrains the two range-borrowing constructors and their \c adopting counterparts.  A
 * concept is what lets all of the clauses sit in one place.  Its conjunction short-circuits, so
 * \c range_value_t and \c range_reference_t are never formed for a non-range \a R, such as the
-* single-object constructor's \c unsigned \c int*.
+* single-object constructor's <code>unsigned int*</code>.
 *
 * Each clause earns its place:
 *   - \c contiguous_range and \c sized_range.  The elements must be adjacent, and the byte size
@@ -48,7 +48,7 @@ class borrowed_byte_buffer;
 *     constructing from a non-\c const \c borrowed_byte_buffer lvalue would prefer the range
 *     constructor over the copy constructor, because it binds a less-cv-qualified reference, and
 *     would reinterpret the source's own bytes.  The exclusion makes copy and move win.
-*   - Trivially-copyable, non-\c const elements.  The object representation is what gets written
+*   - Trivially copyable, non-\c const elements.  The object representation is what gets written
 *     and later read back, and the view writes through it.
 *   - A \c borrowed_range \b or an lvalue.  An rvalue owning container, such as a temporary
 *     \c std::vector, would leave a dangling view.  Only non-owning rvalues (\c std::span) and
@@ -62,7 +62,7 @@ concept borrowable_range =
     !std::is_const_v<std::remove_reference_t<std::ranges::range_reference_t<R>>> &&
     (std::ranges::borrowed_range<R> || std::is_lvalue_reference_v<R>);
 
-/// True if \a P is a pointer to a single writable, trivially-copyable object
+/// True if \a P is a pointer to a single writable, trivially copyable object
 /**
 * This constrains the single-object constructor, which takes a \e forwarding reference rather
 * than a plain \c T* on purpose.  A \c T* parameter is (by partial ordering) more specialized
@@ -84,12 +84,13 @@ concept borrowable_object_ptr =
 * fixed-capacity append interface (\c is_full, \c reserved_unused, \c append_range,
 * \c push_back, ...) over memory it does not own.
 *
-* The properties that shape the interface:
-*   - \b Non-owning.  Just a pointer + capacity + size, with no allocation, a trivial
-*     destructor, and defaulted special members.  Copy and move are shallow (both objects then
-*     view the same bytes, and move does not empty the source).  The type is trivially copyable
-*     and cheap to pass by value.  Keeping the borrowed storage alive for the buffer's lifetime
-*     is the caller's responsibility.  A destroyed source leaves a dangling view.
+* These properties shape the interface:
+*   - \b Non-owning.  The object is just a pointer, a capacity, and a size, with no
+*     allocation, a trivial destructor, and defaulted special members.  Copy and move are
+*     shallow (both objects then view the same bytes, and move does not empty the source).  The
+*     type is trivially copyable and cheap to pass by value.  Keeping the borrowed storage
+*     alive for the buffer's lifetime is the caller's responsibility.  A destroyed source
+*     leaves a dangling view.
 *   - \b Capacity is supplied, not allocated.  There is no reserve / fill / iterator /
 *     initializer-list / from-range \e element-copying constructor.  A borrowed buffer is
 *     built directly over existing memory (a pointer, or a contiguous range whose storage it
@@ -110,9 +111,8 @@ concept borrowable_object_ptr =
 *   - \c zeroize_reserved_unused() and the free \c equal_constant_time (from
 *     \c byte_compare.hpp) are available.
 *
-* The element type of a source is constrained to \c std::is_trivially_copyable_v (its object
-* representation is what gets written and later read back) and must be non-\c const (the view
-* writes through it).
+* The element type of a source must be trivially copyable and non-\c const (see
+* \c borrowable_range).
 *
 * Nearly the whole interface is \c constexpr, but forming a byte view over an object needs a
 * \c reinterpret_cast, which is barred in constant evaluation, so only the default (empty)
@@ -125,7 +125,7 @@ concept borrowable_object_ptr =
 * a \c resize, or a \c span() handed onward) will disclose.  Call
 * \c zeroize_reserved_unused() when the tail must not leak.
 *
-* \invariant \c size() \c <= \c capacity().
+* \invariant <code>size() <= capacity()</code>
 * \note \c data() carries no null-when-empty guarantee.  A caller may borrow a zero-length
 * region at a non-null address.  The mutating members index \c data() only under
 * \c !is_full() / \c !is_empty() / <code>i < capacity()</code>, each of which implies
@@ -251,7 +251,7 @@ public:
 
     /// Borrow \a capacity bytes of the range \a r, leaving the buffer empty (\c size()==0)
     /**
-    * \a r is any contiguous, sized range of writable, trivially-copyable elements, e.g. a
+    * \a r is any contiguous, sized range of writable, trivially copyable elements, e.g. a
     * \c std::array, \c std::vector, \c std::span, or C array (see \c borrowable_range).
     * Its storage is overlaid, not copied.
     * \pre \a r's byte size is at least \a capacity.
@@ -268,10 +268,10 @@ public:
 
     /// Borrow all of the range \a r as empty space, with its byte size as the capacity
     /**
-    * \a r is any contiguous, sized range of writable, trivially-copyable elements, e.g. a
+    * \a r is any contiguous, sized range of writable, trivially copyable elements, e.g. a
     * \c std::array, \c std::vector, \c std::span, or C array (see \c borrowable_range).
     * Its storage is overlaid, not copied.  Taking the whole range, this carries no size
-    * precondition of its own, unlike the \a capacity overload.
+    * precondition of its own, unlike the overload that takes a capacity.
     */
     template <borrowable_range R>
     // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
@@ -380,10 +380,10 @@ public:
     /// Resize to \a count bytes
     /**
     * Growing sets the new bytes to \a value.  Shrinking leaves the removed ones unchanged.
-    * \note \c resize(capacity(), \a value) is how to fill only the reserved-unused tail
+    * \note <code>resize(capacity(), value)</code> is how to fill only the reserved-unused tail
     * [\c size(), \c capacity()) and grow into it.  \c fill_capacity() overwrites the live
     * bytes as well.
-    * \note Bounded by \c capacity(), which is the borrowed region, so growing past it throws
+    * \note The bound is \c capacity(), which is the borrowed region, so growing past it throws
     * rather than reaching outside what the caller lent.
     * \exception std::bad_alloc if \a count > \c capacity().
     */
@@ -681,9 +681,9 @@ public:
 
     /// \c clear() followed by \c append_range(), so the source is bounded by \c capacity()
     /**
+    * \pre The source does not overlap this buffer's storage.
     * \note The capacity is kept.  Assigning does not re-borrow, so this never changes which
     * region the buffer views.
-    * \pre \a spn does not overlap this buffer's storage.
     * \note The \c clear() happens first, so the previous contents are gone whether the assign
     * succeeds or fails.  A sized source then leaves the buffer empty, and an unsized one leaves
     * the bytes that fit.

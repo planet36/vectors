@@ -19,11 +19,11 @@
 
 constexpr auto is_odd = [](const int x) { return x % 2 != 0; };
 
-// Compile-time check that nearly the whole interface is usable in constant expressions.
-// Unlike the heap-backed siblings -- whose over-aligned allocation is not usable in constant
-// evaluation, so their static_assert can only reach the empty/zero-capacity members --
-// fixed_vector's in-place std::array storage imposes no such limit.  A semantic regression in
-// any member exercised here therefore fails the compile, not just the run.
+// Check at compile time that nearly the whole interface is usable in constant expressions.
+// The heap-backed siblings' over-aligned allocation is not usable in constant evaluation, so
+// their static_assert can reach only the empty/zero-capacity members.  fixed_vector's in-place
+// std::array storage imposes no such limit, so a semantic regression in any member exercised
+// here fails the compile, not just the run.
 // NOLINTBEGIN(readability-simplify-boolean-expr)
 constexpr bool
 constexpr_api_ok()
@@ -76,8 +76,8 @@ constexpr_api_ok()
 // NOLINTEND(readability-simplify-boolean-expr)
 static_assert(constexpr_api_ok());
 
-// Compile-time check that zeroize_reserved_unused() is usable in constant expressions (the
-// runtime explicit-zeroing path is replaced by value-assignment during constant evaluation).
+// Check at compile time that zeroize_reserved_unused() is usable in constant expressions.
+// During constant evaluation, value-assignment replaces the run-time explicit-zeroing path.
 constexpr bool
 constexpr_zeroize_ok()
 {
@@ -85,12 +85,12 @@ constexpr_zeroize_ok()
     v.fill_capacity(9);
     v.resize(2); // the tail slots [2, 5) still hold 9
     v.zeroize_reserved_unused();
-    // operator[] is capacity-based, so the tail is now zero
+    // operator[] is capacity-based, so the tail is now zero.
     return v.size() == 2 && v[0] == 9 && v[1] == 9 && v[2] == 0 && v[3] == 0 && v[4] == 0;
 }
 static_assert(constexpr_zeroize_ok());
 
-// Compile-time check that reserve() and the capacity observers work in constant expressions.
+// Check at compile time that reserve() and the capacity observers work in constant expressions.
 // NOLINTBEGIN(readability-simplify-boolean-expr)
 constexpr bool
 constexpr_capacity_ok()
@@ -126,7 +126,7 @@ static_assert(fixed_vector<int, 5>::max_size() == 5);
 static_assert(alignof(fixed_vector<int, 5>) == alignof(std::size_t));
 static_assert(alignof(fixed_vector<std::byte, 64, 32>) == 32);
 
-// Contiguous-range conformance (what lets the std algorithms below work on it).
+// Check contiguous-range conformance, which is what lets the std algorithms below work on it.
 static_assert(std::ranges::contiguous_range<fixed_vector<int, 5>>);
 static_assert(std::ranges::sized_range<fixed_vector<int, 5>>);
 
@@ -146,8 +146,8 @@ test_ctor_default()
 static void
 test_ctor_count()
 {
-    // Creates count value-initialized elements, unlike the heap-backed siblings, where X(n)
-    // reserves capacity n and starts empty.
+    // X(count) creates count value-initialized elements, unlike the heap-backed siblings, where
+    // X(n) reserves capacity n and starts empty.
     const fixed_vector<int, 5> v(3);
     CHECK(v.size() == 3);
     CHECK(v.capacity() == 5);
@@ -416,7 +416,7 @@ test_resize()
     v.resize(4); // grow with T{} == 0
     CHECK(to_ivec(v) == std::vector({7, 0, 0, 0}));
 
-    // Bounded by capacity(), not max_size(), so resize does not implicitly reserve.
+    // resize() is bounded by capacity(), not max_size(), so it does not implicitly reserve.
     v.reserve(4);
     CHECK_THROWS(std::bad_alloc, v.resize(5));
     CHECK(v.size() == 4);
@@ -481,7 +481,7 @@ test_try_push_back_try_emplace_back()
     CHECK(v.try_push_back(2)); // &&
     CHECK(v.try_emplace_back(3));
     CHECK(v.is_full());
-    // Full -> false, no throw.
+    // A full container returns false rather than throwing.
     CHECK(!v.try_push_back(x)); // const&
     CHECK(!v.try_push_back(4)); // &&
     CHECK(!v.try_emplace_back(5));
@@ -526,7 +526,7 @@ test_zeroize_reserved_unused()
     v.zeroize_reserved_unused();
     CHECK(v.size() == 2);
     CHECK(to_ivec(v) == std::vector({9, 9}));
-    // operator[] is capacity-based, so the tail is now zero
+    // operator[] is capacity-based, so the tail is now zero.
     // NOLINTNEXTLINE(readability-static-accessed-through-instance)
     for (std::size_t i = v.size(); i < v.max_size(); ++i)
         CHECK(v[i] == 0);
@@ -553,12 +553,12 @@ test_zeroize_unreserved()
     CHECK(v[3] == 0);
     CHECK(v[4] == 0);
 
-    // A no-op while nothing is unreserved.
+    // zeroize_unreserved() is a no-op while nothing is unreserved.
     v.fill_capacity(8);
     v.zeroize_unreserved();
     CHECK(to_ivec(v) == std::vector({8, 8, 8, 8, 8}));
 
-    // The whole array with a reduced capacity needs clear() plus both halves.
+    // Scrubbing the whole array under a reduced capacity takes clear() plus both zeroize calls.
     v.reserve(2);
     v.clear();
     v.zeroize_reserved_unused();
@@ -658,7 +658,7 @@ test_assign_range_unsized_partial()
     fixed_vector<int, 4> w{9, 9, 9, 9};
     CHECK_THROWS(std::bad_alloc, w.assign_range({1, 2, 3, 4, 5}));
     CHECK(w.is_empty());
-    CHECK(w[0] == 9); // nothing was written; the old elements are alive, just outside size()
+    CHECK(w[0] == 9); // nothing written: the old elements live on, just outside size()
 }
 
 // ---- Element access ----
@@ -696,7 +696,8 @@ test_operator_index()
     v[1] = 99;
     CHECK(v[1] == 99);
     // Indexes 3 and 4 are >= size() but < capacity(), so they are live and value-initialized.
-    // Deterministic here, unlike aligned_byte_buffer, whose reserved tail is unspecified.
+    // They are deterministic here, unlike aligned_byte_buffer, whose reserved tail is
+    // unspecified.
     CHECK(v[3] == 0);
     CHECK(v[4] == 0);
 }
@@ -803,7 +804,7 @@ test_comparisons()
 static void
 test_alignment()
 {
-    // Align honored for several values (alignas on the array storage).
+    // Align is honored for several values, through the alignas on the array storage.
     const auto check_align = []<std::size_t A>()
     {
         fixed_vector<std::byte, 64, A> buf;
