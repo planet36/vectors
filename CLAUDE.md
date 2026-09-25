@@ -380,11 +380,11 @@ than owning it, which removes the ownership machinery and changes construction:
   *unqualified* name lookup, because there is no feature-test macro.
 
   Because that lookup is unqualified it needs the names in the global namespace, which is why
-  every header includes **`<string.h>` alongside `<cstring>`**.  The two are not redundant, and
-  **collapsing them to the C++ spelling is not a modernization**.  Collapsing them drops
-  zeroization to the volatile fallback with no build error and no test failure, since all three
-  branches zero correctly.  (DESIGN.md has the why, next to the matching rule that the call must
-  stay unqualified.)
+  every header includes **`<string.h>`**.  The byte buffers also include `<cstring>` for their
+  `std::memcpy` / `std::memset` calls, and there the two are not redundant: **collapsing them to
+  the C++ spelling is not a modernization**.  Collapsing them drops zeroization to the volatile
+  fallback with no build error and no test failure, since all three branches zero correctly.
+  (DESIGN.md has the why, next to the matching rule that the call must stay unqualified.)
 
   `clear()` + `zeroize_reserved_unused()` scrubs everything up to `capacity()`.  In
   `fixed_vector` it also works in constant evaluation (value-assigns the tail), and covering

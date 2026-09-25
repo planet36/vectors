@@ -110,10 +110,10 @@ The invariants are these:
 
   [sd6]: https://isocpp.org/std/standing-documents/sd-6-sg10-feature-test-recommendations
 
-  **Why the headers include `<string.h>` and not just `<cstring>`.**  Both names are declared by
-  `<string.h>`, and that include sits alongside the `<cstring>` the qualified `std::memcpy` /
-  `std::memset` calls need.  The two are not redundant, and collapsing them to the C++ spelling
-  alone is not a modernization.
+  **Why every header includes `<string.h>`.**  Both names are declared by `<string.h>`, so every
+  header includes it, whether or not it also needs `<cstring>`.  The byte buffers include
+  `<cstring>` as well, for their qualified `std::memcpy` / `std::memset` calls, and there the
+  two are not redundant.  Collapsing them to the C++ spelling alone is not a modernization.
 
   Since the probe above must be unqualified, it needs the names in the *global* namespace, which
   `<cstring>` does not supply.  `[cstring]` guarantees only the `std::` names, and neither
