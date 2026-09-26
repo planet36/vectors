@@ -78,18 +78,23 @@ make lint         # clang-tidy over the four suites (and, via HeaderFilterRegex,
   under a change is that change's, not a pre-existing noise floor to read past.  Every
   deliberate case is answered in place by a `// NOLINT*` comment, which makes those comments the
   record of what was decided.  **A silenced warning can still be one whose flagged form is the
-  point**, so deleting the marker to "fix" the code is backwards.  Five cases stand, each for
-  its own reason:
+  point**, so deleting the marker to "fix" the code is backwards.  Beyond the routine markers
+  (use-after-move checks on tests that inspect a moved-from object, `bugprone-exception-escape`
+  on each suite's `main`, and `readability-static-accessed-through-instance` on `v.max_size()`
+  in `test-fixed_vector.cpp`), five cases stand, each for its own reason:
   - `cppcoreguidelines-missing-std-forward` on each of `borrowed_byte_buffer`'s three
     deliberately un-forwarded borrowing constructors: the two `R&&` range ones and the `P&&`
     single-object one (see DESIGN.md).  Nothing is consumed there: the type borrows, so it takes
     only `std::ranges::data(r)` / the pointee `sizeof`, and the forwarding reference is there to
     widen what binds (rvalue views as well as lvalue containers, and a C array reaching the
     range constructor rather than decaying), not to move from.
-  - `performance-move-const-arg` / `hicpp-move-const-arg` on the two `std::move`s in
-    `test-borrowed_byte_buffer.cpp` that test the non-emptying move.  The check is right that
-    the `std::move` has no effect on a trivially copyable view, and that *is* the assertion, so
-    removing it removes the test.
+  - `performance-move-const-arg` / `hicpp-move-const-arg` on the `std::move`s that move a
+    trivially copyable object: the non-emptying move in `test-borrowed_byte_buffer.cpp`,
+    `fixed_vector`'s member-wise move in `test-fixed_vector.cpp`, and the `std::move(y)` that
+    sends an `int` to `unchecked_push_back`'s `&&` overload in `test-fixed_vector.cpp` and
+    `test-dynamic_fixed_vector.cpp`.  The check is right that the `std::move` changes nothing
+    about the value, and that *is* the assertion (or, for the `int`, what picks the overload
+    under test), so removing it removes the test.
   - `cppcoreguidelines-avoid-c-arrays` on the C array that `test-borrowed_byte_buffer.cpp`
     borrows from: that array *is* the case being tested (a C array reaching the range
     constructor instead of decaying to a one-element view), so rewriting it as a `std::array` is
@@ -356,19 +361,20 @@ than owning it, which removes the ownership machinery and changes construction:
   that copies it.**  That rules out a `\a param` naming a parameter the others do not have, and
   any claim that holds for only some of them.  The tag copies the text verbatim, nothing checks
   that the text still fits, and there is no Doxygen build here to catch it, so a target block is
-  a promise that the overloads share one contract.  Three defects of exactly this shape were
-  found and fixed in one pass: a `\copydetails` importing a `\pre` about a `capacity` parameter
-  onto the constructor that has none, an `assign_range` post-condition
-  (`leaves the container empty`) true only of the sized overloads, and that same block's
-  `\pre \a spn` reaching four overloads with no `spn`.  Where the overloads genuinely differ,
-  give each its own block.  The current targets are `data()`, `front()`, `back()`, `operator[]`,
-  `at()`, `push_back`, `assign_range`, and `adopting`.
+  a promise that the overloads share one contract.  The shape to watch for is text that fits
+  only some of the overloads copying it: a `\pre` about a `capacity` parameter reaching a
+  constructor that has none, a post-condition such as `assign_range`'s
+  `leaves the container empty` that only the sized overloads meet, or a `\pre \a spn` reaching
+  overloads with no `spn`.  Where the overloads genuinely differ, give each its own block.  The
+  current targets are `data()`, `front()`, `back()`, `operator[]`, `at()`, `push_back`,
+  `assign_range`, `adopting`, and the reserve constructors `dynamic_fixed_vector(std::size_t)`
+  and `aligned_byte_buffer(std::size_t)` (via `\copydetails`).
 - Capacity overflow throws **`std::bad_alloc`** (not `length_error`), and `at()` throws
   **`std::out_of_range`**.  The `try_*` family (`try_push_back`, `try_emplace_back`,
   `try_append_range`) returns `bool` instead of throwing and is marked `[[nodiscard]]`.
 - **A throwing member documents it with `\exception`.**  Doxygen's `\throw` and `\throws` are
-  exact synonyms, so nothing in a build catches the difference.  The headers were converted to
-  the one spelling and hold no instance of the other two.  Keep new tags on that spelling.
+  exact synonyms, so nothing in a build catches the difference.  The headers hold no instance of
+  the other two.  Keep new tags on that spelling.
 - `unchecked_*` variants skip the capacity check and assume `!is_full()`.  The checked
   `emplace_back`/`push_back`/`append_range` delegate to them after validating.
 - Append overloads that can know the source size up front (span, iterator+count,
@@ -380,9 +386,10 @@ than owning it, which removes the ownership machinery and changes construction:
   *unqualified* name lookup, because there is no feature-test macro.
 
   Because that lookup is unqualified it needs the names in the global namespace, which is why
-  every header includes **`<string.h>`**.  The byte buffers also include `<cstring>` for their
-  `std::memcpy` / `std::memset` calls, and there the two are not redundant: **collapsing them to
-  the C++ spelling is not a modernization**.  Collapsing them drops zeroization to the volatile
+  every container header includes **`<string.h>`** (`byte_compare.hpp` zeroizes nothing and
+  includes neither).  The byte buffers also include `<cstring>` for their `std::memcpy` /
+  `std::memset` calls, and there the two are not redundant: **collapsing them to the C++
+  spelling is not a modernization**.  Collapsing them drops zeroization to the volatile
   fallback with no build error and no test failure, since all three branches zero correctly.
   (DESIGN.md has the why, next to the matching rule that the call must stay unqualified.)
 

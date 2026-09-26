@@ -110,8 +110,9 @@ The invariants are these:
 
   [sd6]: https://isocpp.org/std/standing-documents/sd-6-sg10-feature-test-recommendations
 
-  **Why every header includes `<string.h>`.**  Both names are declared by `<string.h>`, so every
-  header includes it, whether or not it also needs `<cstring>`.  The byte buffers include
+  **Why every container header includes `<string.h>`.**  Both names are declared by
+  `<string.h>`, so every container header includes it, whether or not it also needs `<cstring>`.
+  (`byte_compare.hpp` zeroizes nothing and includes neither.)  The byte buffers include
   `<cstring>` as well, for their qualified `std::memcpy` / `std::memset` calls, and there the
   two are not redundant.  Collapsing them to the C++ spelling alone is not a modernization.
 
