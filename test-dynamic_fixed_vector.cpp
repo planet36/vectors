@@ -17,7 +17,10 @@
 #include <utility>
 #include <vector>
 
-constexpr auto is_odd = [](const int x) { return x % 2 != 0; };
+constexpr auto is_odd = [](const int x)
+{
+    return x % 2 != 0;
+};
 
 // Check at compile time that empty / zero-capacity instances are usable in constant
 // expressions.  (The allocating paths are not, since over-aligned allocation is not usable in
@@ -48,9 +51,10 @@ static_assert(constexpr_empty_ok());
 // The range / iterator-sentinel constructors require forward iterators, since capacity has to
 // be computed up front.  An input-only source is rejected at compile time.  It goes through
 // X(capacity) + append_range instead (see test_append_range_input_iterators).
-static_assert(std::constructible_from<dynamic_fixed_vector<int>, std::from_range_t,
-                                      std::vector<int>>);
-static_assert(!std::constructible_from<dynamic_fixed_vector<int>, std::from_range_t,
+static_assert(
+    std::constructible_from<dynamic_fixed_vector<int>, std::from_range_t, std::vector<int>>);
+static_assert(!std::constructible_from<dynamic_fixed_vector<int>,
+                                       std::from_range_t,
                                        std::ranges::istream_view<int>>);
 
 // ---- Constructors ----
@@ -235,13 +239,34 @@ test_data_null_iff_capacity_zero()
     const std::vector<int> src{1, 2, 3};
     const std::vector<int> empty;
 
-    { const dynamic_fixed_vector<int> v;    CHECK(data_null_iff_empty(v)); } // never allocates
-    { const dynamic_fixed_vector<int> v(0); CHECK(data_null_iff_empty(v)); } // the early return
-    { const dynamic_fixed_vector<int> v(3); CHECK(data_null_iff_empty(v)); } // real allocation
-    { const dynamic_fixed_vector<int> v(0, 7);        CHECK(data_null_iff_empty(v)); }
-    { const dynamic_fixed_vector<int> v(std::span<const int>{});      CHECK(data_null_iff_empty(v)); }
-    { const dynamic_fixed_vector<int> v(empty.begin(), empty.end());  CHECK(data_null_iff_empty(v)); }
-    { const dynamic_fixed_vector<int> v(std::from_range, empty);      CHECK(data_null_iff_empty(v)); }
+    {
+        const dynamic_fixed_vector<int> v; // never allocates
+        CHECK(data_null_iff_empty(v));
+    }
+    {
+        const dynamic_fixed_vector<int> v(0); // the early return
+        CHECK(data_null_iff_empty(v));
+    }
+    {
+        const dynamic_fixed_vector<int> v(3); // real allocation
+        CHECK(data_null_iff_empty(v));
+    }
+    {
+        const dynamic_fixed_vector<int> v(0, 7);
+        CHECK(data_null_iff_empty(v));
+    }
+    {
+        const dynamic_fixed_vector<int> v(std::span<const int>{});
+        CHECK(data_null_iff_empty(v));
+    }
+    {
+        const dynamic_fixed_vector<int> v(empty.begin(), empty.end());
+        CHECK(data_null_iff_empty(v));
+    }
+    {
+        const dynamic_fixed_vector<int> v(std::from_range, empty);
+        CHECK(data_null_iff_empty(v));
+    }
 
     // These reach capacity 0 by transfer rather than by construction.
     {
@@ -727,12 +752,12 @@ test_overflow_throws_bad_alloc()
 
     // X(n) reserves rather than creating elements, so unlike fixed_vector the constructors
     // cannot overflow.  Only the modifiers can.
-    CHECK_THROWS(std::bad_alloc, dynamic_fixed_vector<int> v(2); v.push_back(1); v.push_back(2);
-                 v.push_back(3));
+    CHECK_THROWS(std::bad_alloc, dynamic_fixed_vector<int> v(2); v.push_back(1);
+                 v.push_back(2); v.push_back(3));
     CHECK_THROWS(std::bad_alloc, dynamic_fixed_vector<int> v(1); v.emplace_back(1);
                  v.emplace_back(2));
-    CHECK_THROWS(std::bad_alloc,
-                 dynamic_fixed_vector<int> v(2); v.append_range(std::span<const int>{too_many}));
+    CHECK_THROWS(std::bad_alloc, dynamic_fixed_vector<int> v(2);
+                 v.append_range(std::span<const int>{too_many}));
     CHECK_THROWS(std::bad_alloc, dynamic_fixed_vector<int> v(2); v.resize(3));
     // assign_range keeps the current capacity, so a source that does not fit throws.
     CHECK_THROWS(std::bad_alloc, dynamic_fixed_vector<int> v(2); v.assign_range({1, 2, 3}));
@@ -741,59 +766,61 @@ test_overflow_throws_bad_alloc()
 int
 main() // NOLINT(bugprone-exception-escape)
 {
-    return run_tests([] {
-        test_ctor_default();
-        test_ctor_capacity();
-        test_ctor_capacity_value();
-        test_ctor_span();
-        test_ctor_iter_sentinel();
-        test_ctor_iter_count();
-        test_ctor_init_list();
-        test_ctor_from_range();
-        test_assign_init_list();
+    return run_tests(
+        []
+        {
+            test_ctor_default();
+            test_ctor_capacity();
+            test_ctor_capacity_value();
+            test_ctor_span();
+            test_ctor_iter_sentinel();
+            test_ctor_iter_count();
+            test_ctor_init_list();
+            test_ctor_from_range();
+            test_assign_init_list();
 
-        test_copy_ctor();
-        test_move_ctor();
-        test_copy_assign();
-        test_move_assign();
-        test_swap();
+            test_copy_ctor();
+            test_move_ctor();
+            test_copy_assign();
+            test_move_assign();
+            test_swap();
 
-        test_data_null_iff_capacity_zero();
-        test_capacity_max_size();
-        test_size_reserved_unused_is_empty_is_full();
+            test_data_null_iff_capacity_zero();
+            test_capacity_max_size();
+            test_size_reserved_unused_is_empty_is_full();
 
-        test_clear();
-        test_resize();
-        test_pop_back();
-        test_push_back();
-        test_emplace_back();
-        test_unchecked_push_back_unchecked_emplace_back();
-        test_try_push_back_try_emplace_back();
-        test_fill_capacity_fill_size();
-        test_zeroize_reserved_unused();
+            test_clear();
+            test_resize();
+            test_pop_back();
+            test_push_back();
+            test_emplace_back();
+            test_unchecked_push_back_unchecked_emplace_back();
+            test_try_push_back_try_emplace_back();
+            test_fill_capacity_fill_size();
+            test_zeroize_reserved_unused();
 
-        test_append_range();
-        test_append_range_input_iterators();
-        test_append_range_unsized_partial();
-        test_try_append_range();
-        test_try_append_range_unsized_partial();
-        test_assign_range();
-        test_assign_range_unsized_partial();
+            test_append_range();
+            test_append_range_input_iterators();
+            test_append_range_unsized_partial();
+            test_try_append_range();
+            test_try_append_range_unsized_partial();
+            test_assign_range();
+            test_assign_range_unsized_partial();
 
-        test_span_and_data();
-        test_front_back();
-        test_operator_index();
-        test_at();
-        test_const_accessors();
+            test_span_and_data();
+            test_front_back();
+            test_operator_index();
+            test_at();
+            test_const_accessors();
 
-        test_forward_iteration();
-        test_reverse_iteration();
+            test_forward_iteration();
+            test_reverse_iteration();
 
-        test_comparisons();
+            test_comparisons();
 
-        test_alignment();
-        test_byte_storage_for_simd();
+            test_alignment();
+            test_byte_storage_for_simd();
 
-        test_overflow_throws_bad_alloc();
-    });
+            test_overflow_throws_bad_alloc();
+        });
 }

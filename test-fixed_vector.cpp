@@ -17,7 +17,10 @@
 #include <utility>
 #include <vector>
 
-constexpr auto is_odd = [](const int x) { return x % 2 != 0; };
+constexpr auto is_odd = [](const int x)
+{
+    return x % 2 != 0;
+};
 
 // Check at compile time that nearly the whole interface is usable in constant expressions.
 // The heap-backed siblings' over-aligned allocation is not usable in constant evaluation, so
@@ -209,7 +212,8 @@ test_ctor_from_range_unsized()
     // would accept this source too.  What they reject is an input-only one, which fixed_vector
     // takes because it never has to size an allocation.  See test-dynamic_fixed_vector.cpp's
     // istream_view static_assert for that line.)
-    const fixed_vector<int, 5> v(std::from_range, std::views::iota(1, 10) | std::views::filter(is_odd));
+    const fixed_vector<int, 5> v(std::from_range,
+                                 std::views::iota(1, 10) | std::views::filter(is_odd));
     CHECK(to_ivec(v) == std::vector({1, 3, 5, 7, 9}));
 }
 
@@ -593,7 +597,8 @@ test_append_range_unsized_partial()
     // appended before std::bad_alloc is thrown.  A sized overload would have appended nothing.
     fixed_vector<int, 4> v;
     v.append_range({1, 2});
-    CHECK_THROWS(std::bad_alloc, v.append_range(std::views::iota(1, 10) | std::views::filter(is_odd)));
+    CHECK_THROWS(std::bad_alloc,
+                 v.append_range(std::views::iota(1, 10) | std::views::filter(is_odd)));
     CHECK(to_ivec(v) == std::vector({1, 2, 1, 3})); // partially appended before the throw
 }
 
@@ -845,11 +850,13 @@ test_overflow_throws_bad_alloc()
     // heap-backed siblings, where X(n) reserves capacity n and cannot.
     CHECK_THROWS(std::bad_alloc, const fixed_vector<int, 5> v(6); (void)v);
     CHECK_THROWS(std::bad_alloc, const fixed_vector<int, 5> v(6, 42); (void)v);
-    CHECK_THROWS(std::bad_alloc, const fixed_vector<int, 5> v(std::span<const int>{too_many}); (void)v);
+    CHECK_THROWS(std::bad_alloc, const fixed_vector<int, 5> v(std::span<const int>{too_many});
+                 (void)v);
     CHECK_THROWS(std::bad_alloc, const fixed_vector<int, 5> v{1, 2, 3, 4, 5, 6}; (void)v);
     CHECK_THROWS(std::bad_alloc, fixed_vector<int, 2> v{1, 2}; v.push_back(3));
     CHECK_THROWS(std::bad_alloc, fixed_vector<int, 1> v{1}; v.emplace_back(2));
-    CHECK_THROWS(std::bad_alloc, fixed_vector<int, 2> v; v.append_range(std::span<const int>{too_many}));
+    CHECK_THROWS(std::bad_alloc, fixed_vector<int, 2> v;
+                 v.append_range(std::span<const int>{too_many}));
     CHECK_THROWS(std::bad_alloc, fixed_vector<int, 2> v; v.resize(3));
     CHECK_THROWS(std::bad_alloc, fixed_vector<int, 2> v; v.reserve(3));
     // Capacity, not max_size(), is what resize() may not exceed.
@@ -860,62 +867,64 @@ test_overflow_throws_bad_alloc()
 int
 main() // NOLINT(bugprone-exception-escape)
 {
-    return run_tests([] {
-        test_ctor_default();
-        test_ctor_count();
-        test_ctor_count_value();
-        test_ctor_span();
-        test_ctor_iter_sentinel();
-        test_ctor_iter_count();
-        test_ctor_init_list();
-        test_ctor_from_range_sized();
-        test_ctor_from_range_unsized();
-        test_assign_init_list();
+    return run_tests(
+        []
+        {
+            test_ctor_default();
+            test_ctor_count();
+            test_ctor_count_value();
+            test_ctor_span();
+            test_ctor_iter_sentinel();
+            test_ctor_iter_count();
+            test_ctor_init_list();
+            test_ctor_from_range_sized();
+            test_ctor_from_range_unsized();
+            test_assign_init_list();
 
-        test_copy_ctor();
-        test_move_ctor();
-        test_copy_assign();
-        test_move_assign();
-        test_swap();
-        test_swap_exchanges_all_slots();
+            test_copy_ctor();
+            test_move_ctor();
+            test_copy_assign();
+            test_move_assign();
+            test_swap();
+            test_swap_exchanges_all_slots();
 
-        test_capacity_max_size();
-        test_size_reserved_unused_is_empty_is_full();
+            test_capacity_max_size();
+            test_size_reserved_unused_is_empty_is_full();
 
-        test_clear();
-        test_reserve();
-        test_resize();
-        test_pop_back();
-        test_push_back();
-        test_emplace_back();
-        test_unchecked_push_back_unchecked_emplace_back();
-        test_try_push_back_try_emplace_back();
-        test_fill_capacity_fill_size();
-        test_zeroize_reserved_unused();
-        test_zeroize_unreserved();
+            test_clear();
+            test_reserve();
+            test_resize();
+            test_pop_back();
+            test_push_back();
+            test_emplace_back();
+            test_unchecked_push_back_unchecked_emplace_back();
+            test_try_push_back_try_emplace_back();
+            test_fill_capacity_fill_size();
+            test_zeroize_reserved_unused();
+            test_zeroize_unreserved();
 
-        test_append_range();
-        test_append_range_unsized_partial();
-        test_try_append_range();
-        test_try_append_range_unsized_partial();
-        test_assign_range();
-        test_assign_range_unsized_partial();
+            test_append_range();
+            test_append_range_unsized_partial();
+            test_try_append_range();
+            test_try_append_range_unsized_partial();
+            test_assign_range();
+            test_assign_range_unsized_partial();
 
-        test_span_and_data();
-        test_front_back();
-        test_operator_index();
-        test_at();
-        test_const_accessors();
+            test_span_and_data();
+            test_front_back();
+            test_operator_index();
+            test_at();
+            test_const_accessors();
 
-        test_forward_iteration();
-        test_reverse_iteration();
-        test_std_algorithms();
+            test_forward_iteration();
+            test_reverse_iteration();
+            test_std_algorithms();
 
-        test_comparisons();
+            test_comparisons();
 
-        test_alignment();
-        test_byte_storage_for_simd();
+            test_alignment();
+            test_byte_storage_for_simd();
 
-        test_overflow_throws_bad_alloc();
-    });
+            test_overflow_throws_bad_alloc();
+        });
 }

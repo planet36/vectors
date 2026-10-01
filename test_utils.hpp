@@ -29,7 +29,9 @@
 
 /// Report a failed check at \a file : \a line within \a func and exit EXIT_FAILURE
 [[noreturn]] inline void
-test_fail(const std::string_view file, const int line, const std::string_view func,
+test_fail(const std::string_view file,
+          const int line,
+          const std::string_view func,
           const std::string_view msg)
 {
     std::println(stderr, "{}:{}: {}: {}", file, line, func, msg);
@@ -44,10 +46,12 @@ test_fail(const std::string_view file, const int line, const std::string_view fu
 * an object.)
 */
 #define CHECK(...)                                                                  \
-    do {                                                                            \
+    do                                                                              \
+    {                                                                               \
         if (!(__VA_ARGS__))                                                         \
             test_fail(__FILE__, __LINE__, __func__, "CHECK failed: " #__VA_ARGS__); \
-    } while (false)
+    }                                                                               \
+    while (false)
 
 /// Fail unless evaluating the expression throws an exception of type \a Ex
 /**
@@ -55,25 +59,26 @@ test_fail(const std::string_view file, const int line, const std::string_view fu
 * different defect from no throw at all, and catching it here (rather than letting it escape) is
 * what keeps the run from reaching \c terminate().
 */
-#define CHECK_THROWS(Ex, ...)                                                        \
-    do {                                                                             \
-        try                                                                          \
-        {                                                                            \
-            __VA_ARGS__;                                                             \
-            test_fail(__FILE__, __LINE__, __func__,                                  \
-                      "CHECK_THROWS failed: no exception thrown, expected " #Ex      \
-                      " from: " #__VA_ARGS__);                                       \
-        }                                                                            \
-        catch (const Ex&)                                                            \
-        {                                                                            \
-        }                                                                            \
-        catch (...)                                                                  \
-        {                                                                            \
-            test_fail(__FILE__, __LINE__, __func__,                                  \
-                      "CHECK_THROWS failed: wrong exception type, expected " #Ex     \
-                      " from: " #__VA_ARGS__);                                       \
-        }                                                                            \
-    } while (false)
+#define CHECK_THROWS(Ex, ...)                                                    \
+    do                                                                           \
+    {                                                                            \
+        try                                                                      \
+        {                                                                        \
+            __VA_ARGS__;                                                         \
+            test_fail(__FILE__, __LINE__, __func__,                              \
+                      "CHECK_THROWS failed: no exception thrown, expected " #Ex  \
+                      " from: " #__VA_ARGS__);                                   \
+        }                                                                        \
+        catch (const Ex&)                                                        \
+        {}                                                                       \
+        catch (...)                                                              \
+        {                                                                        \
+            test_fail(__FILE__, __LINE__, __func__,                              \
+                      "CHECK_THROWS failed: wrong exception type, expected " #Ex \
+                      " from: " #__VA_ARGS__);                                   \
+        }                                                                        \
+    }                                                                            \
+    while (false)
 
 /// Run \a tests and return the value \c main should return
 /**

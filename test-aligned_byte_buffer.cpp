@@ -15,7 +15,10 @@
 #include <utility>
 #include <vector>
 
-constexpr auto is_odd = [](const int x) { return x % 2 != 0; };
+constexpr auto is_odd = [](const int x)
+{
+    return x % 2 != 0;
+};
 
 // Check at compile time that empty / zero-capacity instances are usable in constant
 // expressions.  (The allocating paths are not, since over-aligned allocation is not usable in
@@ -46,10 +49,9 @@ static_assert(constexpr_empty_ok());
 // The emplace_back family is constrained to at most one std::byte / integral argument.
 // (A dependent context is needed so a rejected call yields false instead of a hard error.)
 template <typename... Args>
-constexpr bool can_emplace_back =
-    requires(aligned_byte_buffer<16> v, Args&&... args) {
-        v.emplace_back(std::forward<Args>(args)...);
-    };
+constexpr bool can_emplace_back = requires (aligned_byte_buffer<16> v, Args&&... args) {
+    v.emplace_back(std::forward<Args>(args)...);
+};
 static_assert(can_emplace_back<std::byte>);
 static_assert(can_emplace_back<int>);
 static_assert(can_emplace_back<unsigned char>);
@@ -746,58 +748,60 @@ test_overflow_throws_bad_alloc()
 int
 main() // NOLINT(bugprone-exception-escape)
 {
-    return run_tests([] {
-        test_ctor_default();
-        test_ctor_capacity();
-        test_ctor_capacity_value();
-        test_ctor_span();
-        test_ctor_iter_sentinel();
-        test_ctor_iter_count();
-        test_ctor_init_list();
-        test_ctor_from_range();
-        test_assign_init_list();
+    return run_tests(
+        []
+        {
+            test_ctor_default();
+            test_ctor_capacity();
+            test_ctor_capacity_value();
+            test_ctor_span();
+            test_ctor_iter_sentinel();
+            test_ctor_iter_count();
+            test_ctor_init_list();
+            test_ctor_from_range();
+            test_assign_init_list();
 
-        test_copy_ctor();
-        test_move_ctor();
-        test_copy_assign();
-        test_move_assign();
-        test_swap();
+            test_copy_ctor();
+            test_move_ctor();
+            test_copy_assign();
+            test_move_assign();
+            test_swap();
 
-        test_data_null_iff_capacity_zero();
-        test_capacity_max_size();
-        test_size_reserved_unused_is_empty_is_full();
+            test_data_null_iff_capacity_zero();
+            test_capacity_max_size();
+            test_size_reserved_unused_is_empty_is_full();
 
-        test_clear();
-        test_resize();
-        test_pop_back();
-        test_push_back_emplace_back();
-        test_unchecked_push_back_unchecked_emplace_back();
-        test_try_push_back_try_emplace_back();
-        test_fill_capacity_fill_size();
-        test_zeroize_reserved_unused();
+            test_clear();
+            test_resize();
+            test_pop_back();
+            test_push_back_emplace_back();
+            test_unchecked_push_back_unchecked_emplace_back();
+            test_try_push_back_try_emplace_back();
+            test_fill_capacity_fill_size();
+            test_zeroize_reserved_unused();
 
-        test_append_range();
-        test_append_range_unsized_partial();
-        test_try_append_range();
-        test_try_append_range_unsized_partial();
-        test_assign_range();
-        test_assign_range_unsized_partial();
+            test_append_range();
+            test_append_range_unsized_partial();
+            test_try_append_range();
+            test_try_append_range_unsized_partial();
+            test_assign_range();
+            test_assign_range_unsized_partial();
 
-        test_span_and_data();
-        test_front_back();
-        test_operator_index();
-        test_at();
-        test_const_accessors();
+            test_span_and_data();
+            test_front_back();
+            test_operator_index();
+            test_at();
+            test_const_accessors();
 
-        test_forward_iteration();
-        test_reverse_iteration();
+            test_forward_iteration();
+            test_reverse_iteration();
 
-        test_comparisons();
-        test_equal_constant_time();
+            test_comparisons();
+            test_equal_constant_time();
 
-        test_alignment();
-        test_byte_storage_for_simd();
+            test_alignment();
+            test_byte_storage_for_simd();
 
-        test_overflow_throws_bad_alloc();
-    });
+            test_overflow_throws_bad_alloc();
+        });
 }

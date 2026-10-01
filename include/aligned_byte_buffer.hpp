@@ -11,6 +11,8 @@
 
 #pragma once
 
+#include "byte_compare.hpp"
+
 #include <algorithm>
 #include <bit>
 #if defined(DEBUG)
@@ -30,8 +32,6 @@
 #include <string.h> // memset_explicit, explicit_bzero
 #include <type_traits>
 #include <utility>
-
-#include "byte_compare.hpp"
 
 /// A resizable, fixed-capacity buffer of \c std::byte with over-alignable storage
 /**
@@ -202,18 +202,20 @@ public:
     /**
     * \exception std::bad_alloc if the allocation fails.
     */
-    constexpr aligned_byte_buffer(const aligned_byte_buffer& other)
-        : size_{other.size_}, capacity_{other.capacity_}, data_{allocate_(other.capacity_)}
+    constexpr aligned_byte_buffer(const aligned_byte_buffer& other) :
+    size_{other.size_},
+    capacity_{other.capacity_},
+    data_{allocate_(other.capacity_)}
     {
         // The reserved tail is unspecified, so only the live [0,size) bytes are copied.
         if (size() != 0)
             (void)std::memcpy(data(), other.data(), size());
     }
 
-    constexpr aligned_byte_buffer(aligned_byte_buffer&& other) noexcept
-        : size_{std::exchange(other.size_, 0)},
-          capacity_{std::exchange(other.capacity_, 0)},
-          data_{std::move(other.data_)}
+    constexpr aligned_byte_buffer(aligned_byte_buffer&& other) noexcept :
+    size_{std::exchange(other.size_, 0)},
+    capacity_{std::exchange(other.capacity_, 0)},
+    data_{std::move(other.data_)}
     {}
 
     /**
@@ -247,16 +249,20 @@ public:
     /**
     * \exception std::bad_alloc if the allocation fails.
     */
-    constexpr explicit aligned_byte_buffer(const std::size_t capacity)
-        : capacity_{capacity}, data_{allocate_(capacity)}
+    constexpr explicit aligned_byte_buffer(const std::size_t capacity) :
+    capacity_{capacity},
+    data_{allocate_(capacity)}
     {}
 
     /// Reserve capacity \a capacity and fill it with \a value (\c size()==capacity)
     /**
     * \copydetails aligned_byte_buffer(std::size_t)
     */
-    constexpr explicit aligned_byte_buffer(const std::size_t capacity, const std::byte value)
-        : size_{capacity}, capacity_{capacity}, data_{allocate_(capacity)}
+    constexpr explicit aligned_byte_buffer(const std::size_t capacity,
+                                           const std::byte value) :
+    size_{capacity},
+    capacity_{capacity},
+    data_{allocate_(capacity)}
     {
         if (this->capacity() != 0)
             (void)std::memset(data(), std::to_integer<int>(value), this->capacity());
@@ -266,8 +272,8 @@ public:
     /**
     * \exception std::bad_alloc if the allocation fails.
     */
-    constexpr explicit aligned_byte_buffer(const std::span<const std::byte> spn)
-        : aligned_byte_buffer(std::size(spn))
+    constexpr explicit aligned_byte_buffer(const std::span<const std::byte> spn) :
+    aligned_byte_buffer(std::size(spn))
     {
         common_append_range_(spn);
     }
@@ -277,8 +283,8 @@ public:
     * \exception std::bad_alloc if the allocation fails.
     */
     template <std::forward_iterator It, std::sentinel_for<It> S>
-    constexpr explicit aligned_byte_buffer(It first, S last)
-        : aligned_byte_buffer(static_cast<std::size_t>(std::ranges::distance(first, last)))
+    constexpr explicit aligned_byte_buffer(It first, S last) :
+    aligned_byte_buffer(static_cast<std::size_t>(std::ranges::distance(first, last)))
     {
         for (; first != last; ++first)
             unchecked_emplace_back(*first);
@@ -289,8 +295,8 @@ public:
     * \exception std::bad_alloc if the allocation fails.
     */
     template <std::input_iterator It>
-    constexpr explicit aligned_byte_buffer(It first, const std::size_t count)
-        : aligned_byte_buffer(count)
+    constexpr explicit aligned_byte_buffer(It first, const std::size_t count) :
+    aligned_byte_buffer(count)
     {
         common_append_range_(first, count);
     }
@@ -299,8 +305,8 @@ public:
     /**
     * \exception std::bad_alloc if the allocation fails.
     */
-    constexpr aligned_byte_buffer(const std::initializer_list<std::byte> il)
-        : aligned_byte_buffer(std::span{std::data(il), std::size(il)})
+    constexpr aligned_byte_buffer(const std::initializer_list<std::byte> il) :
+    aligned_byte_buffer(std::span{std::data(il), std::size(il)})
     {}
 
     /// Capacity is the size of \a rg
@@ -308,8 +314,8 @@ public:
     * \exception std::bad_alloc if the allocation fails.
     */
     template <std::ranges::forward_range R>
-    constexpr explicit aligned_byte_buffer(std::from_range_t, R&& rg)
-        : aligned_byte_buffer(static_cast<std::size_t>(std::ranges::distance(rg)))
+    constexpr explicit aligned_byte_buffer(std::from_range_t, R&& rg) :
+    aligned_byte_buffer(static_cast<std::size_t>(std::ranges::distance(rg)))
     {
         for (auto&& e : std::forward<R>(rg))
             unchecked_emplace_back(std::forward<decltype(e)>(e));
@@ -402,9 +408,9 @@ public:
     * \note "Emplace" is assignment here.  The slot already holds a live byte.
     */
     template <class... Args>
-    requires (sizeof...(Args) <= 1) &&
-             ((std::same_as<std::remove_cvref_t<Args>, std::byte> ||
-               std::integral<std::remove_cvref_t<Args>>) && ...)
+    requires (sizeof...(Args) <= 1) && ((std::same_as<std::remove_cvref_t<Args>, std::byte> ||
+                                         std::integral<std::remove_cvref_t<Args>>) &&
+                                        ...)
     constexpr void unchecked_emplace_back(Args&&... args) noexcept
     {
 #if defined(DEBUG)
@@ -418,9 +424,9 @@ public:
     * \exception std::bad_alloc if \c is_full().
     */
     template <class... Args>
-    requires (sizeof...(Args) <= 1) &&
-             ((std::same_as<std::remove_cvref_t<Args>, std::byte> ||
-               std::integral<std::remove_cvref_t<Args>>) && ...)
+    requires (sizeof...(Args) <= 1) && ((std::same_as<std::remove_cvref_t<Args>, std::byte> ||
+                                         std::integral<std::remove_cvref_t<Args>>) &&
+                                        ...)
     constexpr void emplace_back(Args&&... args)
     {
         if (is_full())
@@ -430,9 +436,9 @@ public:
     }
 
     template <class... Args>
-    requires (sizeof...(Args) <= 1) &&
-             ((std::same_as<std::remove_cvref_t<Args>, std::byte> ||
-               std::integral<std::remove_cvref_t<Args>>) && ...)
+    requires (sizeof...(Args) <= 1) && ((std::same_as<std::remove_cvref_t<Args>, std::byte> ||
+                                         std::integral<std::remove_cvref_t<Args>>) &&
+                                        ...)
     [[nodiscard]] constexpr bool try_emplace_back(Args&&... args) noexcept
     {
         if (is_full())
@@ -571,7 +577,8 @@ public:
     /**
     * \pre \a spn does not overlap this buffer's storage.
     */
-    [[nodiscard]] constexpr bool try_append_range(const std::span<const std::byte> spn) noexcept
+    [[nodiscard]] constexpr bool
+    try_append_range(const std::span<const std::byte> spn) noexcept
     {
         if (std::size(spn) > reserved_unused())
             return false;
@@ -712,7 +719,10 @@ public:
         return {data(), size()};
     }
 
-    [[nodiscard]] constexpr explicit operator std::span<std::byte>() noexcept { return span(); }
+    [[nodiscard]] constexpr explicit operator std::span<std::byte>() noexcept
+    {
+        return span();
+    }
 
     [[nodiscard]] constexpr explicit operator std::span<const std::byte>() const noexcept
     {
@@ -867,8 +877,7 @@ public:
         return std::ranges::equal(span(), rhs.span());
     }
 
-    [[nodiscard]] constexpr auto
-    operator<=>(const aligned_byte_buffer& rhs) const noexcept
+    [[nodiscard]] constexpr auto operator<=>(const aligned_byte_buffer& rhs) const noexcept
     {
         return std::lexicographical_compare_three_way(begin(), end(), rhs.begin(), rhs.end());
     }

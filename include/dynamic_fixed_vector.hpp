@@ -78,11 +78,10 @@
 *
 * \warning This container is only suitable for trivially destructible types.
 */
-template <typename T,
-          std::size_t Align = std::max(alignof(std::size_t), alignof(T))>
+template <typename T, std::size_t Align = std::max(alignof(std::size_t), alignof(T))>
 requires std::default_initializable<T> && std::movable<T> &&
-         std::is_trivially_destructible_v<T> &&
-         (std::has_single_bit(Align)) && (Align >= alignof(T))
+         std::is_trivially_destructible_v<T> && (std::has_single_bit(Align)) &&
+         (Align >= alignof(T))
 class dynamic_fixed_vector
 {
 private:
@@ -140,7 +139,8 @@ private:
     }
 
     /// Tag for the constructor that allocates without beginning element lifetimes
-    struct raw_alloc_t {};
+    struct raw_alloc_t
+    {};
 
     /// Allocate \a capacity slots with \c size()==capacity but no lifetimes begun
     /**
@@ -150,8 +150,10 @@ private:
     * still frees the block (owned by \c data_).  The already-constructed elements need no
     * destruction (\c T is trivially destructible).
     */
-    constexpr dynamic_fixed_vector(raw_alloc_t, const std::size_t capacity)
-        : size_{capacity}, capacity_{capacity}, data_{allocate_raw_(capacity)}
+    constexpr dynamic_fixed_vector(raw_alloc_t, const std::size_t capacity) :
+    size_{capacity},
+    capacity_{capacity},
+    data_{allocate_raw_(capacity)}
     {}
 
     constexpr void check_idx_(const std::size_t i) const
@@ -248,8 +250,10 @@ public:
     /**
     * \exception std::bad_alloc if the allocation fails.
     */
-    constexpr dynamic_fixed_vector(const dynamic_fixed_vector& other)
-        : size_{other.size_}, capacity_{other.capacity_}, data_{allocate_raw_(other.capacity_)}
+    constexpr dynamic_fixed_vector(const dynamic_fixed_vector& other) :
+    size_{other.size_},
+    capacity_{other.capacity_},
+    data_{allocate_raw_(other.capacity_)}
     {
         // Copy the entire capacity buffer, so beyond-size operator[] reads match the source.
         // Each element's lifetime begins directly from the copy, with no value-init first.
@@ -257,10 +261,10 @@ public:
             (void)std::uninitialized_copy_n(other.data(), this->capacity(), data());
     }
 
-    constexpr dynamic_fixed_vector(dynamic_fixed_vector&& other) noexcept
-        : size_{std::exchange(other.size_, 0)},
-          capacity_{std::exchange(other.capacity_, 0)},
-          data_{std::move(other.data_)}
+    constexpr dynamic_fixed_vector(dynamic_fixed_vector&& other) noexcept :
+    size_{std::exchange(other.size_, 0)},
+    capacity_{std::exchange(other.capacity_, 0)},
+    data_{std::move(other.data_)}
     {}
 
     /**
@@ -295,16 +299,17 @@ public:
     * \exception std::bad_alloc if the allocation fails, or if <code>capacity * sizeof(T)</code>
     * would overflow \c std::size_t.
     */
-    constexpr explicit dynamic_fixed_vector(const std::size_t capacity)
-        : capacity_{capacity}, data_{allocate_(capacity)}
+    constexpr explicit dynamic_fixed_vector(const std::size_t capacity) :
+    capacity_{capacity},
+    data_{allocate_(capacity)}
     {}
 
     /// Reserve capacity \a capacity and fill it with \a value (\c size()==capacity)
     /**
     * \copydetails dynamic_fixed_vector(std::size_t)
     */
-    constexpr explicit dynamic_fixed_vector(const std::size_t capacity, const T& value)
-        : dynamic_fixed_vector(raw_alloc_t{}, capacity)
+    constexpr explicit dynamic_fixed_vector(const std::size_t capacity, const T& value) :
+    dynamic_fixed_vector(raw_alloc_t{}, capacity)
     {
         if (this->capacity() != 0)
             (void)std::uninitialized_fill_n(data(), this->capacity(), value);
@@ -315,8 +320,8 @@ public:
     * \exception std::bad_alloc if the allocation fails, or if the byte count would overflow
     *            \c std::size_t.
     */
-    constexpr explicit dynamic_fixed_vector(const std::span<const T> spn)
-        : dynamic_fixed_vector(raw_alloc_t{}, std::size(spn))
+    constexpr explicit dynamic_fixed_vector(const std::span<const T> spn) :
+    dynamic_fixed_vector(raw_alloc_t{}, std::size(spn))
     {
         if (capacity() != 0)
             (void)std::uninitialized_copy_n(std::data(spn), capacity(), data());
@@ -328,9 +333,9 @@ public:
     *            \c std::size_t.
     */
     template <std::forward_iterator It, std::sentinel_for<It> S>
-    constexpr explicit dynamic_fixed_vector(It first, S last)
-        : dynamic_fixed_vector(raw_alloc_t{},
-                               static_cast<std::size_t>(std::ranges::distance(first, last)))
+    constexpr explicit dynamic_fixed_vector(It first, S last) :
+    dynamic_fixed_vector(raw_alloc_t{},
+                         static_cast<std::size_t>(std::ranges::distance(first, last)))
     {
         std::size_t i = 0;
         for (; first != last; ++first)
@@ -346,8 +351,8 @@ public:
     *            \c std::size_t.
     */
     template <std::input_iterator It>
-    constexpr explicit dynamic_fixed_vector(It first, const std::size_t count)
-        : dynamic_fixed_vector(raw_alloc_t{}, count)
+    constexpr explicit dynamic_fixed_vector(It first, const std::size_t count) :
+    dynamic_fixed_vector(raw_alloc_t{}, count)
     {
         for (std::size_t i = 0; i < count; ++i)
         {
@@ -361,8 +366,8 @@ public:
     * \exception std::bad_alloc if the allocation fails, or if the byte count would overflow
     *            \c std::size_t.
     */
-    constexpr dynamic_fixed_vector(const std::initializer_list<T> il)
-        : dynamic_fixed_vector(std::data(il), std::size(il))
+    constexpr dynamic_fixed_vector(const std::initializer_list<T> il) :
+    dynamic_fixed_vector(std::data(il), std::size(il))
     {}
 
     /// Capacity is the size of \a rg
@@ -371,8 +376,8 @@ public:
     *            \c std::size_t.
     */
     template <std::ranges::forward_range R>
-    constexpr explicit dynamic_fixed_vector(std::from_range_t, R&& rg)
-        : dynamic_fixed_vector(raw_alloc_t{}, static_cast<std::size_t>(std::ranges::distance(rg)))
+    constexpr explicit dynamic_fixed_vector(std::from_range_t, R&& rg) :
+    dynamic_fixed_vector(raw_alloc_t{}, static_cast<std::size_t>(std::ranges::distance(rg)))
     {
         std::size_t i = 0;
         for (auto&& e : std::forward<R>(rg))
@@ -793,7 +798,10 @@ public:
 
     [[nodiscard]] constexpr std::span<T> span() noexcept { return {data(), size()}; }
 
-    [[nodiscard]] constexpr std::span<const T> span() const noexcept { return {data(), size()}; }
+    [[nodiscard]] constexpr std::span<const T> span() const noexcept
+    {
+        return {data(), size()};
+    }
 
     [[nodiscard]] constexpr explicit operator std::span<T>() noexcept { return span(); }
 

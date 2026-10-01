@@ -72,8 +72,8 @@ template <typename T,
           std::size_t N,
           std::size_t Align = std::max(alignof(std::size_t), alignof(T))>
 requires (N > 0) && std::default_initializable<T> && std::movable<T> &&
-         std::is_trivially_destructible_v<T> &&
-         (std::has_single_bit(Align)) && (Align >= alignof(T))
+         std::is_trivially_destructible_v<T> && (std::has_single_bit(Align)) &&
+         (Align >= alignof(T))
 class fixed_vector
 {
 private:
@@ -176,15 +176,18 @@ public:
     */
     constexpr fixed_vector() noexcept(std::is_nothrow_default_constructible_v<T>) = default;
 
-    fixed_vector(const fixed_vector&) noexcept(std::is_nothrow_copy_constructible_v<T>) = default;
+    fixed_vector(const fixed_vector&) noexcept(std::is_nothrow_copy_constructible_v<T>) =
+        default;
 
     /**
     * \note A move does \b not empty the source.  The elements are moved one by one, and a
     * trivially copyable \c T leaves the source unchanged.
     */
     fixed_vector(fixed_vector&&) noexcept(std::is_nothrow_move_constructible_v<T>) = default;
-    fixed_vector& operator=(const fixed_vector&) noexcept(std::is_nothrow_copy_assignable_v<T>) = default;
-    fixed_vector& operator=(fixed_vector&&) noexcept(std::is_nothrow_move_assignable_v<T>) = default;
+    fixed_vector&
+    operator=(const fixed_vector&) noexcept(std::is_nothrow_copy_assignable_v<T>) = default;
+    fixed_vector&
+    operator=(fixed_vector&&) noexcept(std::is_nothrow_move_assignable_v<T>) = default;
     ~fixed_vector() = default;
 
     /// Create \a count elements equal to \a value (\c size()==count)
@@ -456,8 +459,7 @@ public:
     }
 
     /// Fill the live elements [0, \c size()) with \a value, leaving \c size() unchanged
-    constexpr void fill_size(const T& value)
-        noexcept(std::is_nothrow_copy_assignable_v<T>)
+    constexpr void fill_size(const T& value) noexcept(std::is_nothrow_copy_assignable_v<T>)
     {
         (void)std::ranges::fill(span(), value);
     }

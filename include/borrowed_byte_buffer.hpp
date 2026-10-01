@@ -11,6 +11,8 @@
 
 #pragma once
 
+#include "byte_compare.hpp"
+
 #include <algorithm>
 #if defined(DEBUG)
 #include <cassert>
@@ -28,8 +30,6 @@
 #include <string.h> // memset_explicit, explicit_bzero
 #include <type_traits>
 #include <utility>
-
-#include "byte_compare.hpp"
 
 class borrowed_byte_buffer;
 
@@ -245,8 +245,9 @@ public:
     /**
     * \pre \a data points to at least \a capacity writable bytes.
     */
-    borrowed_byte_buffer(void* const data, const std::size_t capacity) noexcept
-        : data_{static_cast<std::byte*>(data)}, capacity_{capacity}
+    borrowed_byte_buffer(void* const data, const std::size_t capacity) noexcept :
+    data_{static_cast<std::byte*>(data)},
+    capacity_{capacity}
     {}
 
     /// Borrow \a capacity bytes of the range \a r, leaving the buffer empty (\c size()==0)
@@ -258,8 +259,9 @@ public:
     */
     template <borrowable_range R>
     // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
-    explicit borrowed_byte_buffer(R&& r, const std::size_t capacity) noexcept
-        : data_{reinterpret_cast<std::byte*>(std::ranges::data(r))}, capacity_{capacity}
+    explicit borrowed_byte_buffer(R&& r, const std::size_t capacity) noexcept :
+    data_{reinterpret_cast<std::byte*>(std::ranges::data(r))},
+    capacity_{capacity}
     {
 #if defined(DEBUG)
         assert(this->capacity() <= std::span{r}.size_bytes());
@@ -275,9 +277,9 @@ public:
     */
     template <borrowable_range R>
     // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
-    explicit borrowed_byte_buffer(R&& r) noexcept
-        : data_{reinterpret_cast<std::byte*>(std::ranges::data(r))},
-          capacity_{std::span{r}.size_bytes()}
+    explicit borrowed_byte_buffer(R&& r) noexcept :
+    data_{reinterpret_cast<std::byte*>(std::ranges::data(r))},
+    capacity_{std::span{r}.size_bytes()}
     {}
 
     /// Overlay the single object \a data, with the pointee's \c sizeof as the capacity
@@ -287,8 +289,9 @@ public:
     */
     template <borrowable_object_ptr P>
     // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
-    explicit borrowed_byte_buffer(P&& data) noexcept
-        : data_{reinterpret_cast<std::byte*>(data)}, capacity_{object_ptr_size_<P>}
+    explicit borrowed_byte_buffer(P&& data) noexcept :
+    data_{reinterpret_cast<std::byte*>(data)},
+    capacity_{object_ptr_size_<P>}
     {}
 
     /// Adopt the bytes already present in the borrowed region, so \c size()==capacity()
@@ -307,8 +310,8 @@ public:
     * instead.
     * \pre The source points to at least \c capacity() writable bytes.
     */
-    [[nodiscard]] static borrowed_byte_buffer
-    adopting(void* const data, const std::size_t capacity) noexcept
+    [[nodiscard]] static borrowed_byte_buffer adopting(void* const data,
+                                                       const std::size_t capacity) noexcept
     {
         borrowed_byte_buffer b{data, capacity};
         b.size_ = b.capacity();
@@ -317,7 +320,8 @@ public:
 
     /// \copydoc adopting(void*,std::size_t)
     template <borrowable_range R>
-    [[nodiscard]] static borrowed_byte_buffer adopting(R&& r, const std::size_t capacity) noexcept
+    [[nodiscard]] static borrowed_byte_buffer adopting(R&& r,
+                                                       const std::size_t capacity) noexcept
     {
         borrowed_byte_buffer b{std::forward<R>(r), capacity};
         b.size_ = b.capacity();
@@ -422,9 +426,9 @@ public:
     * \note "Emplace" is assignment here.  The slot already holds a live byte.
     */
     template <class... Args>
-    requires (sizeof...(Args) <= 1) &&
-             ((std::same_as<std::remove_cvref_t<Args>, std::byte> ||
-               std::integral<std::remove_cvref_t<Args>>) && ...)
+    requires (sizeof...(Args) <= 1) && ((std::same_as<std::remove_cvref_t<Args>, std::byte> ||
+                                         std::integral<std::remove_cvref_t<Args>>) &&
+                                        ...)
     constexpr void unchecked_emplace_back(Args&&... args) noexcept
     {
 #if defined(DEBUG)
@@ -438,9 +442,9 @@ public:
     * \exception std::bad_alloc if \c is_full().
     */
     template <class... Args>
-    requires (sizeof...(Args) <= 1) &&
-             ((std::same_as<std::remove_cvref_t<Args>, std::byte> ||
-               std::integral<std::remove_cvref_t<Args>>) && ...)
+    requires (sizeof...(Args) <= 1) && ((std::same_as<std::remove_cvref_t<Args>, std::byte> ||
+                                         std::integral<std::remove_cvref_t<Args>>) &&
+                                        ...)
     constexpr void emplace_back(Args&&... args)
     {
         if (is_full())
@@ -450,9 +454,9 @@ public:
     }
 
     template <class... Args>
-    requires (sizeof...(Args) <= 1) &&
-             ((std::same_as<std::remove_cvref_t<Args>, std::byte> ||
-               std::integral<std::remove_cvref_t<Args>>) && ...)
+    requires (sizeof...(Args) <= 1) && ((std::same_as<std::remove_cvref_t<Args>, std::byte> ||
+                                         std::integral<std::remove_cvref_t<Args>>) &&
+                                        ...)
     [[nodiscard]] constexpr bool try_emplace_back(Args&&... args) noexcept
     {
         if (is_full())
@@ -591,7 +595,8 @@ public:
     /**
     * \pre \a spn does not overlap this buffer's storage.
     */
-    [[nodiscard]] constexpr bool try_append_range(const std::span<const std::byte> spn) noexcept
+    [[nodiscard]] constexpr bool
+    try_append_range(const std::span<const std::byte> spn) noexcept
     {
         if (std::size(spn) > reserved_unused())
             return false;
@@ -733,7 +738,10 @@ public:
         return {data(), size()};
     }
 
-    [[nodiscard]] constexpr explicit operator std::span<std::byte>() noexcept { return span(); }
+    [[nodiscard]] constexpr explicit operator std::span<std::byte>() noexcept
+    {
+        return span();
+    }
 
     [[nodiscard]] constexpr explicit operator std::span<const std::byte>() const noexcept
     {
@@ -877,8 +885,7 @@ public:
         return std::ranges::equal(span(), rhs.span());
     }
 
-    [[nodiscard]] constexpr auto
-    operator<=>(const borrowed_byte_buffer& rhs) const noexcept
+    [[nodiscard]] constexpr auto operator<=>(const borrowed_byte_buffer& rhs) const noexcept
     {
         return std::lexicographical_compare_three_way(begin(), end(), rhs.begin(), rhs.end());
     }

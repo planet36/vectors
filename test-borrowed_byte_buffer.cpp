@@ -18,7 +18,10 @@
 #include <utility>
 #include <vector>
 
-constexpr auto is_odd = [](const int x) { return x % 2 != 0; };
+constexpr auto is_odd = [](const int x)
+{
+    return x % 2 != 0;
+};
 
 // A borrowed_byte_buffer owns nothing but a pointer, a capacity, and a size, so it is
 // trivially copyable and its special members are all defaulted (shallow copy/move).
@@ -55,10 +58,9 @@ static_assert(constexpr_empty_ok());
 // (identical to aligned_byte_buffer).  A dependent context is needed so a rejected call yields
 // false.
 template <typename... Args>
-constexpr bool can_emplace_back =
-    requires(borrowed_byte_buffer v, Args&&... args) {
-        v.emplace_back(std::forward<Args>(args)...);
-    };
+constexpr bool can_emplace_back = requires (borrowed_byte_buffer v, Args&&... args) {
+    v.emplace_back(std::forward<Args>(args)...);
+};
 static_assert(can_emplace_back<std::byte>);
 static_assert(can_emplace_back<int>);
 static_assert(can_emplace_back<unsigned char>);
@@ -71,7 +73,7 @@ static_assert(!can_emplace_back<int, int>); // arity > 1 rejected
 // constraint as compile-time facts.
 template <typename... Args>
 constexpr bool can_construct =
-    requires(Args&&... args) { borrowed_byte_buffer{std::forward<Args>(args)...}; };
+    requires (Args&&... args) { borrowed_byte_buffer{std::forward<Args>(args)...}; };
 
 // These are accepted: lvalue contiguous containers, an rvalue std::span (a borrowed_range), a
 // single object pointer, and the (void*, size_t) primitive.
@@ -731,6 +733,7 @@ test_overlay_object()
         std::uint16_t len;
         std::uint16_t flags;
     };
+
     static_assert(std::is_trivially_copyable_v<Header>);
 
     Header h{};
@@ -746,8 +749,8 @@ test_overlay_object()
                                               sizeof(magic)});
     v.append_range(
         std::span<const std::byte>{reinterpret_cast<const std::byte*>(&len), sizeof(len)});
-    v.append_range(
-        std::span<const std::byte>{reinterpret_cast<const std::byte*>(&flags), sizeof(flags)});
+    v.append_range(std::span<const std::byte>{reinterpret_cast<const std::byte*>(&flags),
+                                              sizeof(flags)});
     CHECK(v.is_full());
     CHECK(h.magic == magic); // the object now holds what was written through its byte view
     CHECK(h.len == len);
@@ -779,54 +782,56 @@ test_overflow_throws_bad_alloc()
 int
 main() // NOLINT(bugprone-exception-escape)
 {
-    return run_tests([] {
-        test_ctor_default();
-        test_ctor_ptr_capacity();
-        test_ctor_range();
-        test_ctor_range_capacity();
-        test_ctor_single_object();
-        test_adopting();
-        test_write_shows_through();
+    return run_tests(
+        []
+        {
+            test_ctor_default();
+            test_ctor_ptr_capacity();
+            test_ctor_range();
+            test_ctor_range_capacity();
+            test_ctor_single_object();
+            test_adopting();
+            test_write_shows_through();
 
-        test_copy_ctor();
-        test_move_ctor();
-        test_copy_assign();
-        test_move_assign();
-        test_swap();
+            test_copy_ctor();
+            test_move_ctor();
+            test_copy_assign();
+            test_move_assign();
+            test_swap();
 
-        test_capacity_max_size();
-        test_size_reserved_unused_is_empty_is_full();
+            test_capacity_max_size();
+            test_size_reserved_unused_is_empty_is_full();
 
-        test_clear();
-        test_resize();
-        test_pop_back();
-        test_push_back_emplace_back();
-        test_unchecked_push_back_unchecked_emplace_back();
-        test_try_push_back_try_emplace_back();
-        test_fill_capacity_fill_size();
-        test_zeroize_reserved_unused();
+            test_clear();
+            test_resize();
+            test_pop_back();
+            test_push_back_emplace_back();
+            test_unchecked_push_back_unchecked_emplace_back();
+            test_try_push_back_try_emplace_back();
+            test_fill_capacity_fill_size();
+            test_zeroize_reserved_unused();
 
-        test_append_range();
-        test_append_range_unsized_partial();
-        test_try_append_range();
-        test_try_append_range_unsized_partial();
-        test_assign_range();
-        test_assign_range_unsized_partial();
+            test_append_range();
+            test_append_range_unsized_partial();
+            test_try_append_range();
+            test_try_append_range_unsized_partial();
+            test_assign_range();
+            test_assign_range_unsized_partial();
 
-        test_span_and_data();
-        test_front_back();
-        test_operator_index();
-        test_at();
-        test_const_accessors();
+            test_span_and_data();
+            test_front_back();
+            test_operator_index();
+            test_at();
+            test_const_accessors();
 
-        test_forward_iteration();
-        test_reverse_iteration();
+            test_forward_iteration();
+            test_reverse_iteration();
 
-        test_comparisons();
-        test_equal_constant_time();
+            test_comparisons();
+            test_equal_constant_time();
 
-        test_overlay_object();
+            test_overlay_object();
 
-        test_overflow_throws_bad_alloc();
-    });
+            test_overflow_throws_bad_alloc();
+        });
 }
