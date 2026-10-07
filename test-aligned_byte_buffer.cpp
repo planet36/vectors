@@ -697,7 +697,7 @@ static void
 test_alignment()
 {
     // Over-alignment is honored for several Align values.
-    const auto check_align = []<std::size_t A>()
+    const auto check_align = []<std::size_t A>
     {
         aligned_byte_buffer<A> buf(64);
         buf.resize(A); // make it non-empty

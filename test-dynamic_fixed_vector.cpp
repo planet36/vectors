@@ -715,7 +715,7 @@ test_alignment()
 {
     // Over-alignment is honored for several Align values.  The block comes from the aligned
     // ::operator new, so Align can exceed alignof(T).
-    const auto check_align = []<std::size_t A>()
+    const auto check_align = []<std::size_t A>
     {
         dynamic_fixed_vector<std::byte, A> buf(64);
         buf.resize(A); // make it non-empty

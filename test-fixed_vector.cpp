@@ -810,7 +810,7 @@ static void
 test_alignment()
 {
     // Align is honored for several values, through the alignas on the array storage.
-    const auto check_align = []<std::size_t A>()
+    const auto check_align = []<std::size_t A>
     {
         fixed_vector<std::byte, 64, A> buf;
         buf.resize(A); // make it non-empty
