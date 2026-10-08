@@ -240,13 +240,13 @@ test_move_ctor()
     std::array<std::byte, 4> s{1_b, 2_b, 3_b, 4_b};
     borrowed_byte_buffer a = borrowed_byte_buffer::adopting(s);
     const std::byte* const orig = a.data();
-    // NOLINTNEXTLINE(hicpp-move-const-arg,performance-move-const-arg)
+    // NOLINTNEXTLINE(performance-move-const-arg)
     const borrowed_byte_buffer b = std::move(a);
     CHECK(b.data() == orig);
     CHECK(to_ivec(b) == std::vector({1, 2, 3, 4}));
     // Move is a shallow copy (defaulted, trivially copyable), so the source is NOT emptied,
     // unlike aligned_byte_buffer's move.
-    // NOLINTNEXTLINE(bugprone-use-after-move,hicpp-invalid-access-moved,clang-analyzer-cplusplus.Move)
+    // NOLINTNEXTLINE(bugprone-use-after-move,clang-analyzer-cplusplus.Move)
     CHECK(a.data() == orig);
     CHECK(a.size() == 4);
     CHECK(a.capacity() == 4);
@@ -278,7 +278,7 @@ test_move_assign()
     std::array<std::byte, 3> s{4_b, 5_b, 6_b};
     borrowed_byte_buffer a = borrowed_byte_buffer::adopting(s);
     borrowed_byte_buffer b;
-    // NOLINTNEXTLINE(hicpp-move-const-arg,performance-move-const-arg)
+    // NOLINTNEXTLINE(performance-move-const-arg)
     b = std::move(a);
     CHECK(b.data() == s.data());
     CHECK(b.capacity() == 3);
