@@ -88,10 +88,10 @@ make lint         # clang-tidy over the four suites (and, via HeaderFilterRegex,
     only `std::ranges::data(r)` / the pointee `sizeof`, and the forwarding reference is there to
     widen what binds (rvalue views as well as lvalue containers, and a C array reaching the
     range constructor rather than decaying), not to move from.
-  - `performance-move-const-arg` / `hicpp-move-const-arg` on the `std::move`s that move a
-    trivially copyable object: the non-emptying move in `test-borrowed_byte_buffer.cpp`,
-    `fixed_vector`'s member-wise move in `test-fixed_vector.cpp`, and the `std::move(y)` that
-    sends an `int` to `unchecked_push_back`'s `&&` overload in `test-fixed_vector.cpp` and
+  - `performance-move-const-arg` on the `std::move`s that move a trivially copyable object: the
+    non-emptying move in `test-borrowed_byte_buffer.cpp`, `fixed_vector`'s member-wise move in
+    `test-fixed_vector.cpp`, and the `std::move(y)` that sends an `int` to
+    `unchecked_push_back`'s `&&` overload in `test-fixed_vector.cpp` and
     `test-dynamic_fixed_vector.cpp`.  The check is right that the `std::move` changes nothing
     about the value, and that *is* the assertion (or, for the `int`, what picks the overload
     under test), so removing it removes the test.
