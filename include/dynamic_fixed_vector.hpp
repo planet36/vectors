@@ -196,9 +196,9 @@ private:
     /// View \a rg as the \c std::span of \c const \c T that the bulk-copy overload takes
     template <typename R>
     requires is_bulk_appendable_<R>
-    [[nodiscard]] static constexpr std::span<const T> as_span_(R& rg)
+    [[nodiscard]] static constexpr auto as_span_(R& rg)
     {
-        return std::span{rg};
+        return std::span<const T>{rg};
     }
 
     /// Zero \a n bytes at \a p with stores that the compiler must not elide
@@ -554,7 +554,7 @@ public:
     constexpr void fill_capacity(const T& value)
         noexcept(std::is_nothrow_copy_assignable_v<T>)
     {
-        (void)std::ranges::fill(std::span<T>{data(), capacity()}, value);
+        (void)std::ranges::fill(std::span<T>(data(), capacity()), value);
         size_ = capacity();
     }
 
@@ -626,7 +626,7 @@ public:
     */
     constexpr void append_range(const std::initializer_list<T> il)
     {
-        append_range(std::span<const T>{std::data(il), std::size(il)});
+        append_range(std::span<const T>(std::data(il), std::size(il)));
     }
 
     /**
@@ -710,7 +710,7 @@ public:
     [[nodiscard]] constexpr bool try_append_range(const std::initializer_list<T> il)
         noexcept(std::is_nothrow_copy_assignable_v<T>)
     {
-        return try_append_range(std::span<const T>{std::data(il), std::size(il)});
+        return try_append_range(std::span<const T>(std::data(il), std::size(il)));
     }
 
     /**
@@ -796,11 +796,11 @@ public:
         append_range(std::forward<R>(rg));
     }
 
-    [[nodiscard]] constexpr std::span<T> span() noexcept { return {data(), size()}; }
+    [[nodiscard]] constexpr auto span() noexcept { return std::span<T>(data(), size()); }
 
-    [[nodiscard]] constexpr std::span<const T> span() const noexcept
+    [[nodiscard]] constexpr auto span() const noexcept
     {
-        return {data(), size()};
+        return std::span<const T>(data(), size());
     }
 
     [[nodiscard]] constexpr explicit operator std::span<T>() noexcept { return span(); }

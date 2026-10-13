@@ -159,7 +159,7 @@ test_ctor_range_capacity()
 {
     // Borrow only the first `capacity` bytes of a larger range.
     std::array<std::byte, 8> a{};
-    const borrowed_byte_buffer v{a, 4};
+    const borrowed_byte_buffer v(a, 4);
     CHECK(v.capacity() == 4);
     CHECK(v.size() == 0);
     CHECK(v.data() == a.data());
@@ -745,12 +745,12 @@ test_overlay_object()
     const std::uint32_t magic = 0x01020304;
     const std::uint16_t len = 0x0506;
     const std::uint16_t flags = 0x0708;
-    v.append_range(std::span<const std::byte>{reinterpret_cast<const std::byte*>(&magic),
-                                              sizeof(magic)});
+    v.append_range(std::span<const std::byte>(reinterpret_cast<const std::byte*>(&magic),
+                                              sizeof(magic)));
     v.append_range(
-        std::span<const std::byte>{reinterpret_cast<const std::byte*>(&len), sizeof(len)});
-    v.append_range(std::span<const std::byte>{reinterpret_cast<const std::byte*>(&flags),
-                                              sizeof(flags)});
+        std::span<const std::byte>(reinterpret_cast<const std::byte*>(&len), sizeof(len)));
+    v.append_range(std::span<const std::byte>(reinterpret_cast<const std::byte*>(&flags),
+                                              sizeof(flags)));
     CHECK(v.is_full());
     CHECK(h.magic == magic); // the object now holds what was written through its byte view
     CHECK(h.len == len);

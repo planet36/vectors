@@ -148,9 +148,9 @@ private:
     /// View \a rg as the \c std::span of \c const \c std::byte the \c memcpy overload takes
     template <typename R>
     requires is_bulk_appendable_<R>
-    [[nodiscard]] static constexpr std::span<const std::byte> as_span_(R& rg)
+    [[nodiscard]] static constexpr auto as_span_(R& rg)
     {
-        return std::span{rg};
+        return std::span<const std::byte>{rg};
     }
 
     /// Zero \a n bytes at \a p with stores that the compiler must not elide
@@ -306,7 +306,7 @@ public:
     * \exception std::bad_alloc if the allocation fails.
     */
     constexpr aligned_byte_buffer(const std::initializer_list<std::byte> il) :
-    aligned_byte_buffer(std::span{std::data(il), std::size(il)})
+    aligned_byte_buffer(std::span(std::data(il), std::size(il)))
     {}
 
     /// Capacity is the size of \a rg
@@ -541,7 +541,7 @@ public:
     */
     constexpr void append_range(const std::initializer_list<std::byte> il)
     {
-        append_range(std::span{std::data(il), std::size(il)});
+        append_range(std::span(std::data(il), std::size(il)));
     }
 
     /**
@@ -626,7 +626,7 @@ public:
     [[nodiscard]] constexpr bool
     try_append_range(const std::initializer_list<std::byte> il) noexcept
     {
-        return try_append_range(std::span{std::data(il), std::size(il)});
+        return try_append_range(std::span(std::data(il), std::size(il)));
     }
 
     /**
@@ -712,11 +712,11 @@ public:
         append_range(std::forward<R>(rg));
     }
 
-    [[nodiscard]] constexpr std::span<std::byte> span() noexcept { return {data(), size()}; }
+    [[nodiscard]] constexpr auto span() noexcept { return std::span<std::byte>(data(), size()); }
 
-    [[nodiscard]] constexpr std::span<const std::byte> span() const noexcept
+    [[nodiscard]] constexpr auto span() const noexcept
     {
-        return {data(), size()};
+        return std::span<const std::byte>(data(), size());
     }
 
     [[nodiscard]] constexpr explicit operator std::span<std::byte>() noexcept
