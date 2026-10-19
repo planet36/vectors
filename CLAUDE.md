@@ -88,7 +88,7 @@ g++ -std=c++23 -Iinclude test-fixed_vector.cpp -o test-fixed_vector && ./test-fi
   markers are the use-after-move checks wherever a moved-from object is inspected (including
   `test_utils.hpp`'s `data_null_iff_empty`), `bugprone-exception-escape` on each suite's `main`,
   and `readability-static-accessed-through-instance` on `v.max_size()` in
-  `test-fixed_vector.cpp`.  Beyond those, five cases stand, each for its own reason:
+  `test-fixed_vector.cpp`.  Beyond those, four cases stand, each for its own reason:
   - `cppcoreguidelines-missing-std-forward` on each of `borrowed_byte_buffer`'s three
     deliberately un-forwarded borrowing constructors: the two `R&&` range ones and the `P&&`
     single-object one (see DESIGN.md).  Nothing is consumed there: the type borrows, so it takes
@@ -102,10 +102,6 @@ g++ -std=c++23 -Iinclude test-fixed_vector.cpp -o test-fixed_vector && ./test-fi
     move-construction tests (`borrowed_byte_buffer`'s non-emptying move and `fixed_vector`'s
     member-wise one) the unchanged source is also the assertion.  The check is right that the
     `std::move` changes nothing about the value, but removing it removes the test.
-  - `cppcoreguidelines-avoid-c-arrays` on the C array that `test-borrowed_byte_buffer.cpp`
-    borrows from: that array *is* the case being tested (a C array reaching the range
-    constructor instead of decaying to a one-element view), so rewriting it as a `std::array` is
-    not the fix.
   - `readability-use-anyofallof` on the element-wise loop in all four `try_append_range(R&&)`
     overloads.  The rewrite does not compile for the same inputs: `std::ranges::all_of` requires
     `indirect_unary_predicate`, which requires the predicate be invocable with

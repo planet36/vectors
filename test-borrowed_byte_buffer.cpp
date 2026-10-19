@@ -142,7 +142,8 @@ test_ctor_range()
     CHECK(vvi.capacity() == 3 * sizeof(int));
     CHECK(vvi.data() == reinterpret_cast<const std::byte*>(vi.data()));
 
-    // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays)
+    // The C array is the case under test.  It must reach the range constructor rather than
+    // decay to a one-element view, so it is not a std::array.
     std::byte carr[6]{};
     const borrowed_byte_buffer vc{carr};
     CHECK(vc.capacity() == 6);

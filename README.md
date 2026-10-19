@@ -332,11 +332,10 @@ command above passes as `-Iinclude`, so no source names the directory.
 
 `make lint` is separate from all of this.  It runs clang-tidy with the checks in `.clang-tidy`
 and is advisory, since its recipe ignores the exit status.  It currently prints nothing: the
-cases aimed at code that exists to be warned about (the borrowed C array, the `std::move` of a
-trivially copyable view, the deliberately un-forwarded forwarding reference, and the
-element-wise append loop) are silenced in place with `NOLINT` comments, so the comments are
-where that reasoning lives.  Passing `make test` is the contract, and `make lint` is a reading
-aid.
+cases aimed at code that exists to be warned about (the `std::move` of a trivially copyable
+view, the deliberately un-forwarded forwarding reference, and the element-wise append loop) are
+silenced in place with `NOLINT` comments, so the comments are where that reasoning lives.
+Passing `make test` is the contract, and `make lint` is a reading aid.
 
 ## License
 
