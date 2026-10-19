@@ -258,6 +258,7 @@ public:
     * \pre \a r's byte size is at least \a capacity.
     */
     template <borrowable_range R>
+    // r is borrowed, not consumed.  R&& is there so rvalue views bind as well as lvalues.
     // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
     explicit borrowed_byte_buffer(R&& r, const std::size_t capacity) noexcept :
     data_{reinterpret_cast<std::byte*>(std::ranges::data(r))},
@@ -276,6 +277,7 @@ public:
     * precondition of its own, unlike the overload that takes a capacity.
     */
     template <borrowable_range R>
+    // r is borrowed, not consumed.  R&& is there so rvalue views bind as well as lvalues.
     // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
     explicit borrowed_byte_buffer(R&& r) noexcept :
     data_{reinterpret_cast<std::byte*>(std::ranges::data(r))},
@@ -288,6 +290,8 @@ public:
     * array, which the range constructor handles.
     */
     template <borrowable_object_ptr P>
+    // data is borrowed, not consumed.  P&& is there so a C array binds as itself and is
+    // rejected here, rather than decaying to a pointer.
     // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
     explicit borrowed_byte_buffer(P&& data) noexcept :
     data_{reinterpret_cast<std::byte*>(data)},
@@ -673,6 +677,8 @@ public:
         }
         else
         {
+            // This stays a loop rather than std::ranges::all_of, because it mutates, and its
+            // false means out of capacity rather than an element failing a test.
             // NOLINTNEXTLINE(readability-use-anyofallof)
             for (auto&& e : std::forward<R>(rg))
             {

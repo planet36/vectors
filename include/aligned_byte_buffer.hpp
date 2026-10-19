@@ -655,6 +655,8 @@ public:
         }
         else
         {
+            // This stays a loop rather than std::ranges::all_of, because it mutates, and its
+            // false means out of capacity rather than an element failing a test.
             // NOLINTNEXTLINE(readability-use-anyofallof)
             for (auto&& e : std::forward<R>(rg))
             {

@@ -670,6 +670,10 @@ public:
         }
         else
         {
+            // This stays a loop rather than std::ranges::all_of, which would not compile for a
+            // move-only T.  Its predicate must also accept an lvalue iter_value_t&, and a
+            // move-only T cannot be emplaced from one.  The loop also mutates, and its false
+            // means out of capacity rather than an element failing a test.
             // NOLINTNEXTLINE(readability-use-anyofallof)
             for (auto&& e : std::forward<R>(rg))
             {

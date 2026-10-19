@@ -89,12 +89,11 @@ g++ -std=c++23 -Iinclude test-fixed_vector.cpp -o test-fixed_vector && ./test-fi
   `test_utils.hpp`'s `data_null_iff_empty`), `bugprone-exception-escape` on each suite's `main`,
   and `readability-static-accessed-through-instance` on `v.max_size()` in
   `test-fixed_vector.cpp`.  Beyond those, four cases stand, each for its own reason:
-  - `cppcoreguidelines-missing-std-forward` on each of `borrowed_byte_buffer`'s three
-    deliberately un-forwarded borrowing constructors: the two `R&&` range ones and the `P&&`
-    single-object one (see DESIGN.md).  Nothing is consumed there: the type borrows, so it takes
-    only `std::ranges::data(r)` / the pointee `sizeof`, and the forwarding reference is there to
-    widen what binds (rvalue views as well as lvalue containers, and a C array reaching the
-    range constructor rather than decaying), not to move from.
+  - `cppcoreguidelines-missing-std-forward` on `borrowed_byte_buffer`'s three borrowing
+    constructors (the two `R&&` range ones and the `P&&` single-object one).  They borrow
+    rather than consume, so there is nothing to forward, and the forwarding reference is there
+    only to widen what binds.  The comment above each marker says what it admits, and DESIGN.md
+    has the rest.
   - `performance-move-const-arg` on the `std::move`s of a trivially copyable object, in
     `test-borrowed_byte_buffer.cpp`, `test-fixed_vector.cpp`, and
     `test-dynamic_fixed_vector.cpp`.  Each one picks the member under test: the move
@@ -103,15 +102,11 @@ g++ -std=c++23 -Iinclude test-fixed_vector.cpp -o test-fixed_vector && ./test-fi
     member-wise one) the unchanged source is also the assertion.  The check is right that the
     `std::move` changes nothing about the value, but removing it removes the test.
   - `readability-use-anyofallof` on the element-wise loop in all four `try_append_range(R&&)`
-    overloads.  The rewrite does not compile for the same inputs: `std::ranges::all_of` requires
-    `indirect_unary_predicate`, which requires the predicate be invocable with
-    `iter_value_t<I>&`, an *lvalue*.  `try_emplace_back` is constrained
-    `std::constructible_from<T, Args...>`, so a move-only `T` (trivially destructible and
-    `movable` but not copyable, which the `requires` clause admits) appends fine through the
-    loop and fails to resolve as an `all_of`.  The loop needs only `iter_reference_t`.  It is
-    also a mutating loop whose `false` means *out of capacity*, not *element failed a test*.
-    That is the partial-append behavior the `\note` above it documents, which folding into a
-    query-named algorithm hides.
+    overloads.  In all four the loop mutates, and its `false` means *out of capacity* (the
+    partial append the `\note` documents), which a query-named algorithm hides.  In the two
+    generic containers an `all_of` also fails to compile for a move-only `T`, which no test
+    instantiates, so the rewrite would pass `make test`.  The comment above each marker has the
+    argument.
   - `readability-simplify-boolean-expr` on the `if (!(...))` checks in the four suites'
     `constexpr_*_ok()` functions.  Where every check in a function is suppressed the marker is a
     `NOLINTBEGIN` / `NOLINTEND` pair spanning the whole body rather than a `NOLINTNEXTLINE` per
