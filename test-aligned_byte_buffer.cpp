@@ -734,8 +734,8 @@ test_overflow_throws_bad_alloc()
 
     // The capacity constructor reserves rather than creating elements, so only the modifiers
     // can overflow.
-    CHECK_THROWS(std::bad_alloc, aligned_byte_buffer<16> v(2); v.push_back(1_b); v.push_back(2_b);
-                 v.push_back(3_b));
+    CHECK_THROWS(std::bad_alloc, aligned_byte_buffer<16> v(2); v.push_back(1_b);
+                 v.push_back(2_b); v.push_back(3_b));
     CHECK_THROWS(std::bad_alloc, aligned_byte_buffer<16> v(1); v.emplace_back(1);
                  v.emplace_back(2));
     CHECK_THROWS(std::bad_alloc, aligned_byte_buffer<16> v(2);

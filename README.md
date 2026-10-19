@@ -259,7 +259,7 @@ and exits 0**.  On the first failed check it prints one line to stderr and exits
 immediately:
 
 ```
-test-fixed_vector.cpp:695: test_at: CHECK failed: v.at(1) == 99
+test-fixed_vector.cpp:717: test_at: CHECK failed: v.at(1) == 99
 ```
 
 ```sh

@@ -714,7 +714,10 @@ public:
         append_range(std::forward<R>(rg));
     }
 
-    [[nodiscard]] constexpr auto span() noexcept { return std::span<std::byte>(data(), size()); }
+    [[nodiscard]] constexpr auto span() noexcept
+    {
+        return std::span<std::byte>(data(), size());
+    }
 
     [[nodiscard]] constexpr auto span() const noexcept
     {
