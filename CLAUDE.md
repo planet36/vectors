@@ -3,8 +3,9 @@
 ## What this is
 
 This is a header-only C++ library of fixed-capacity vectors.  Consuming it needs no build system
-or package manifest, since the headers are standalone.  They live in `include/`, while the test
-suites and `test_utils.hpp` stay at the top level.  A `Makefile` builds and runs the test
+or package manifest, since the headers are self-contained apart from the byte buffers'
+`#include "byte_compare.hpp"`.  They live in `include/`, while the test suites and
+`test_utils.hpp` stay at the top level.  A `Makefile` builds and runs the test
 programs, putting `include/` on the include path (`CPPFLAGS`) so no source names the directory.
 Every C++ file and the Makefile open with `SPDX-FileCopyrightText: Steven Ward` and
 `SPDX-License-Identifier: MPL-2.0` lines, so a new one needs them too.

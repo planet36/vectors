@@ -6,8 +6,9 @@ This is a header-only C++ library of **fixed-capacity vectors**: resizable seque
 reallocate, never grow past their capacity, and never individually destroy an element.  The
 storage is sized once — at compile time or at construction — and is never resized after that.
 
-The headers are in `include/`.  Each one is standalone: drop it in an include path and
-`#include` it.  There is no package manifest, and using the library needs no build system.  The
+The headers are in `include/`.  Each is self-contained, except that the two byte buffers include
+`byte_compare.hpp`, so copy it along with them.  Drop them in an include path and `#include`
+them.  There is no package manifest, and using the library needs no build system.  The
 `Makefile` here only builds and runs the tests.
 
 ## The containers
@@ -40,7 +41,7 @@ add a free `equal_constant_time` (in `byte_compare.hpp`, which they both include
 
 - **GCC 16** with `-std=c++23` (the headers use `std::from_range_t`,
   `std::start_lifetime_as_array`, ranges, and concepts).
-- No third-party libraries — the headers and their tests need only the standard library.
+- No third-party libraries.  The headers and their tests need only the standard library.
 
 ## Quick start
 
@@ -60,7 +61,7 @@ assert(v.size() == 7);
 assert(v.at(6) == 7);              // at() throws std::out_of_range
 
 v.clear();                         // size becomes 0; the elements stay alive
-assert(v[0] == 1);                 // still readable — operator[] is capacity-based
+assert(v[0] == 1);                 // still readable -- operator[] is capacity-based
 ```
 
 `N` is the number of slots, reported by `max_size()`.  The *capacity* — the limit every space
@@ -170,12 +171,12 @@ These are deliberate departures from standard-container semantics, not oversight
 short version:
 
 - **Every capacity slot holds a live element from construction onward.**  Capacity is not raw
-  storage awaiting placement-new.  The byte buffers are the exception, and they differ from each
-  other.  `aligned_byte_buffer` leaves its reserved tail uninitialized, so a read past `size()`
-  gives an *unspecified* `std::byte`, which is well-defined, not UB.  `borrowed_byte_buffer`
-  inherits whatever the borrowed region held, so the same read is typically determinate and
-  returns the caller's own bytes.  Neither container promises a value, but only the second can
-  disclose one.
+  storage awaiting placement-new.  The byte buffers' slots are alive too, but what they hold
+  differs.  `aligned_byte_buffer` leaves its reserved tail uninitialized, so a read past
+  `size()` gives an *unspecified* `std::byte`, which is well-defined, not UB.
+  `borrowed_byte_buffer` inherits whatever the borrowed region held, so the same read is
+  typically determinate and returns the caller's own bytes.  Neither container promises a
+  value, but only the second can disclose one.
 - **Elements are never individually destroyed.**  `clear()`, `pop_back()`, and `resize()` only
   adjust the size counter, so the element type must be trivially destructible (enforced by a
   `requires` clause).  One consequence is that `emplace_back` cannot construct in place, because
@@ -183,7 +184,7 @@ short version:
   equivalent to `push_back(T(args...))`.
 - **`operator[]` is unchecked and capacity-based.**  An index in `[size(), capacity())`
   legitimately reads a live element.  `at()` is the only bounds-checked accessor.
-- **Capacity overflow throws `std::bad_alloc`**, not `std::length_error`.
+- **Capacity overflow throws `std::bad_alloc`, not `std::length_error`.**
 - **`fixed_vector::reserve()` shrinks as well as grows, and never (de)allocates.**  Its storage
   is always the whole `std::array<T, N>`, and capacity is just the limit the space checks
   consult.  So `reserve()` is O(1), shrinking below `size()` truncates `size()` (destroying
@@ -209,6 +210,7 @@ These members are common to all four types:
 | Add without checking | `unchecked_push_back`, `unchecked_emplace_back` — assume `!is_full()` |
 | Remove / resize | `clear`, `pop_back`, `resize` — none destroy elements |
 | Bulk | `fill_capacity`, `fill_size`, `assign_range`, `zeroize_reserved_unused` |
+| Swap | `swap`, as a member and as a hidden friend |
 | Compare | `operator==`, `operator<=>` — gated on the element type supporting them; unconditional in the byte buffers |
 
 Note which range each fill covers.  `fill_capacity(value)` fills **`[0, capacity())`**, the live
@@ -221,14 +223,16 @@ elements included, and sets `size()` to `capacity()`.  To fill only the reserved
 (how many slots lie between `capacity()` and `max_size()`), and `zeroize_unreserved`.
 
 The three owning types build and fill their storage through the same constructor set (a single
-count/capacity argument, count + fill value, span, iterator pair, `initializer_list`, and
-range).  They differ in the one place noted above: `fixed_vector<T, N>(count)` creates `count`
-elements, while the runtime types' `X(capacity)` reserves and starts empty.
+count/capacity argument, count + fill value, span, iterator + sentinel, iterator + count,
+`initializer_list`, and range, as `X(std::from_range, rg)`).  They differ in the one place noted
+above: `fixed_vector<T, N>(count)` creates `count` elements, while the runtime types'
+`X(capacity)` reserves and starts empty.
 
-`borrowed_byte_buffer` differs only in construction.  It has no count/fill/range
-*element-copying* constructors, because it is built over existing memory (a pointer or a
-contiguous range), and its `adopting` named constructors start it full.  Every member above
-behaves identically once it is constructed.
+`borrowed_byte_buffer` differs in construction.  It has no count/fill/range *element-copying*
+constructors, because it is built over existing memory (a pointer or a contiguous range), and
+its `adopting` named constructors start it full.  It also has no `operator=(initializer_list)`.
+`assign_range` does that job, since on a view `=` could also read as rebinding.  Every member
+above behaves identically once it is constructed.
 
 `append_range` and `assign_range` are each overloaded for a span, iterator + sentinel,
 iterator + count, `initializer_list`, and an arbitrary input range.  `assign_range` is `clear()`
@@ -242,8 +246,8 @@ special.  The source must not overlap the container's own storage.  Anything els
 element-wise.
 
 `zeroize_reserved_unused()` zeroizes `[size(), capacity())` with stores the optimizer may not
-elide — `memset_explicit` / `explicit_bzero` when the C library declares one, otherwise volatile
-writes.  `clear()` followed by it scrubs everything up to `capacity()`.  In a `fixed_vector`
+elide (`memset_explicit` / `explicit_bzero` when the C library declares one, otherwise volatile
+writes).  `clear()` followed by it scrubs everything up to `capacity()`.  In a `fixed_vector`
 whose capacity has been reduced, `zeroize_unreserved()` covers the rest
 (`[capacity(), max_size())`), which otherwise still holds whatever it held while reserved.
 
@@ -273,6 +277,9 @@ works too:
 g++ -std=c++23 -Iinclude test-fixed_vector.cpp -o test-fixed_vector && ./test-fixed_vector
 ```
 
+The `-Iinclude` there (and the Makefile's equivalent) is why no source names the `include/`
+directory.
+
 | Program | Covers |
 |---|---|
 | `test-fixed_vector.cpp` | `fixed_vector` |
@@ -282,11 +289,11 @@ g++ -std=c++23 -Iinclude test-fixed_vector.cpp -o test-fixed_vector && ./test-fi
 
 All four share `test_utils.hpp`, which holds `CHECK` / `CHECK_THROWS` / `run_tests` and a few
 helpers.  Each program is a list of `test_<member>()` functions called from `main()`, one per
-member, so `main()` doubles as the coverage checklist.  Nothing calls `abort()`, so a failing
-test exits rather than dumping core.
+member, so `main()` doubles as the coverage checklist.  Nothing in the harness calls `abort()`,
+so a failing check exits rather than dumping core.
 
 `test-fixed_vector.cpp` also drives the container through `static_assert` blocks ahead of
-`main()`, so a regression there fails the compile rather than the run.  The heap-backed suites
+`main()`, so a regression there fails the compile rather than the run.  The other three suites
 can do that only for their empty and zero-capacity cases, and [`DESIGN.md`](DESIGN.md) explains
 why.
 
@@ -302,12 +309,12 @@ two sets of binaries rather than two targets, so `make` builds both and `make te
 The **debug** build catches what the release build hides.  The two heap-backed types hand-manage
 aligned memory, the byte buffers intentionally read partially-uninitialized (or borrowed)
 storage, and `borrowed_byte_buffer` forms its view through a `reinterpret_cast`, so the
-sanitizers have real work to do — and the asserts check preconditions the release build ignores
+sanitizers have real work to do.  The asserts also check preconditions the release build ignores
 outright.
 
 The **release** build catches what `-Og` structurally cannot, because the optimizer only *acts*
 on the code's promises once it is optimizing.  `-Og` leaves `-fstrict-aliasing` off (it turns on
-at `-O2`), and it never cashes in `data()`'s `assume_aligned<Align>` — a caller loop over
+at `-O2`), and it never cashes in `data()`'s `assume_aligned<Align>`.  A caller loop over
 `data()` compiles to no SIMD at all at `-Og`, while `-O3 -march=native` emits an aligned
 `vmovdqa` that faults the moment that promise is untrue.  Testing only the debug build would
 leave the library's whole reason for `assume_aligned` unexercised.
@@ -327,16 +334,14 @@ The asserts check the *documented* contract, not `std::vector`'s.  `operator[]` 
 bound is the *current* capacity, so an index the container's window no longer covers trips it
 even though the slot is still alive.
 
-The headers live in `include/`, which the Makefile puts on the include path and the hand-built
-command above passes as `-Iinclude`, so no source names the directory.
-
 `make lint` is separate from all of this.  It runs clang-tidy with the checks in `.clang-tidy`
 and is advisory, since its recipe ignores the exit status.  It currently prints nothing: the
 cases aimed at code that exists to be warned about (the `std::move` of a trivially copyable
-view, the deliberately un-forwarded forwarding reference, and the element-wise append loop) are
-silenced in place with `NOLINT` comments, so the comments are where that reasoning lives.
+object, the deliberately un-forwarded forwarding reference, and the element-wise append loop)
+are silenced in place with `NOLINT` comments, so the comments are where that reasoning lives.
 Passing `make test` is the contract, and `make lint` is a reading aid.
 
 ## License
 
-Mozilla Public License 2.0 (`SPDX-License-Identifier: MPL-2.0`), declared in each file's header.
+Mozilla Public License 2.0 (`SPDX-License-Identifier: MPL-2.0`), declared in each source file's
+header.
