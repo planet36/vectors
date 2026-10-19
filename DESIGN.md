@@ -1,9 +1,9 @@
 # Design notes
 
 Engineering rationale for the fixed-capacity vector family in this repository.  These notes are
-implementation-agnostic and intended for anyone (human or tool) reviewing or extending the code.
-See [`README.md`](README.md) for the API overview, a quick start for each container, and the
-build instructions.  This file covers only the *why*.
+intended for anyone (human or tool) reviewing or extending the code.  See
+[`README.md`](README.md) for the API overview, a quick start for each container, and the build
+instructions.  This file covers only the *why*.
 
 ## The family
 
@@ -68,8 +68,8 @@ The invariants are these:
   appended when they throw.  Truly unsized sources append element-wise, so an overflowing append
   may add the elements that fit before throwing (or returning `false` from `try_*`).
 - **The input-range overload forwards a sized contiguous range of exactly the element type to
-  the span overload**, so an ordinary `std::vector<T>` / `std::array<T, N>` lands on the bulk
-  copy (`std::ranges::copy`, or `memcpy` in the byte buffer) instead of being appended
+  the span overload.**  An ordinary `std::vector<T>` / `std::array<T, N>` therefore lands on the
+  bulk copy (`std::ranges::copy`, or `memcpy` in the byte buffers) instead of being appended
   element-wise.  The dispatch is explicit because overload resolution cannot reach that
   conclusion.  For `std::vector<T>` the `R&&` template is an *exact match*, while the span
   overload needs a user-defined conversion.  The template therefore always wins, and without the
@@ -130,7 +130,8 @@ The invariants are these:
   them apart.  The only casualty is the guarantee, and nothing announces its loss.
 
   During constant evaluation `fixed_vector` value-assigns the tail instead, since there is no
-  memory to scrub at compile time.  The heap types are only ever empty in constant evaluation.
+  memory to scrub at compile time.  The other three types are only ever empty in constant
+  evaluation.
 
 ## `fixed_vector<T, N, Align>`
 
@@ -150,10 +151,11 @@ adjacent `std::size_t` member already gives the object that alignment.
 The `Align >= alignof(T)` bound is **not** needed for correctness here, unlike on the
 heap-backed siblings: storage is a real `std::array<T, N>` member, and `alignas` cannot weaken a
 type's natural alignment, so the array is suitably aligned even for an under-aligned request.
+
 The bound exists for diagnosis.  A weakened `alignas` is ill-formed ([dcl.align]/5), but GCC
 accepts it silently at any warning level (Clang rejects it), so without the constraint
-`fixed_vector<int, 8, 1>` compiles, ignores the request, and yields a 4-aligned array — an
-intent the container cannot honor, expressed with no diagnostic, in code that builds on only one
+`fixed_vector<int, 8, 1>` compiles, ignores the request, and yields a 4-aligned array.  The
+container cannot honor that intent, nothing reports it, and the code builds on only one
 compiler.  The constraint turns that into a named constraint failure, and makes the family's
 three `requires` clauses consistent.
 
@@ -161,9 +163,9 @@ three `requires` clauses consistent.
 
 `N` sizes the storage, but it is *not* the capacity.  `capacity_` is a `std::size_t` member
 starting at `N`, and `reserve()` moves it anywhere in `[0, N]`.  Every space check —
-`is_full()`, `reserved_unused()`, the whole append family, `resize()` — already consulted
-`capacity()`, so lowering it narrows the window the container will use, while the storage stays
-the same `std::array<T, N>`.  `max_size()` remains `static constexpr` and reports `N`.
+`is_full()`, `reserved_unused()`, the whole append family, `resize()` — consults `capacity()`,
+so lowering it narrows the window the container will use, while the storage stays the same
+`std::array<T, N>`.  `max_size()` remains `static constexpr` and reports `N`.
 
 The window costs almost nothing, and each decision below follows from that:
 
@@ -192,7 +194,7 @@ The window costs almost nothing, and each decision below follows from that:
   change the capacity, one of them by accident.  So `resize(count)` with `count > capacity()`
   throws `std::bad_alloc`, like every other capacity overflow, and `reserve()` stays the only
   way to move the line.
-- **`zeroize_unreserved()` is a separate member from `zeroize_reserved_unused()`**, covering
+- **`zeroize_unreserved()` is a separate member from `zeroize_reserved_unused()`.**  It covers
   `[capacity(), max_size())` rather than `[size(), capacity())`.  Each name states exactly the
   region it scrubs, and the split is real: after a shrink, the unreserved slots may still hold
   what they held while they were reserved.  The full scrub is `clear()`, then both calls.
@@ -217,9 +219,8 @@ The window costs almost nothing, and each decision below follows from that:
 `[capacity(), max_size())` is alive but out of contract, and the `-DDEBUG` assert says so.  That
 is the point of stating the precondition in terms of `capacity()` rather than `N`.
 
-The default capacity is `N`, and this is what keeps the feature invisible to existing code: a
-program that never calls `reserve()` sees exactly the previous behavior, because every check
-that used to read `N` now reads a value that is still `N`.
+The default capacity is `N`, and this is what keeps the feature invisible: a program that never
+calls `reserve()` sees `capacity() == N` everywhere, so every space check bounds it by `N`.
 
 ## `dynamic_fixed_vector<T, Align>`
 
@@ -227,8 +228,9 @@ It has the same shape as `fixed_vector`, but capacity is a constructor argument 
 single over-alignable heap block.
 
 - **Allocation.**  Storage comes from the aligned allocation function
-  `::operator new(bytes, std::align_val_t{Align})`, owned by a `std::unique_ptr<T, Deleter>`
-  whose stateless deleter calls the matching `::operator delete(p, std::align_val_t{Align})`.
+  `::operator new(bytes, std::align_val_t{Align})`, owned by a
+  `std::unique_ptr<T, aligned_deleter>` whose stateless deleter calls the matching
+  `::operator delete(p, std::align_val_t{Align})`.
   Every capacity element's lifetime is begun exactly once at construction: the reserve
   constructor value-initializes them (`std::uninitialized_value_construct_n`), while the
   copy/fill/range constructors construct them directly from the source
@@ -279,6 +281,12 @@ single over-alignable heap block.
   iterators/ranges (capacity = distance).  Input-only sources are handled by constructing with
   an explicit capacity and then calling `append_range` (which still accepts input iterators).
 
+- **No `reserve()`.**  The capacity is settled by the constructor.  Growing it would mean
+  reallocating, which nothing in the family does after construction.  `fixed_vector` can offer
+  `reserve()` only because its window moves within `N` slots that are always there.  The same
+  holds for `aligned_byte_buffer`, and `borrowed_byte_buffer`'s capacity is the extent of the
+  memory it borrowed, which it cannot enlarge.
+
 - **Value semantics.**  Copy performs a deep copy (independent buffer).  Move *construction*
   transfers the pointer and leaves the source empty (capacity 0).  Move *assignment* swaps, so
   the source is left holding the target's former buffer until it is destroyed.  Copy and move
@@ -307,7 +315,8 @@ element type enables these differences:
 - **Reserved capacity is left uninitialized.**  Rather than value-initializing (zeroing) every
   byte up front, the block's object lifetimes are begun with
   `std::start_lifetime_as_array<std::byte>` and the reserved tail is not written.  Bytes that
-  enter `size()` (via `push_back` / `append` / `resize` / `fill_*`) are always written first.
+  enter `size()` (via `push_back` / `append_range` / `resize` / `fill_*`) are always written
+  first.
 
   Reading beyond `size()` through `operator[]` therefore yields an **unspecified** byte value,
   which is well-defined, *not* undefined behavior, because `std::byte` (like `unsigned char`) is
@@ -386,13 +395,15 @@ interface without ever allocating.  The whole object is
   the answer when the tail must not leak.
 
 - **Copy and move are shallow, and all six special members are defaulted.**  The type is a
-  pointer and two integers, hence trivially copyable — cheap to pass by value.  A copy is a
-  second view of the *same* bytes (both observe writes through either), and move is the same
-  member-wise copy: a moved-from `borrowed_byte_buffer` still points at its storage rather than
-  being emptied.  This is the opposite of the heap-backed siblings (whose move *construction*
-  empties the source), and it is the correct default for a view: there is nothing to transfer,
-  and a view type that nulled itself on move would surprise.  The `swap` remains as a member +
-  hidden friend for API parity.
+  pointer and two integers, hence trivially copyable, so it is cheap to pass by value.  A copy
+  is a second view of the *same* bytes (both observe writes through either), and move is the
+  same member-wise copy: a moved-from `borrowed_byte_buffer` still points at its storage rather
+  than being emptied.
+
+  This is the opposite of the heap-backed siblings (whose move *construction* empties the
+  source), and it is the correct default for a view: there is nothing to transfer, and a view
+  type that nulled itself on move would surprise.  The `swap` remains as a member + hidden
+  friend for API parity.
 
 - **No `Align` parameter.**  `aligned_byte_buffer`'s `Align` exists to over-align *its own*
   allocation and then cash that in through `std::assume_aligned` for vectorized caller loops.
@@ -467,15 +478,15 @@ interface without ever allocating.  The whole object is
   bytes, that in turn implies a non-null, indexable block.  So the reasoning the members rely on
   holds, but it rests on the constructor's precondition rather than on an allocation guarantee.
 
-- **Only one of the four construction preconditions is checkable.**  The constructors all
-  require that the source really provide `capacity()` bytes, but only the range constructor is
-  handed something that knows its own extent, so only it can assert
+- **Only one of the two capacity-taking constructors can check its precondition.**  Both
+  require that the source really provide `capacity` bytes.  The whole-range and single-object
+  constructors carry no such tag, since they compute the capacity from the source itself.  Only
+  the range constructor is handed something that knows its own extent, so only it can assert
   `capacity() <= std::span{r}.size_bytes()` under `-DDEBUG`, and `adopting(R&&, capacity)`
-  inherits that check by delegating to it.  A `void*` plus a count, and the single-object
-  pointer, carry no size the container can compare against.  Their tags stay promises, and a
-  caller who overstates the capacity gets a heap overflow that ASan reports instead.  This is
-  the only `-DDEBUG` assert in the family that guards a constructor rather than an accessor or a
-  mutator.
+  inherits that check by delegating to it.  A `void*` plus a count carries no size the
+  container can compare against.  Its tag stays a promise, and a caller who overstates the
+  capacity gets a heap overflow that ASan reports instead.  This is the only `-DDEBUG` assert in
+  the family that guards a constructor rather than an accessor or a mutator.
 
 - **`constexpr` limits.**  Forming a byte view over an object requires a `reinterpret_cast`,
   which is barred in constant evaluation, so the borrowing constructors are not
@@ -488,15 +499,15 @@ interface without ever allocating.  The whole object is
 ## Edge cases and gotchas
 
 - **Zero capacity is both empty and full.**  For the runtime types a default-constructed (or
-  zero-capacity) instance satisfies `is_empty()` and `is_full()` simultaneously — correct, since
-  there is no element and no remaining space.  `fixed_vector` cannot be *constructed* that way
-  (it requires `N > 0`), but `reserve(0)` reaches the same state, with all `N` slots alive and
-  unreserved.
+  zero-capacity) instance satisfies `is_empty()` and `is_full()` simultaneously.  That is
+  correct, since there is no element and no remaining space.  `fixed_vector` cannot be
+  *constructed* that way (it requires `N > 0`), but `reserve(0)` reaches the same state, with
+  all `N` slots alive and unreserved.
 
 - **`std::byte` is not `std::constructible_from` an `int`.**  Direct-initialization of a scoped
   enumeration from an integer (`std::byte b(42)`) is ill-formed, so a `constructible_from`
   constraint would reject the integer arguments that the functional cast `std::byte(42)` in the
-  `emplace_back` body handles fine.  `aligned_byte_buffer`'s `emplace_back` family is therefore
+  `emplace_back` body handles fine.  The byte buffers' `emplace_back` family is therefore
   constrained by argument *type* instead: at most one argument, of type `std::byte` or an
   integral type.
 
@@ -507,9 +518,10 @@ interface without ever allocating.  The whole object is
   `emplace_back(256)` stores `byte{0}`.
 
 - **`append_range(span)` assumes the source does not alias the buffer** (it uses `memcpy` in the
-  byte buffer).  Appending a view over the buffer's own storage into itself is unsupported.  The
-  assumption reaches past the span overloads themselves: a contiguous range of the element type
-  is forwarded to them (see above), so `append_range(rg)` carries the same tag for that case.
+  byte buffers).  Appending a view over the buffer's own storage into itself is unsupported.
+  The assumption reaches past the span overloads themselves: a contiguous range of the element
+  type is forwarded to them (see above), so `append_range(rg)` carries the same tag for that
+  case.
 
 - **A `borrowed_byte_buffer` outliving its storage dangles.**  It owns nothing, so it is the
   caller's job to keep the borrowed region alive — the same contract as `std::span`.
@@ -528,13 +540,14 @@ build contains no `__assert_fail` at all.
 
 - **The `\pre` tags are the spec, and the asserts only enforce them.**  An assert with no
   matching tag, or one stricter than the tag it enforces, puts the code at odds with the
-  documented contract — and the contract is what callers program against.  `operator[]` is the
-  case where that matters most: it asserts `i < capacity()` and deliberately **not**
-  `i < size()`, because reading a live element at an index at or past `size()` is a designed
-  capability of this family (see "`operator[]` is unchecked and capacity-based" above) that all
-  four suites exercise on purpose.  The tighter assert would contradict the design and fail the
-  tests.  In `fixed_vector` the bound is the *current* `capacity()`, so a `reserve()` shrink
-  leaves live slots outside the contract.
+  documented contract — and the contract is what callers program against.
+
+  `operator[]` is the case where that matters most: it asserts `i < capacity()` and deliberately
+  **not** `i < size()`, because reading a live element at an index at or past `size()` is a
+  designed capability of this family (see "`operator[]` is unchecked and capacity-based" above)
+  that all four suites exercise on purpose.  The tighter assert would contradict the design and
+  fail the tests.  In `fixed_vector` the bound is the *current* `capacity()`, so a `reserve()`
+  shrink leaves live slots outside the contract.
 - **A precondition documented on one overload is documented on both.**  `front`, `back`, and
   `operator[]` state the `\pre` on the non-`const` overload and give the `const` twin a
   `/// \copydoc front()`, so the generated docs for an overload that asserts a precondition
@@ -550,12 +563,12 @@ build contains no `__assert_fail` at all.
   `borrowed_byte_buffer`'s pointer-based construction tags describe memory the container has no
   way to measure.  Only its range constructor's version is checkable, because a range carries
   its own size (see that section above).
-- **`_GLIBCXX_DEBUG` covers range validity from the other side**, whenever the iterators come
-  from a standard container — which is how the tests supply them.  It earns its place on that
-  alone: an invalid iterator yields a garbage distance, which the up-front capacity check
-  reports as `std::bad_alloc`, sending the reader after a capacity bug that does not exist.
-  Debug mode names the real defect instead ("attempt to copy a singular iterator", "iterators
-  from different sequences"), and plain ASan does not catch it at all.
+- **`_GLIBCXX_DEBUG` covers range validity from the other side.**  It does so whenever the
+  iterators come from a standard container — which is how the tests supply them.  It earns its
+  place on that alone: an invalid iterator yields a garbage distance, which the up-front
+  capacity check reports as `std::bad_alloc`, sending the reader after a capacity bug that does
+  not exist.  Debug mode names the real defect instead ("attempt to copy a singular iterator",
+  "iterators from different sequences"), and plain ASan does not catch it at all.
 - **The asserts are `constexpr`-clean.**  An assert whose condition holds is fine during
   constant evaluation, so `test-fixed_vector.cpp`'s `static_assert` blocks still compile under
   `-DDEBUG`.
@@ -595,23 +608,23 @@ describes are deliberate rather than incidental, and this is the reasoning behin
   from "threw the wrong type", because those are different defects.
 
 - **`fixed_vector`'s suite drives the container at compile time.**  Nearly its whole interface
-  is `constexpr`, so a `static_assert` block ahead of `main()` drives a vector through the whole
-  append family (`append_range`, `push_back`, `emplace_back`, and the `try_*` and `unchecked_*`
-  forms), the accessors, `assign_range`, `resize`, `fill_size`, `pop_back`, `clear`, and `swap`
-  (both the member and the hidden friend).  Two further blocks cover `fill_capacity`,
-  `zeroize_reserved_unused`, `reserve`, and `zeroize_unreserved`, all during constant
-  evaluation.
+  is `constexpr`, so a `static_assert` block ahead of `main()` drives a vector through the
+  append family (`append_range`, `push_back`, `emplace_back`, `try_push_back`,
+  `try_emplace_back`, and `unchecked_push_back`), the accessors, `assign_range`, `resize`,
+  `fill_size`, `pop_back`, `clear`, and `swap` (both the member and the hidden friend).  Two
+  further blocks cover `fill_capacity`, `zeroize_reserved_unused`, `reserve`, and
+  `zeroize_unreserved`, all during constant evaluation.
 
   That moves a regression from a failed run to a failed build, and it is the only net that
   rejects an index outside the storage without aborting.  `operator[]` is unchecked by design,
   so in the release build `v[10]` on a `fixed_vector<int, 5>` reads whatever is past the array
   and every `CHECK` still passes.  The debug build catches it, but through the `-DDEBUG`
   `i < capacity()` assert, which means `abort()`.  In a `static_assert` the same expression
-  simply fails to compile (GCC 16.1.1 rejects it through `std::array`'s hardened precondition).
+  simply fails to compile, because an out-of-bounds subscript is not a constant expression.
 
   The heap-backed types cannot be tested this way, because over-aligned allocation is not usable
   in constant evaluation.  Their suites reach only the empty and zero-capacity members, which is
-  why the compile-time coverage is so lopsided across the three.
+  why the compile-time coverage is so lopsided across the suites.
 
 - **The heap-backed types are also run under AddressSanitizer + UndefinedBehaviorSanitizer.**
   `CHECK`s are blind to the specific mistakes these two can make: a read or write just past the
