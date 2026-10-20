@@ -220,6 +220,13 @@ names match.  An overload that names them differently draws an "is not found in
 the argument list" warning, and a block with its own `\exception` lines ends up
 carrying each one twice.
 
+Matching names is the only part Doxygen checks.  A `\pre` or a postcondition
+that holds for only some of the overloads is copied into the rest, and so is an
+`\a` naming a parameter that some of them lack.  Doxygen reports neither.  A
+target block therefore holds only what is true of every overload that copies
+it.  Where the contracts differ, the whole block does not transfer, and rule 12
+applies.
+
 **12. Use `\copybrief` plus one specific paragraph when it does not.**  Two
 overloads that spell the same parameter differently are the usual case.  One
 taking `data` and `len` cannot `\copydoc` from one taking `src`, because the

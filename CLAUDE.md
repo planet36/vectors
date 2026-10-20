@@ -358,14 +358,13 @@ than owning it, which removes the ownership machinery and changes construction:
 ## API / error-handling conventions
 
 - **A `\copydoc` / `\copydetails` target block must hold only what is true of every overload
-  that copies it.**  The tag copies the text verbatim, nothing checks that the text still fits,
-  and there is no Doxygen build here to catch it, so a target block is a promise that the
-  overloads share one contract.  Where the overloads genuinely differ, give each its own block.
-  These are the shapes to watch for:
+  that copies it.**  COMMENT-STYLE.md's rule 11 has the why.  It bites harder here, because
+  there is no Doxygen build to catch even the parameter-name mismatches it does check.  These
+  are the shapes to watch for:
   - a `\a param` naming a parameter the others do not have, such as a `\pre \a spn` reaching
     overloads with no `spn`
   - a `\pre` about a `capacity` parameter reaching a constructor that has none
-  - a post-condition that holds for only some of them, such as `assign_range`'s
+  - a postcondition that holds for only some of them, such as `assign_range`'s
     `leaves the container empty`, which only the sized overloads meet
 - Capacity overflow throws **`std::bad_alloc`** (not `length_error`), and `at()` throws
   **`std::out_of_range`**.  The `try_*` family (`try_push_back`, `try_emplace_back`,
