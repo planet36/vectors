@@ -144,8 +144,7 @@ suggestion forms.
 **10a. Write an argument once.**  A second site that needs it states the
 consequence in a sentence and points at where the argument lives.  Copying the
 reasoning means every copy is a place to update when the answer changes.  Point
-only at something that travels with the file, so that a file copied into
-another program does not end up referring to a document it left behind.
+only at something that goes along when the file is copied into another program.
 
 A document that stays behind is off limits, however permanent it looks from
 here.  A file may point at a companion file only when it carries that companion
