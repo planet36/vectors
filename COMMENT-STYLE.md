@@ -244,6 +244,12 @@ These spellings are forbidden in any sense: "programme", "judgement",
 "licence", "defence", and "grey".  A spelling that is code, such as an
 identifier, stays as the code spells it.
 
+**14a. Put punctuation inside quotation marks only when it belongs to the
+quoted text.**  Rule 14 asks for American spelling, not the American habit of
+putting every period and comma inside.  Quoted text in code and commit messages
+is usually literal, such as a commit subject, an error message, or a command,
+and a mark added inside the quotes reads as part of it.
+
 **15. Use the serial comma.**  Put a comma before the final conjunction in a
 list of three or more.
 
