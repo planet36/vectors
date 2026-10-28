@@ -131,7 +131,7 @@ to_byte(const int i) noexcept
     return static_cast<std::byte>(i);
 }
 
-/// A std::byte literal, e.g. 0xAB_b
+/// A std::byte literal, e.g., 0xAB_b
 [[nodiscard]] constexpr std::byte
 operator""_b(const unsigned long long v) noexcept
 {

@@ -40,7 +40,7 @@
 * These properties shape the interface:
 *   - Storage is an over-alignable heap block allocated with the aligned
 *     <code>::operator new</code> and owned by a \c std::unique_ptr.  \a Align may exceed
-*     \c alignof(T) (e.g. \c std::byte data aligned like a 16-byte SIMD lane).  \c data()
+*     \c alignof(T) (e.g., \c std::byte data aligned like a 16-byte SIMD lane).  \c data()
 *     applies \c std::assume_aligned<Align> (guarded for the null/empty case) so caller loops
 *     can vectorize on the known alignment.
 *   - All \c capacity() elements are alive from construction onward.  The reserve constructor
@@ -102,9 +102,9 @@ private:
 
     /// Allocate an over-aligned block for \a cap elements without beginning any lifetimes
     /**
-    * The caller must begin the lifetime of every element (e.g. with the \c std::uninitialized_*
-    * algorithms or \c std::construct_at) before the container is used.  A capacity of 0
-    * allocates nothing.
+    * The caller must begin the lifetime of every element (e.g., with the
+    * \c std::uninitialized_* algorithms or \c std::construct_at) before the container is
+    * used.  A capacity of 0 allocates nothing.
     */
     [[nodiscard]] static constexpr storage_ptr allocate_raw_(const std::size_t cap)
     {

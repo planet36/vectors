@@ -363,7 +363,7 @@ element type enables these differences:
   usable in constant expressions, and capacity `> 0` requires a run-time allocation.
 
 - **Motivating use.**  The type exists for a contiguous `std::byte` buffer aligned like a SIMD
-  lane (e.g. 16 bytes), filled incrementally, then read as `std::span<const std::byte>` and
+  lane (e.g., 16 bytes), filled incrementally, then read as `std::span<const std::byte>` and
   handed to intrinsics.
 
 ## `borrowed_byte_buffer`
@@ -513,7 +513,7 @@ interface without ever allocating.  The whole object is
 
   This deliberately rejects floating-point arguments (an expression-validity constraint would
   have accepted `emplace_back(3.99)` and stored `byte{3}`, since the cast follows `static_cast`
-  rules) and other enumeration types (cast explicitly, e.g. with `std::to_underlying`, if
+  rules) and other enumeration types (cast explicitly, e.g., with `std::to_underlying`, if
   intended).  What no constraint can reject is an out-of-range *runtime* integer:
   `emplace_back(256)` stores `byte{0}`.
 

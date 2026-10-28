@@ -16,7 +16,7 @@ Every C++ file and the Makefile open with `SPDX-FileCopyrightText: Steven Ward` 
   one reporting `N`.  It is fully `constexpr`.
 - `include/dynamic_fixed_vector.hpp` — `dynamic_fixed_vector<T, Align>`: the same container
   shape with capacity chosen at **run time** (constructor argument) and heap storage that may be
-  **over-aligned** (`Align` can exceed `alignof(T)`, e.g. `std::byte` data aligned to 16 for
+  **over-aligned** (`Align` can exceed `alignof(T)`, e.g., `std::byte` data aligned to 16 for
   SIMD).  See "`dynamic_fixed_vector` differences from `fixed_vector`" below.
 - `include/aligned_byte_buffer.hpp` — `aligned_byte_buffer<Align>`: the `std::byte`
   specialization of `dynamic_fixed_vector`, kept as a separate type.  It is not a C++ template
@@ -305,7 +305,7 @@ the fixed element type:
   reserved tail into determinate zeros (lane padding).  `emplace_back` accepts at most one
   `std::byte`/integral argument (floats and other enums rejected).  The free function
   `equal_constant_time(span, span)` compares with no data-dependent branches, for
-  secret-dependent data (e.g. tag verification).  Its accumulator is `volatile`, so it is
+  secret-dependent data (e.g., tag verification).  Its accumulator is `volatile`, so it is
   `inline` rather than `constexpr`, and the container's `operator==` stays variable-time.
 
 ### `borrowed_byte_buffer` differences (the non-owning byte buffer)

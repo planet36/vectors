@@ -252,7 +252,7 @@ public:
 
     /// Borrow \a capacity bytes of the range \a r, leaving the buffer empty (\c size()==0)
     /**
-    * \a r is any contiguous, sized range of writable, trivially copyable elements, e.g. a
+    * \a r is any contiguous, sized range of writable, trivially copyable elements, e.g., a
     * \c std::array, \c std::vector, \c std::span, or C array (see \c borrowable_range).
     * Its storage is overlaid, not copied.
     * \pre \a r's byte size is at least \a capacity.
@@ -271,7 +271,7 @@ public:
 
     /// Borrow all of the range \a r as empty space, with its byte size as the capacity
     /**
-    * \a r is any contiguous, sized range of writable, trivially copyable elements, e.g. a
+    * \a r is any contiguous, sized range of writable, trivially copyable elements, e.g., a
     * \c std::array, \c std::vector, \c std::span, or C array (see \c borrowable_range).
     * Its storage is overlaid, not copied.  Taking the whole range, this carries no size
     * precondition of its own, unlike the overload that takes a capacity.
@@ -286,7 +286,7 @@ public:
 
     /// Overlay the single object \a data, with the pointee's \c sizeof as the capacity
     /**
-    * The buffer starts empty.  This accepts a genuine object pointer (e.g. \c &obj), not an
+    * The buffer starts empty.  This accepts a genuine object pointer (e.g., \c &obj), not an
     * array, which the range constructor handles.
     */
     template <borrowable_object_ptr P>
