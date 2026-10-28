@@ -358,7 +358,7 @@ than owning it, which removes the ownership machinery and changes construction:
 ## API / error-handling conventions
 
 - **A `\copydoc` / `\copydetails` target block must hold only what is true of every overload
-  that copies it.**  COMMENT-STYLE.md's rule 11 has the why.  It bites harder here, because
+  that copies it.**  COMMENT-STYLE.md's rule 27 has the why.  It bites harder here, because
   there is no Doxygen build to catch even the parameter-name mismatches it does check.  These
   are the shapes to watch for:
   - a `\a param` naming a parameter the others do not have, such as a `\pre \a spn` reaching
