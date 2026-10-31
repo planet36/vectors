@@ -31,7 +31,7 @@
 
 /// A resizable array container with in-place storage and a compile-time capacity bound
 /**
-* \a N bounds the capacity but does not fix it: the capacity is a run-time value that
+* \a N bounds the capacity but does not fix it.  The capacity is a run-time value that
 * \c reserve() moves after construction, in either direction.
 *
 * This is similar to \c std::inplace_vector and \c boost::container::static_vector,
@@ -511,7 +511,7 @@ public:
     }
 
     /**
-    * \pre <code>[first, last)</code> is a valid range.  For a \c std::sized_sentinel_for this
+    * \pre <code>[first, last)</code> is a valid range.  For a \c std::sized_sentinel_for, this
     * keeps <code>last - first</code> non-negative, so the size check's cast to \c std::size_t
     * is well-defined.
     * \note A \c std::sized_sentinel_for source is checked up front, so nothing is appended when
@@ -602,7 +602,7 @@ public:
     }
 
     /**
-    * \pre <code>[first, last)</code> is a valid range.  For a \c std::sized_sentinel_for this
+    * \pre <code>[first, last)</code> is a valid range.  For a \c std::sized_sentinel_for, this
     * keeps <code>last - first</code> non-negative, so the size check's cast to \c std::size_t
     * is well-defined.
     * \note A \c std::sized_sentinel_for source is checked up front, so nothing is appended on
