@@ -360,7 +360,7 @@ than owning it, which removes the ownership machinery and changes construction:
 
 ## API / error-handling conventions
 
-- **COMMENT-STYLE.md's rule 27 governs `\copydoc` and `\copydetails` targets alike.**  It bites
+- **COMMENT-STYLE.md's rule 28 governs `\copydoc` and `\copydetails` targets alike.**  It bites
   harder here, because there is no Doxygen build to catch even the parameter-name mismatches
   Doxygen does check.  These are the shapes to watch for:
   - a `\a param` naming a parameter the others do not have, such as a `\pre \a spn` reaching
