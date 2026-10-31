@@ -49,6 +49,9 @@ this file disagrees with either, assume `DESIGN.md` is right and this file is wh
 `COMMENT-STYLE.md` holds the prose rules for code comments, doc blocks, and commit messages
 here.  It governs how prose is written rather than what the code does, so an API change does not
 update it.  It is written to be copied into any repo, so it names nothing specific to this one.
+This import loads its rules into every session:
+
+@COMMENT-STYLE.md
 
 ## Build & test
 
@@ -357,10 +360,9 @@ than owning it, which removes the ownership machinery and changes construction:
 
 ## API / error-handling conventions
 
-- **A `\copydoc` / `\copydetails` target block must hold only what is true of every overload
-  that copies it.**  COMMENT-STYLE.md's rule 27 has the why.  It bites harder here, because
-  there is no Doxygen build to catch even the parameter-name mismatches it does check.  These
-  are the shapes to watch for:
+- **COMMENT-STYLE.md's rule 27 governs `\copydoc` and `\copydetails` targets alike.**  It bites
+  harder here, because there is no Doxygen build to catch even the parameter-name mismatches
+  Doxygen does check.  These are the shapes to watch for:
   - a `\a param` naming a parameter the others do not have, such as a `\pre \a spn` reaching
     overloads with no `spn`
   - a `\pre` about a `capacity` parameter reaching a constructor that has none
@@ -369,9 +371,6 @@ than owning it, which removes the ownership machinery and changes construction:
 - Capacity overflow throws **`std::bad_alloc`** (not `length_error`), and `at()` throws
   **`std::out_of_range`**.  The `try_*` family (`try_push_back`, `try_emplace_back`,
   `try_append_range`) returns `bool` instead of throwing and is marked `[[nodiscard]]`.
-- **A throwing member documents it with `\exception`.**  Doxygen's `\throw` and `\throws` are
-  exact synonyms, so nothing in a build catches the difference.  The headers hold no instance of
-  the other two.  Keep new tags on that spelling.
 - `unchecked_*` variants skip the capacity check and assume `!is_full()`.  The checked
   `emplace_back`/`push_back`/`append_range` delegate to them after validating.
 - Append overloads that can know the source size up front (span, iterator+count,
