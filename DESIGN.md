@@ -7,12 +7,12 @@ instructions.  This file covers only the *why*.
 
 ## The family
 
-The family is four related containers, each a resizable sequence with a **fixed capacity** and
+The family is four related containers, each a resizable sequence with **fixed-size storage** and
 trivially destructible elements.  They share an API and a set of invariants, and they differ in
-*when* the capacity is fixed and *how* storage is obtained.
+*when* the storage is sized and *how* it is obtained.
 
-| Type | Capacity fixed at | Storage | Alignment |
-|------|-------------------|---------|-----------|
+| Type | Storage sized at | Storage | Alignment |
+|------|------------------|---------|-----------|
 | `fixed_vector<T, N, Align>` | compile time (`N`) | in-place `std::array<T, N>` | template param |
 | `dynamic_fixed_vector<T, Align>` | run time (constructor) | one aligned heap block | template param |
 | `aligned_byte_buffer<Align>` | run time (constructor) | one aligned heap block | template param, element type fixed to `std::byte` |
@@ -84,7 +84,9 @@ The invariants are these:
   therefore trips that family's `!is_full()` assert under `-DDEBUG` rather than throwing.
 - **`zeroize_reserved_unused()`** (trivially copyable element types only) sets the object
   representation of the reserved tail `[size(), capacity())` to all-zero bytes without changing
-  `size()`.  `clear()` followed by it scrubs the whole container.  The stores are guaranteed to
+  `size()`.  `clear()` followed by it scrubs everything up to `capacity()`, which is the whole
+  container except in a `fixed_vector` whose capacity has been reduced, where
+  `zeroize_unreserved()` covers the rest.  The stores are guaranteed to
   happen even when nothing reads the tail afterward, whereas a plain fill before deallocation is
   a dead store the optimizer may elide.
 
