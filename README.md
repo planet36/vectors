@@ -2,9 +2,10 @@
 
 Upstream: <https://github.com/planet36/vectors>
 
-This is a header-only C++ library of **fixed-capacity vectors**: resizable sequences that never
-reallocate, never grow past their capacity, and never individually destroy an element.  The
-storage is sized once — at compile time or at construction — and is never resized after that.
+This is a header-only C++ library of **fixed-capacity vectors**, which are resizable sequences
+that never reallocate, never grow past their capacity, and never individually destroy an
+element.  The storage is sized once (at compile time or at construction) and is never resized
+after that.
 
 The headers are in `include/`.  Each is self-contained, except that the two byte buffers include
 `byte_compare.hpp`, so copy it along with them.  Drop them in an include path and `#include`
@@ -21,11 +22,11 @@ them.  There is no package manifest, and using the library needs no build system
 | `include/borrowed_byte_buffer.hpp` | `borrowed_byte_buffer` | run time (constructor) | **borrowed** — overlays storage it does not own |
 
 All four report a run-time `capacity()`.  Only `fixed_vector` lets you move it after
-construction (`reserve()`, within its `N` slots).  For the other three the constructor argument
+construction (`reserve()`, within its `N` slots).  For the other three, the constructor argument
 settles it, since changing it there would mean reallocating.
 
 `dynamic_fixed_vector` is the heap-allocating analogue of `fixed_vector`.  `aligned_byte_buffer`
-is its `std::byte` specialization, kept as a separate type so it can be simpler and faster: the
+is its `std::byte` specialization, kept as a separate type so it can be simpler and faster.  The
 element type is fixed, so only the alignment is a template parameter, bulk operations drop to
 `memcpy` / `memset`, and the reserved tail is left uninitialized rather than zeroed.
 
@@ -39,9 +40,10 @@ add a free `equal_constant_time` (in `byte_compare.hpp`, which they both include
 
 ## Requirements
 
-- **GCC 16** with `-std=c++23` (the headers use `std::from_range_t`,
-  `std::start_lifetime_as_array`, ranges, and concepts).
-- No third-party libraries.  The headers and their tests need only the standard library.
+- **GCC 16** with `-std=c++23` is required, since the headers use `std::from_range_t`,
+  `std::start_lifetime_as_array`, ranges, and concepts.
+- There are no third-party libraries.  The headers and their tests need only the standard
+  library.
 
 ## Quick start
 
@@ -64,8 +66,8 @@ v.clear();                         // size becomes 0; the elements stay alive
 assert(v[0] == 1);                 // still readable -- operator[] is capacity-based
 ```
 
-`N` is the number of slots, reported by `max_size()`.  The *capacity* — the limit every space
-check consults — starts at `N` and moves at run time:
+`N` is the number of slots, reported by `max_size()`.  The *capacity* (the limit every space
+check consults) starts at `N` and moves at run time:
 
 ```cpp
 v.assign_range({1, 2, 3, 4, 5, 6}); // size 6 again
@@ -161,7 +163,7 @@ if (equal_constant_time(view.span(), expected))
     accept();
 ```
 
-It owns nothing, so copy and move are shallow: the copy views the same bytes, and a moved-from
+It owns nothing, so copy and move are shallow.  The copy views the same bytes, and a moved-from
 buffer is left pointing at the same storage, not emptied.  The caller keeps the borrowed storage
 alive for the buffer's lifetime.
 
@@ -225,13 +227,13 @@ elements included, and sets `size()` to `capacity()`.  To fill only the reserved
 The three owning types build and fill their storage through the same constructor set (a single
 count/capacity argument, count + fill value, span, iterator + sentinel, iterator + count,
 `initializer_list`, and range, as `X(std::from_range, rg)`).  They differ in the one place noted
-above: `fixed_vector<T, N>(count)` creates `count` elements, while the runtime types'
+above.  `fixed_vector<T, N>(count)` creates `count` elements, while the runtime types'
 `X(capacity)` reserves and starts empty.
 
 `borrowed_byte_buffer` differs in construction.  It has no count/fill/range *element-copying*
 constructors, because it is built over existing memory (a pointer or a contiguous range), and
 its `adopting` named constructors start it full.  It also has no `operator=(initializer_list)`.
-`assign_range` does that job, since on a view `=` could also read as rebinding.  Every member
+`assign_range` does that job, since on a view, `=` could also read as rebinding.  Every member
 above behaves identically once it is constructed.
 
 `append_range` and `assign_range` are each overloaded for a span, iterator + sentinel,
@@ -240,8 +242,8 @@ followed by `append_range`.  Overloads that can know the source size up front va
 writing, so nothing is appended when they throw.  Truly unsized sources append element-wise and
 may leave the elements that fit in place before throwing (or returning `false`).
 
-Passing a contiguous range of the element type — a `std::vector<T>`, a `std::array<T, N>`, or
-a span — gets the bulk copy (`memcpy` in the byte buffers) without the call site doing anything
+Passing a contiguous range of the element type (a `std::vector<T>`, a `std::array<T, N>`, or
+a span) gets the bulk copy (`memcpy` in the byte buffers) without the call site doing anything
 special.  The source must not overlap the container's own storage.  Anything else appends
 element-wise.
 
@@ -254,8 +256,8 @@ whose capacity has been reduced, `zeroize_unreserved()` covers the rest
 ## Building and running the tests
 
 There is no test framework and no runner.  Each type has one standalone program that exercises
-every member, and the exit status is the whole contract: **a test passes when it prints nothing
-and exits 0**.  On the first failed check it prints one line to stderr and exits non-zero
+every member, and the exit status is the whole contract.  **A test passes when it prints nothing
+and exits 0**.  On the first failed check, it prints one line to stderr and exits non-zero
 immediately:
 
 ```
@@ -268,7 +270,7 @@ make test   # build if needed, then run them
 make lint   # optional: clang-tidy over the suites and headers, per .clang-tidy
 ```
 
-`make test` applies that same contract to the suite: it prints nothing and exits 0 when every
+`make test` applies that same contract to the suite.  It prints nothing and exits 0 when every
 program passes, and stops at the first one that doesn't.  It runs the tests twice, once per
 build variant (see below for why both).  Each program is self-contained, so building one by hand
 works too:
@@ -302,9 +304,9 @@ why.
 `make test` runs the suite twice, because neither build subsumes the other.  The variants are
 two sets of binaries rather than two targets, so `make` builds both and `make test` runs both:
 
-- **release** — `test-*`, built at `-O3 -flto=auto -march=native`.
-- **debug** — `test-*.debug`, built with asserts, libstdc++ debug mode, fortified string ops,
-  and ASan/UBSan.
+- **release.**  The `test-*` binaries are built at `-O3 -flto=auto -march=native`.
+- **debug.**  The `test-*.debug` binaries are built with asserts, libstdc++ debug mode,
+  fortified string ops, and ASan/UBSan.
 
 The **debug** build catches what the release build hides.  The two heap-backed types hand-manage
 aligned memory, the byte buffers intentionally read partially-uninitialized (or borrowed)
@@ -330,12 +332,12 @@ the source-size check on `borrowed_byte_buffer`'s range constructor.  Each asser
 `#if defined(DEBUG)`, so a release build has no trace of one.
 
 The asserts check the *documented* contract, not `std::vector`'s.  `operator[]` asserts
-`i < capacity()`, so reading a live element past `size()` stays legal.  In a `fixed_vector` that
-bound is the *current* capacity, so an index the container's window no longer covers trips it
-even though the slot is still alive.
+`i < capacity()`, so reading a live element past `size()` stays legal.  In a `fixed_vector`,
+that bound is the *current* capacity, so an index the container's window no longer covers trips
+it even though the slot is still alive.
 
 `make lint` is separate from all of this.  It runs clang-tidy with the checks in `.clang-tidy`
-and is advisory, since its recipe ignores the exit status.  It currently prints nothing: the
+and is advisory, since its recipe ignores the exit status.  It currently prints nothing.  The
 cases aimed at code that exists to be warned about (the `std::move` of a trivially copyable
 object, the deliberately un-forwarded forwarding reference, and the element-wise append loop)
 are silenced in place with `NOLINT` comments, so the comments are where that reasoning lives.

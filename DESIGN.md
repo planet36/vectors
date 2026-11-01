@@ -21,10 +21,11 @@ trivially destructible elements.  They share an API and a set of invariants, and
 `dynamic_fixed_vector` is the runtime-capacity analogue of `fixed_vector`.
 `aligned_byte_buffer` is the `std::byte` specialization of `dynamic_fixed_vector`, kept as a
 separate type so it can be simpler and faster.  `borrowed_byte_buffer` is the **non-owning**
-counterpart to `aligned_byte_buffer`: the same byte-buffer interface over storage it does not
-own.  It allocates nothing, so it drops the whole ownership apparatus (aligned `new`/`delete`,
-the `unique_ptr`, deep copy, the `Align` parameter) and keeps only the size-cursor logic.  The
-two byte buffers share `equal_constant_time`, factored into `byte_compare.hpp`.
+counterpart to `aligned_byte_buffer`, with the same byte-buffer interface over storage it does
+not own.  It allocates nothing, so it drops the whole ownership apparatus (aligned
+`new`/`delete`, the `unique_ptr`, deep copy, the `Align` parameter) and keeps only the
+size-cursor logic.  The two byte buffers share `equal_constant_time`, factored into
+`byte_compare.hpp`.
 
 ## Shared invariants
 
@@ -49,17 +50,17 @@ The invariants are these:
   index `>= size()` (within capacity).  `at()` is the only bounds-checked accessor and throws
   `std::out_of_range`.
 - **Capacity overflow throws `std::bad_alloc`** (not `std::length_error`).
-- **There are three method families for adding elements:**
+- **There are three method families for adding elements.**
   - The checked ones (`push_back` / `emplace_back` / `append_range`) validate, then throw on
     overflow.
   - The `try_*` ones (`[[nodiscard]] bool`) validate, then return `false` on overflow instead of
     throwing.
   - The `unchecked_*` ones assume `!is_full()` or sufficient space.  The checked forms delegate
     to these.
-- **`capacity()` reports a real capacity, not a theoretical one.**  For the runtime types it is
-  the value passed to the constructor — intentionally *not* a `SIZE_MAX`-style maximum, which is
-  what `std::vector::max_size()` reports.  `max_size()` equals `capacity()` in three of the four
-  types.  In `fixed_vector` it is `N`, the number of slots, and `capacity()` is a run-time
+- **`capacity()` reports a real capacity, not a theoretical one.**  For the runtime types, it
+  is the value passed to the constructor — intentionally *not* a `SIZE_MAX`-style maximum, which
+  is what `std::vector::max_size()` reports.  `max_size()` equals `capacity()` in three of the
+  four types.  In `fixed_vector`, it is `N`, the number of slots, and `capacity()` is a run-time
   window within it that `reserve()` moves (see that section).
 - **`append_range` / `assign_range`** are overloaded for span, iterator+sentinel,
   iterator+count, `initializer_list`, and input ranges.  `assign_range` is `clear()` followed by
@@ -71,9 +72,9 @@ The invariants are these:
   the span overload.**  An ordinary `std::vector<T>` / `std::array<T, N>` therefore lands on the
   bulk copy (`std::ranges::copy`, or `memcpy` in the byte buffers) instead of being appended
   element-wise.  The dispatch is explicit because overload resolution cannot reach that
-  conclusion.  For `std::vector<T>` the `R&&` template is an *exact match*, while the span
+  conclusion.  For `std::vector<T>`, the `R&&` template is an *exact match*, while the span
   overload needs a user-defined conversion.  The template therefore always wins, and without the
-  dispatch the bulk path would be reachable only by spelling the span out at the call site,
+  dispatch, the bulk path would be reachable only by spelling the span out at the call site,
   which no caller should have to know to do.
 
   The element type must match exactly.  A contiguous range of some *other* type
@@ -104,9 +105,9 @@ The invariants are these:
 
   So `requires { std::memset_explicit(...); }` does not evaluate to `false` and fall through.
   It fails the build, taking the `explicit_bzero` and volatile branches down with it.  The
-  unqualified name is the only spelling this detection idiom can probe.  Nothing is lost by it:
-  the project targets Linux/glibc, where C23 guarantees `::memset_explicit`, and when libstdc++
-  eventually adds the `std::` name it will be a using-declaration for this same function.
+  unqualified name is the only spelling this detection idiom can probe.  Nothing is lost by it.
+  The project targets Linux/glibc, where C23 guarantees `::memset_explicit`, and when libstdc++
+  eventually adds the `std::` name, it will be a using-declaration for this same function.
 
   [sd6]: https://isocpp.org/std/standing-documents/sd-6-sg10-feature-test-recommendations
 
@@ -129,7 +130,7 @@ The invariants are these:
   test failure, because all three branches zero the memory correctly and the suites cannot tell
   them apart.  The only casualty is the guarantee, and nothing announces its loss.
 
-  During constant evaluation `fixed_vector` value-assigns the tail instead, since there is no
+  During constant evaluation, `fixed_vector` value-assigns the tail instead, since there is no
   memory to scrub at compile time.  The other three types are only ever empty in constant
   evaluation.
 
@@ -140,20 +141,22 @@ object is self-contained (no heap).  Copy and move are member-wise, and trivial 
 copyable `T`, the intended case.  Essentially the entire interface is `constexpr`.
 
 Moving does *not* empty the source.  The defaulted move is member-wise, so for trivially
-copyable `T` a moved-from `fixed_vector` is left unchanged, unlike the heap-backed siblings,
-where move construction empties the source.  The constraints are `N > 0`, default-initializable,
-movable, trivially destructible, and `Align` a power of two and at least `alignof(T)`.
+copyable `T`, a moved-from `fixed_vector` is left unchanged, unlike the heap-backed siblings,
+where move construction empties the source.
 
-The default `Align`, `std::max(alignof(std::size_t), alignof(T))`, only ever *over*-aligns: even
-for small `T` the array is at least word-aligned, and the `alignas` costs nothing because the
-adjacent `std::size_t` member already gives the object that alignment.
+The constraints are `N > 0`, default-initializable, movable, trivially destructible, and `Align`
+a power of two and at least `alignof(T)`.
+
+The default `Align`, `std::max(alignof(std::size_t), alignof(T))`, only ever *over*-aligns.
+Even for small `T`, the array is at least word-aligned, and the `alignas` costs nothing because
+the adjacent `std::size_t` member already gives the object that alignment.
 
 The `Align >= alignof(T)` bound is **not** needed for correctness here, unlike on the
-heap-backed siblings: storage is a real `std::array<T, N>` member, and `alignas` cannot weaken a
-type's natural alignment, so the array is suitably aligned even for an under-aligned request.
+heap-backed siblings.  Storage is a real `std::array<T, N>` member, and `alignas` cannot weaken
+a type's natural alignment, so the array is suitably aligned even for an under-aligned request.
 
 The bound exists for diagnosis.  A weakened `alignas` is ill-formed ([dcl.align]/5), but GCC
-accepts it silently at any warning level (Clang rejects it), so without the constraint
+accepts it silently at any warning level (Clang rejects it), so without the constraint,
 `fixed_vector<int, 8, 1>` compiles, ignores the request, and yields a 4-aligned array.  The
 container cannot honor that intent, nothing reports it, and the code builds on only one
 compiler.  The constraint turns that into a named constraint failure, and makes the family's
@@ -162,22 +165,22 @@ three `requires` clauses consistent.
 ### Capacity is a run-time window over the `N` slots
 
 `N` sizes the storage, but it is *not* the capacity.  `capacity_` is a `std::size_t` member
-starting at `N`, and `reserve()` moves it anywhere in `[0, N]`.  Every space check —
-`is_full()`, `reserved_unused()`, the whole append family, `resize()` — consults `capacity()`,
-so lowering it narrows the window the container will use, while the storage stays the same
-`std::array<T, N>`.  `max_size()` remains `static constexpr` and reports `N`.
+starting at `N`, and `reserve()` moves it anywhere in `[0, N]`.  Every space check
+(`is_full()`, `reserved_unused()`, the whole append family, and `resize()`) consults
+`capacity()`, so lowering it narrows the window the container will use, while the storage stays
+the same `std::array<T, N>`.  `max_size()` remains `static constexpr` and reports `N`.
 
 The window costs almost nothing, and each decision below follows from that:
 
 - **`reserve()` never (de)allocates and is O(1).**  There is no reallocation to perform and no
-  element to construct or destroy — the slots on both sides of the capacity line are alive
+  element to construct or destroy.  The slots on both sides of the capacity line are alive
   either way.  That is what makes it reasonable for `reserve()` to *shrink*, which
   `std::vector::reserve` cannot do (it would have to reallocate, which is what the non-binding
   `shrink_to_fit` is for).
 - **Growing leaves the regained slots untouched.**  A slot's value is whatever was last written
-  to it, `T{}` if never written — exactly the rule that already governs the reserved tail
-  (`fill_capacity(9); resize(2)` leaves `9`s in `[2, capacity())`, which the tests check).
-  Nothing is gained by re-value-initializing on grow: it would cost O(delta) on a member whose
+  to it, `T{}` if never written.  That is exactly the rule that already governs the reserved
+  tail (`fill_capacity(9); resize(2)` leaves `9`s in `[2, capacity())`, which the tests check).
+  Nothing is gained by re-value-initializing on grow.  It would cost O(delta) on a member whose
   entire point is that it moves a cursor, and it would half-do a job `zeroize_reserved_unused()`
   / `fill_capacity()` already do properly and on request.  Scrubbing is an explicit, separately
   named operation in this library, not a side effect.
@@ -196,7 +199,7 @@ The window costs almost nothing, and each decision below follows from that:
   way to move the line.
 - **`zeroize_unreserved()` is a separate member from `zeroize_reserved_unused()`.**  It covers
   `[capacity(), max_size())` rather than `[size(), capacity())`.  Each name states exactly the
-  region it scrubs, and the split is real: after a shrink, the unreserved slots may still hold
+  region it scrubs, and the split is real.  After a shrink, the unreserved slots may still hold
   what they held while they were reserved.  The full scrub is `clear()`, then both calls.
   Folding them into one member covering `[size(), max_size())` would give the byte-level cost of
   the whole array to every caller who only wanted the tail.
@@ -215,11 +218,11 @@ The window costs almost nothing, and each decision below follows from that:
   `[0, size())`, `resize(capacity(), value)` for `[size(), capacity())`, and `fill_capacity()`
   for both.
 
-`operator[]`'s `\pre i < capacity()` therefore tightens when the capacity is lowered: a slot in
+`operator[]`'s `\pre i < capacity()` therefore tightens when the capacity is lowered.  A slot in
 `[capacity(), max_size())` is alive but out of contract, and the `-DDEBUG` assert says so.  That
 is the point of stating the precondition in terms of `capacity()` rather than `N`.
 
-The default capacity is `N`, and this is what keeps the feature invisible: a program that never
+The default capacity is `N`, and this is what keeps the feature invisible.  A program that never
 calls `reserve()` sees `capacity() == N` everywhere, so every space check bounds it by `N`.
 
 ## `dynamic_fixed_vector<T, Align>`
@@ -231,7 +234,7 @@ single over-alignable heap block.
   `::operator new(bytes, std::align_val_t{Align})`, owned by a
   `std::unique_ptr<T, aligned_deleter>` whose stateless deleter calls the matching
   `::operator delete(p, std::align_val_t{Align})`.
-  Every capacity element's lifetime is begun exactly once at construction: the reserve
+  Every capacity element's lifetime is begun exactly once at construction.  The reserve
   constructor value-initializes them (`std::uninitialized_value_construct_n`), while the
   copy/fill/range constructors construct them directly from the source
   (`std::uninitialized_copy_n` / `std::uninitialized_fill_n` / `std::construct_at`), avoiding a
@@ -245,8 +248,8 @@ single over-alignable heap block.
   over-alignment is supplied by the `Align` *template parameter*, not by the type `T`.  A
   `delete[]` expression (and the default deleter of `unique_ptr<T[]>`) selects the aligned vs.
   plain deallocation function from the *type* (whether
-  `alignof(T) > __STDCPP_DEFAULT_NEW_ALIGNMENT__`).  So for a normally aligned `T` it would call
-  the **non-aligned** `operator delete[]`, mismatching the aligned allocation (undefined
+  `alignof(T) > __STDCPP_DEFAULT_NEW_ALIGNMENT__`).  So for a normally aligned `T`, it would
+  call the **non-aligned** `operator delete[]`, mismatching the aligned allocation (undefined
   behavior), and there is no syntax to make `delete[]` pass the alignment.
 
   Array `new` may also insert an implementation-defined element-count cookie that offsets the
@@ -309,8 +312,8 @@ type is fixed, so only the alignment is a template parameter (a power of two, de
 Distinct alignments are distinct types.  The API and conventions are unchanged, and the fixed
 element type enables these differences:
 
-- **No overflow guard.**  `sizeof(std::byte) == 1`, so the byte count equals the capacity —
-  there is no multiplication and nothing to overflow.
+- **No overflow guard.**  `sizeof(std::byte) == 1`, so the byte count equals the capacity.
+  There is no multiplication and nothing to overflow.
 
 - **Reserved capacity is left uninitialized.**  Rather than value-initializing (zeroing) every
   byte up front, the block's object lifetimes are begun with
@@ -329,7 +332,7 @@ element type enables these differences:
   `fill_size` / `resize`-grow.  The copy constructor copies only the live `[0, size())` bytes,
   since the reserved tail is unspecified anyway.  `operator==` / `operator<=>` are unconditional
   (`std::byte` is always comparable, yielding `std::strong_ordering`).  `memcpy` and `memset`
-  are not `constexpr`, but like the allocation they sit behind an emptiness guard, so the
+  are not `constexpr`, but like the allocation, they sit behind an emptiness guard, so the
   `constexpr` annotation still holds for the empty case.
 
 - **Explicit zeroization** (see the shared invariants).  For the byte buffer,
@@ -349,17 +352,17 @@ element type enables these differences:
   comparisons stay variable-time, per ordinary container semantics.
 
   The standard has no notion of timing, so branch-freedom in the source is not by itself a
-  guarantee: nothing forbids a compiler from proving the accumulator is monotone and
+  guarantee.  Nothing forbids a compiler from proving the accumulator is monotone and
   short-circuiting the loop.  The accumulator is therefore `volatile`, which obliges the
   compiler to perform every accumulation in order.  This is the same distrust of the optimizer
   that `zeroize_reserved_unused()` pays for with `memset_explicit`.
 
   It costs the vectorization (a `volatile` accumulator forces a load and a store per byte, where
   a plain one would fold into a `vpxor`/`vpor` reduction), and that price is worth paying on the
-  tag-sized inputs this is for.  It also costs `constexpr`: a `volatile` access is barred in
+  tag-sized inputs this is for.  It also costs `constexpr`.  A `volatile` access is barred in
   constant evaluation, so the function is a plain `inline` one.
 
-- **`constexpr` / `noexcept`** follow `dynamic_fixed_vector` (see above): empty instances are
+- **`constexpr` / `noexcept`** follow `dynamic_fixed_vector` (see above).  Empty instances are
   usable in constant expressions, and capacity `> 0` requires a run-time allocation.
 
 - **Motivating use.**  The type exists for a contiguous `std::byte` buffer aligned like a SIMD
@@ -384,9 +387,10 @@ interface without ever allocating.  The whole object is
   buffers are described as yielding an *unspecified* byte there, but they mean different things
   by it, and the difference is the one a caller has to act on.
 
-  In `aligned_byte_buffer` the tail is heap storage that was never written: the value really is
-  arbitrary, and only `std::byte`'s exemption from the indeterminate-value rules keeps the read
-  out of UB.  Here the tail is memory the caller owns and very likely initialized, so the byte
+  In `aligned_byte_buffer`, the tail is heap storage that was never written.  The value really
+  is arbitrary, and only `std::byte`'s exemption from the indeterminate-value rules keeps the
+  read out of UB.
+  Here the tail is memory the caller owns and very likely initialized, so the byte
   is usually perfectly determinate.  It is also the *caller's own data*, which a beyond-size
   read (or an `operator==` after `resize`, or a `span()` handed onward) will disclose.
 
@@ -397,12 +401,12 @@ interface without ever allocating.  The whole object is
 - **Copy and move are shallow, and all six special members are defaulted.**  The type is a
   pointer and two integers, hence trivially copyable, so it is cheap to pass by value.  A copy
   is a second view of the *same* bytes (both observe writes through either), and move is the
-  same member-wise copy: a moved-from `borrowed_byte_buffer` still points at its storage rather
+  same member-wise copy.  A moved-from `borrowed_byte_buffer` still points at its storage rather
   than being emptied.
 
   This is the opposite of the heap-backed siblings (whose move *construction* empties the
-  source), and it is the correct default for a view: there is nothing to transfer, and a view
-  type that nulled itself on move would surprise.  The `swap` remains as a member + hidden
+  source), and it is the correct default for a view.  There is nothing to transfer, and a
+  view type that nulled itself on move would surprise.  The `swap` remains as a member + hidden
   friend for API parity.
 
 - **No `Align` parameter.**  `aligned_byte_buffer`'s `Align` exists to over-align *its own*
@@ -413,31 +417,31 @@ interface without ever allocating.  The whole object is
   `assume_aligned`, but it is out of scope until a caller needs it.)
 
 - **No `operator=(initializer_list)`.**  The other three types have one, and there
-  `v = {1, 2, 3}` can only mean *replace the contents*: the container owns its storage, so an
-  assignment has nothing else to do.  On a view the same expression also reads as *rebinding* —
-  pointing it at something new, which is what assigning to a `std::span` does.  The two readings
-  differ in who gets written to, and guessing wrong silently stores into memory the caller
-  merely lent, so the expression is left ill-formed instead.  `assign_range(il)` is the bulk
-  store, and names itself.
+  `v = {1, 2, 3}` can only mean *replace the contents*.  The container owns its storage, so an
+  assignment has nothing else to do.  On a view, the same expression also reads as *rebinding*
+  (pointing it at something new, which is what assigning to a `std::span` does).  The two
+  readings differ in who gets written to, and guessing wrong silently stores into memory the
+  caller merely lent, so the expression is left ill-formed instead.  `assign_range(il)` is the
+  bulk store, and names itself.
 
-  Construction closes the other reading: an `initializer_list`'s storage is `const`, so
+  Construction closes the other reading.  An `initializer_list`'s storage is `const`, so
   `borrowable_range` rejects it and there is no `borrowed_byte_buffer(initializer_list)` to
   rebind from either.
 
 - **Construction starts empty, and `adopting` starts full.**  The value constructors leave
   `size() == 0` and treat the region as scratch to build into, matching
   `aligned_byte_buffer(capacity)`.  Because an overlay sits on memory that *already holds a
-  value*, a second mode is genuinely useful: reading bytes already present (a header, a received
-  packet, a key).  That is the `adopting` named constructor family, which starts
+  value*, a second mode is genuinely useful, for reading bytes already present (a header, a
+  received packet, a key).  That is the `adopting` named constructor family, which starts
   `size() == capacity()`.
 
   The two differ only in where the size cursor begins (the bytes are identical), so this is an
-  ergonomic default, not a capability split: `resize(capacity())` reveals the tail from write
-  mode, and `clear()` empties from adopt mode.  Named constructors were chosen over a tag type
-  for call-site clarity (`borrowed_byte_buffer::adopting(header)`).
+  ergonomic default, not a capability split.  `resize(capacity())` reveals the tail from
+  write mode, and `clear()` empties from adopt mode.  Named constructors were chosen over a tag
+  type for call-site clarity (`borrowed_byte_buffer::adopting(header)`).
 
 - **The borrowing constructor takes a contiguous range, not a `std::span<T>`.**  A
-  `std::span<T>` *parameter* forces the caller to write `std::span{arr}`: implicit array→span
+  `std::span<T>` *parameter* forces the caller to write `std::span{arr}`.  Implicit array→span
   conversion does not happen during template argument deduction, and even a CTAD'd
   `std::span{arr}` has a *static* extent that will not bind a `std::span<T, dynamic_extent>`
   parameter.  A `contiguous_range` parameter binds `borrowed_byte_buffer{arr}` bare, for any
@@ -498,7 +502,7 @@ interface without ever allocating.  The whole object is
 
 ## Edge cases and gotchas
 
-- **Zero capacity is both empty and full.**  For the runtime types a default-constructed (or
+- **Zero capacity is both empty and full.**  For the runtime types, a default-constructed (or
   zero-capacity) instance satisfies `is_empty()` and `is_full()` simultaneously.  That is
   correct, since there is no element and no remaining space.  `fixed_vector` cannot be
   *constructed* that way (it requires `N > 0`), but `reserve(0)` reaches the same state, with
@@ -508,26 +512,26 @@ interface without ever allocating.  The whole object is
   enumeration from an integer (`std::byte b(42)`) is ill-formed, so a `constructible_from`
   constraint would reject the integer arguments that the functional cast `std::byte(42)` in the
   `emplace_back` body handles fine.  The byte buffers' `emplace_back` family is therefore
-  constrained by argument *type* instead: at most one argument, of type `std::byte` or an
+  constrained by argument *type* instead, to at most one argument of type `std::byte` or an
   integral type.
 
   This deliberately rejects floating-point arguments (an expression-validity constraint would
   have accepted `emplace_back(3.99)` and stored `byte{3}`, since the cast follows `static_cast`
   rules) and other enumeration types (cast explicitly, e.g., with `std::to_underlying`, if
-  intended).  What no constraint can reject is an out-of-range *runtime* integer:
+  intended).  What no constraint can reject is an out-of-range *runtime* integer.
   `emplace_back(256)` stores `byte{0}`.
 
 - **`append_range(span)` assumes the source does not alias the buffer** (it uses `memcpy` in the
   byte buffers).  Appending a view over the buffer's own storage into itself is unsupported.
-  The assumption reaches past the span overloads themselves: a contiguous range of the element
+  The assumption reaches past the span overloads themselves.  A contiguous range of the element
   type is forwarded to them (see above), so `append_range(rg)` carries the same tag for that
   case.
 
 - **A `borrowed_byte_buffer` outliving its storage dangles.**  It owns nothing, so it is the
-  caller's job to keep the borrowed region alive — the same contract as `std::span`.
+  caller's job to keep the borrowed region alive, which is the same contract as `std::span`.
   Construction rejects the one case it *can* catch (an rvalue owning container, which would
-  dangle immediately), but cannot see a later-freed source.  The shallow copy compounds this:
-  every copy views the same storage, so all of them dangle together.
+  dangle immediately), but cannot see a later-freed source.  The shallow copy compounds this.
+  Every copy views the same storage, so all of them dangle together.
 
 ## Precondition checks under `-DDEBUG`
 
@@ -540,14 +544,14 @@ build contains no `__assert_fail` at all.
 
 - **The `\pre` tags are the spec, and the asserts only enforce them.**  An assert with no
   matching tag, or one stricter than the tag it enforces, puts the code at odds with the
-  documented contract — and the contract is what callers program against.
+  documented contract, and the contract is what callers program against.
 
-  `operator[]` is the case where that matters most: it asserts `i < capacity()` and deliberately
-  **not** `i < size()`, because reading a live element at an index at or past `size()` is a
-  designed capability of this family (see "`operator[]` is unchecked and capacity-based" above)
-  that all four suites exercise on purpose.  The tighter assert would contradict the design and
-  fail the tests.  In `fixed_vector` the bound is the *current* `capacity()`, so a `reserve()`
-  shrink leaves live slots outside the contract.
+  `operator[]` is the case where that matters most.  It asserts `i < capacity()` and
+  deliberately **not** `i < size()`, because reading a live element at an index at or past
+  `size()` is a designed capability of this family (see "`operator[]` is unchecked and
+  capacity-based" above) that all four suites exercise on purpose.  The tighter assert would
+  contradict the design and fail the tests.  In `fixed_vector`, the bound is the *current*
+  `capacity()`, so a `reserve()` shrink leaves live slots outside the contract.
 - **A precondition documented on one overload is documented on both.**  `front`, `back`, and
   `operator[]` state the `\pre` on the non-`const` overload and give the `const` twin a
   `/// \copydoc front()`, so the generated docs for an overload that asserts a precondition
@@ -564,8 +568,8 @@ build contains no `__assert_fail` at all.
   way to measure.  Only its range constructor's version is checkable, because a range carries
   its own size (see that section above).
 - **`_GLIBCXX_DEBUG` covers range validity from the other side.**  It does so whenever the
-  iterators come from a standard container — which is how the tests supply them.  It earns its
-  place on that alone: an invalid iterator yields a garbage distance, which the up-front
+  iterators come from a standard container, which is how the tests supply them.  It earns its
+  place on that alone.  An invalid iterator yields a garbage distance, which the up-front
   capacity check reports as `std::bad_alloc`, sending the reader after a capacity bug that does
   not exist.  Debug mode names the real defect instead ("attempt to copy a singular iterator",
   "iterators from different sequences"), and plain ASan does not catch it at all.
@@ -588,22 +592,23 @@ build contains no `__assert_fail` at all.
 See [`README.md`](README.md) for the test inventory and the commands to run it.  The choices it
 describes are deliberate rather than incidental, and this is the reasoning behind them.
 
-- **The exit status is the entire contract: silence and 0 on success, a message and non-zero on
-  failure.**  These programs previously printed a running commentary of container state and
-  embedded the expected stdout in a trailing comment block, as a second and coarser net: diffing
-  a run against the block caught changes to observable state that no assertion mentioned.
+- **The exit status is the entire contract, with silence and 0 on success and a message and
+  non-zero on failure.**  These programs previously printed a running commentary of container
+  state and embedded the expected stdout in a trailing comment block, as a second and coarser
+  net.  Diffing a run against the block caught changes to observable state that no assertion
+  mentioned.
 
   It was dropped because the cost outgrew that benefit.  The block had to be regenerated from a
   real run after every change, which made it as likely to record a regression as to catch one.
   It made pass/fail mean "exit 0 *and* diff the output", which a `make test` target cannot
   express.  And it was noisy in the way that matters least, since most of the churn came from
-  `sizeof` and capacity numbers that no invariant depends on.  What replaces it is coverage:
-  every member, both overloads, checked explicitly rather than watched from a distance.
+  `sizeof` and capacity numbers that no invariant depends on.  What replaces it is coverage,
+  with every member and both overloads checked explicitly rather than watched from a distance.
 
 - **Checks are `CHECK`, never `assert`.**  `assert` fires `abort()`, which dumps a core file for
   what is only a failed comparison.  `CHECK` prints `file:line: function: CHECK failed: <expr>`
   and calls `std::exit(EXIT_FAILURE)`, so a failing test leaves nothing behind to clean up.  The
-  same reasoning drives `run_tests`, which catches every exception: one escaping `main` would
+  same reasoning drives `run_tests`, which catches every exception.  One escaping `main` would
   reach `terminate()` and abort just the same.  `CHECK_THROWS` distinguishes "threw nothing"
   from "threw the wrong type", because those are different defects.
 
@@ -617,9 +622,9 @@ describes are deliberate rather than incidental, and this is the reasoning behin
 
   That moves a regression from a failed run to a failed build, and it is the only net that
   rejects an index outside the storage without aborting.  `operator[]` is unchecked by design,
-  so in the release build `v[10]` on a `fixed_vector<int, 5>` reads whatever is past the array
+  so in the release build, `v[10]` on a `fixed_vector<int, 5>` reads whatever is past the array
   and every `CHECK` still passes.  The debug build catches it, but through the `-DDEBUG`
-  `i < capacity()` assert, which means `abort()`.  In a `static_assert` the same expression
+  `i < capacity()` assert, which means `abort()`.  In a `static_assert`, the same expression
   simply fails to compile, because an out-of-bounds subscript is not a constant expression.
 
   The heap-backed types cannot be tested this way, because over-aligned allocation is not usable
@@ -627,11 +632,11 @@ describes are deliberate rather than incidental, and this is the reasoning behin
   why the compile-time coverage is so lopsided across the suites.
 
 - **The heap-backed types are also run under AddressSanitizer + UndefinedBehaviorSanitizer.**
-  `CHECK`s are blind to the specific mistakes these two can make: a read or write just past the
+  `CHECK`s are blind to the specific mistakes these two can make.  A read or write just past the
   block, a leaked buffer, or an aligned `::operator new` paired with the wrong deallocation
   function (the array-`new` trap described above) all leave every check passing and the
   program exiting 0.  ASan sees them, and reports that last one as `new-delete-type-mismatch`,
-  naming the allocated and the deallocated alignment.  `aligned_byte_buffer` adds a wrinkle: it
+  naming the allocated and the deallocated alignment.  `aligned_byte_buffer` adds a wrinkle.  It
   reads beyond `size()` on purpose, which is legitimate inside the allocation and must not be
   allowed to shade into straying outside it.  Both suites are expected to be clean.
 
@@ -643,6 +648,6 @@ describes are deliberate rather than incidental, and this is the reasoning behin
 
   Its suite also carries the type's view-specific behavior (shallow-copy aliasing, non-emptying
   move, and overlaying a typed object).  Because its construction is heavily constrained, the
-  suite adds a block of `static_assert`s that pin the construction contract at compile time:
-  rvalue owners, `const` elements, and non-pointer non-ranges are rejected, and bare containers
+  suite adds a block of `static_assert`s that pin the construction contract at compile time.
+  Rvalue owners, `const` elements, and non-pointer non-ranges are rejected, and bare containers
   and object pointers are accepted.

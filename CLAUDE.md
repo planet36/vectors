@@ -10,36 +10,37 @@ programs, putting `include/` on the include path (`CPPFLAGS`) so no source names
 Every C++ file and the Makefile open with `SPDX-FileCopyrightText: Steven Ward` and
 `SPDX-License-Identifier: MPL-2.0` lines, so a new one needs them too.
 
-- `include/fixed_vector.hpp` — `fixed_vector<T, N, Align>`: storage is an in-place
+- `include/fixed_vector.hpp` defines `fixed_vector<T, N, Align>`.  Its storage is an in-place
   `std::array<T, N>` (no heap allocation), so `N` is a **compile-time** bound.  `capacity()` is
   still a run-time value in `[0, N]` that `reserve()` moves, and `max_size()` is the `static`
   one reporting `N`.  It is fully `constexpr`.
-- `include/dynamic_fixed_vector.hpp` — `dynamic_fixed_vector<T, Align>`: the same container
-  shape with capacity chosen at **run time** (constructor argument) and heap storage that may be
-  **over-aligned** (`Align` can exceed `alignof(T)`, e.g., `std::byte` data aligned to 16 for
-  SIMD).  See "`dynamic_fixed_vector` differences from `fixed_vector`" below.
-- `include/aligned_byte_buffer.hpp` — `aligned_byte_buffer<Align>`: the `std::byte`
+- `include/dynamic_fixed_vector.hpp` defines `dynamic_fixed_vector<T, Align>`, which has the
+  same container shape with capacity chosen at **run time** (constructor argument) and heap
+  storage that may be **over-aligned** (`Align` can exceed `alignof(T)`, e.g., `std::byte` data
+  aligned to 16 for SIMD).  See "`dynamic_fixed_vector` differences from `fixed_vector`" below.
+- `include/aligned_byte_buffer.hpp` defines `aligned_byte_buffer<Align>`, the `std::byte`
   specialization of `dynamic_fixed_vector`, kept as a separate type.  It is not a C++ template
   specialization, so `dynamic_fixed_vector<std::byte>` is still the generic one.  Its element
   type is fixed to `std::byte`, so only `Align` is a template parameter (default 16).  It has
   the same API but is simpler and faster (see its differences below).
-- `include/borrowed_byte_buffer.hpp` — `borrowed_byte_buffer`: a **non-owning**,
+- `include/borrowed_byte_buffer.hpp` defines `borrowed_byte_buffer`, a **non-owning**,
   run-time-capacity byte view.  It has the same byte-buffer API as `aligned_byte_buffer`, but
   over storage it does **not** own (a pointer or a contiguous range).  It never allocates,
   copies and moves shallowly, has no `Align` parameter, and adds `adopting` named constructors.
   See its own "differences" note below.
-- `include/byte_compare.hpp` — the shared `equal_constant_time(span, span)` free function,
+- `include/byte_compare.hpp` holds the shared `equal_constant_time(span, span)` free function,
   `#include`d by both byte buffers.  It lives in its own header so it is defined once.  It is
   explicitly `inline` (a `volatile` accumulator bars `constexpr`), so two definitions across TUs
   would violate the ODR without it.
 
 Two documents accompany the headers, and an API change should update both:
 
-- `README.md` — the entry point for a human reader: what the four containers are, a quick
-  start for each, an API summary, and the build commands.  Its snippets and commands are
+- `README.md` is the entry point for a human reader.  It covers what the four containers are, a
+  quick start for each, an API summary, and the build commands.  Its snippets and commands are
   verified to compile and run as written.  Keep them that way rather than sketching pseudocode.
-- `DESIGN.md` — the rationale behind the invariants below (why each was chosen, the allocation
-  strategy, the edge cases).  This file states the invariants and the README summarizes them.
+- `DESIGN.md` holds the rationale behind the invariants below (why each was chosen, the
+  allocation strategy, the edge cases).  This file states the invariants and the README
+  summarizes them.
   DESIGN.md is where the reasoning lives, so revising an invariant means revising it there too.
 
 The invariants are therefore stated in all three files, and they drift independently.
@@ -70,10 +71,10 @@ g++ -std=c++23 -Iinclude test-fixed_vector.cpp -o test-fixed_vector && ./test-fi
 ```
 
 - There is no test framework or runner.  **A test passes when it prints nothing and exits 0**,
-  and that exit status is the whole contract.  On the first failed check the program prints one
+  and that exit status is the whole contract.  On the first failed check, the program prints one
   line to stderr (for example `file:line: function: CHECK failed: <expr>`) and exits
   `EXIT_FAILURE` immediately, leaving the remaining checks unrun.
-- `make test` is that contract applied to all four programs in both variants: a passing run
+- `make test` is that contract applied to all four programs in both variants.  A passing run
   prints nothing at all.  `set -e` stops at the first program that fails.  Make then reports
   only the `test` target, and the failing program's own line names the source file but not the
   variant.  Every release binary runs before any debug one, and a sanitizer report can come
@@ -81,7 +82,7 @@ g++ -std=c++23 -Iinclude test-fixed_vector.cpp -o test-fixed_vector && ./test-fi
 - **`make lint` is advisory and is not part of `make test`.**  The recipe is prefixed with `-`,
   so a nonzero clang-tidy exit does not fail the build, and the checks are configured in
   `.clang-tidy` (`bugprone-*`, `cert-*`, `cppcoreguidelines-*`, `readability-*`, … minus a long
-  opt-out list).  **It currently prints nothing**, and that silence is the baseline: a warning
+  opt-out list).  **It currently prints nothing**, and that silence is the baseline.  A warning
   under a change is that change's, not a pre-existing noise floor to read past.  It runs with
   the release flags, so `DEBUG` is undefined and clang-tidy never sees the
   `#if defined(DEBUG)` blocks.
@@ -103,30 +104,30 @@ g++ -std=c++23 -Iinclude test-fixed_vector.cpp -o test-fixed_vector && ./test-fi
     `test-dynamic_fixed_vector.cpp`.  Each one picks the member under test: the move
     constructor, the move assignment, or `unchecked_push_back`'s `&&` overload.  In the two
     move-construction tests (`borrowed_byte_buffer`'s non-emptying move and `fixed_vector`'s
-    member-wise one) the unchanged source is also the assertion.  The check is right that the
+    member-wise one), the unchanged source is also the assertion.  The check is right that the
     `std::move` changes nothing about the value, but removing it removes the test.
   - `readability-use-anyofallof` on the element-wise loop in all four `try_append_range(R&&)`
-    overloads.  In all four the loop mutates, and its `false` means *out of capacity* (the
+    overloads.  In all four, the loop mutates, and its `false` means *out of capacity* (the
     partial append the `\note` documents), which a query-named algorithm hides.  In the two
-    generic containers an `all_of` also fails to compile for a move-only `T`, which no test
+    generic containers, an `all_of` also fails to compile for a move-only `T`, which no test
     instantiates, so the rewrite would pass `make test`.  The comment above each marker has the
     argument.
   - `readability-simplify-boolean-expr` on the `if (!(...))` checks in the four suites'
-    `constexpr_*_ok()` functions.  Where every check in a function is suppressed the marker is a
-    `NOLINTBEGIN` / `NOLINTEND` pair spanning the whole body rather than a `NOLINTNEXTLINE` per
-    line.  This is deliberate, so do not narrow them back to per-line comments.
+    `constexpr_*_ok()` functions.  Where every check in a function is suppressed, the marker is
+    a `NOLINTBEGIN` / `NOLINTEND` pair spanning the whole body rather than a `NOLINTNEXTLINE`
+    per line.  This is deliberate, so do not narrow them back to per-line comments.
 - **`make test` runs both variants because neither subsumes the other**, and running only the
-  release half is how a bug hides: it is the *weaker* check, yet the habitual one.  A violated
+  release half is how a bug hides.  It is the *weaker* check, yet the habitual one.  A violated
   precondition passes it silently and only the debug build reports it.
   - The debug build finds what the release build hides: the asserts, `_GLIBCXX_DEBUG`, and the
     sanitizers.
   - The release build finds what the optimizer's assumptions do, and `-Og` cannot.  `-Og` leaves
     `-fstrict-aliasing` **off** (it is on from `-O2`), which is exactly the UB class that
     `aligned_byte_buffer`'s `start_lifetime_as_array` lifetime work could harbor.  And `-Og`
-    never cashes in `data()`'s `assume_aligned<Align>`: the caller loop that promise exists for
+    never cashes in `data()`'s `assume_aligned<Align>`.  The caller loop that promise exists for
     compiles to no SIMD at all at `-Og`, where `-O3 -march=native` emits the aligned `vmovdqa`
     that faults if the promise is ever broken.  A debug-only run leaves that untested.
-  - One thing was checked and is *not* a difference: `_GLIBCXX_DEBUG` does not change which
+  - One thing was checked and is *not* a difference.  `_GLIBCXX_DEBUG` does not change which
     `if constexpr (std::sized_sentinel_for<...>)` branch the tests take.  `__debug::vector`'s
     iterators still model `contiguous_iterator` / `sized_sentinel_for`, so both variants
     exercise the same paths.  Don't re-derive this one, since it was measured.
@@ -139,15 +140,15 @@ g++ -std=c++23 -Iinclude test-fixed_vector.cpp -o test-fixed_vector && ./test-fi
     build would disable every assert while the debug build still looked like it worked.  The
     `-U` only wins because the recipe puts `DEBUG_CXXFLAGS` after `CPPFLAGS`, and `-D`/`-U`
     apply in command-line order, so don't reorder them.
-  - **`-D_FORTIFY_SOURCE=3` requires the `-Og`.**  At `-O0` it warns and silently degrades to
+  - **`-D_FORTIFY_SOURCE=3` requires the `-Og`.**  At `-O0`, it warns and silently degrades to
     level 0.  It does stay live under ASan.
 - `test_utils.hpp` holds the shared harness: `CHECK` / `CHECK_THROWS`, `run_tests`, and the
   `to_ivec` / `to_byte` / `_b` / `is_aligned` / `data_null_iff_empty` helpers.  **Do not use
   `assert`** in a test, because it calls `abort()` and dumps core.  `CHECK` exits cleanly
-  instead.  For the same reason `run_tests` catches everything, so a stray exception cannot
+  instead.  For the same reason, `run_tests` catches everything, so a stray exception cannot
   reach `terminate()`.  This bans `assert` from the *tests* only.  The headers assert their own
-  preconditions under `-DDEBUG` (below), which is the opposite situation: a caller in UB, where
-  aborting loudly is the point.
+  preconditions under `-DDEBUG` (below), which is the opposite situation.  There the caller is
+  in UB, and aborting loudly is the point.
 - There is one suite per type, each covering every member, **including both overloads** (const
   and non-const accessors, `const&` and `&&` parameters).  Each `{ }` block is a
   `static void test_<member>()` called from `main`, so reading `main` is how you audit that
@@ -175,9 +176,9 @@ tag *and* can check cheaply: `!is_full()` on the `unchecked_*` family, `!is_empt
 `front`/`back`, `i < capacity()` on `operator[]`, and (in `borrowed_byte_buffer` only)
 `capacity() <= std::span{r}.size_bytes()` on the range constructor.  Each sits in a
 `#if defined(DEBUG)` block, so a release build contains no `__assert_fail` at all.  That is the
-whole list: 7 per header (`front`, `back`, and `operator[]` on both of their overloads each,
-plus the one in `unchecked_emplace_back`) and `borrowed_byte_buffer`'s range-constructor check,
-for 29 in all.
+whole list, which comes to 7 per header (`front`, `back`, and `operator[]` on both of their
+overloads each, plus the one in `unchecked_emplace_back`) and `borrowed_byte_buffer`'s
+range-constructor check, for 29 in all.
 
 **DESIGN.md's "Precondition checks under `-DDEBUG`" holds the reasoning**: why that set and no
 other, why each unasserted `\pre` stays a promise, what `_GLIBCXX_DEBUG` adds, the ODR hazard,
@@ -186,7 +187,7 @@ the following here:
 
 - **The `\pre` tags are the spec, and the asserts only enforce them.**  Adding an assert without
   a matching `\pre`, or asserting something stricter than the tag says, is how this drifts into
-  contradicting the design.  In particular `operator[]` asserts `i < capacity()`, **not**
+  contradicting the design.  In particular, `operator[]` asserts `i < capacity()`, **not**
   `i < size()`.  Reading a live element at an index `>= size()` is intended, and all four suites
   do it on purpose, so tightening the assert would fail them.
 - **Every `\pre` goes on both overloads' docs, not just the first.**  `front`, `back`, and
@@ -210,16 +211,16 @@ The header's class docstring lists the intended differences from `std::inplace_v
 - **All N elements are value-initialized at construction.**  Storage is a real
   `std::array<T, N>`, fully constructed up front, not raw aligned bytes.
 - **Elements are never destroyed.**  `clear()`, `pop_back()`, and `resize()` only adjust the
-  `size_` counter, and the underlying array elements stay alive.  Consequently the type is
+  `size_` counter, and the underlying array elements stay alive.  Consequently, the type is
   constrained to `std::is_trivially_destructible_v<T>` (enforced in the `requires` clause,
   along with `N > 0`, `default_initializable`, `movable`, and `Align` being a power of two
   that is at least `alignof(T)`).
 - **`Align >= alignof(T)` is deliberate in `fixed_vector`, not redundant.**  Do not drop it as
-  "already guaranteed by `alignas`".  It is a *diagnostic*: `alignas` cannot weaken natural
+  "already guaranteed by `alignas`".  It is a *diagnostic*.  `alignas` cannot weaken natural
   alignment, so the array is safe either way, but a weakened `alignas` is ill-formed and GCC
-  ignores it silently (Clang errors), so without the constraint `fixed_vector<int, 8, 1>` would
-  compile and quietly ignore the request.  See DESIGN.md.  On `dynamic_fixed_vector` the same
-  constraint is required for correctness, for a different reason.
+  ignores it silently (Clang errors), so without the constraint, `fixed_vector<int, 8, 1>`
+  would compile and quietly ignore the request.  See DESIGN.md.  On `dynamic_fixed_vector`, the
+  same constraint is required for correctness, for a different reason.
 - **`operator[]` is capacity-based and unchecked.**  It can legitimately read an initialized
   element at an index `>= size()` (this is tested intentionally).  `at()` is the only
   bounds-checked accessor.
@@ -255,20 +256,21 @@ these:
 
 - **Storage** is `std::unique_ptr<T, aligned_deleter>` over a block from
   `::operator new(bytes, std::align_val_t{Align})`, freed by the matching aligned
-  `::operator delete`.  **Do not** rewrite this as an array `new`/`unique_ptr<T[]>`: the
+  `::operator delete`.  **Do not** rewrite this as an array `new`/`unique_ptr<T[]>`, because the
   over-alignment comes from the `Align` template parameter, not from `T`, so `delete[]` would
-  route to the non-aligned deallocation → UB.  The `allocate_` helper also guards
+  route to the non-aligned deallocation, which is UB.  The `allocate_` helper also guards
   `capacity * sizeof(T)` against `std::size_t` overflow (the language's array-new check is
   bypassed when you size the allocation yourself).
 - **`Align >= alignof(T)` is in the `requires` clause and is required for correctness here**
-  (unlike in `fixed_vector`, where it is only a diagnostic): the block is raw storage from the
+  (unlike in `fixed_vector`, where it is only a diagnostic).  The block is raw storage from the
   aligned `::operator new`, so nothing but the constraint prevents a smaller `Align` from
-  under-aligning the elements → UB.  It is vacuous for `aligned_byte_buffer`
+  under-aligning the elements, which is UB.  It is vacuous for `aligned_byte_buffer`
   (`alignof(std::byte) == 1`), which is why its clause is only `has_single_bit(Align)`.
 - **`max_size()` is non-static** and equals `capacity()`, the runtime capacity, deliberately
   **not** a `SIZE_MAX`-ish value like `std::vector::max_size()`.  (In `fixed_vector`,
   `max_size()` is `static` and returns `N`, which `capacity()` may now be below.)  There is **no
-  `reserve()`** here: capacity is fixed at construction, so moving it would mean reallocating.
+  `reserve()`** here, since capacity is fixed at construction and moving it would mean
+  reallocating.
 - **`data()` applies `std::assume_aligned<Align>`** (guarded for the null/empty case) so caller
   loops can vectorize.
 - **`X(n)` reserves capacity `n` and starts empty** (`size()==0`), unlike `fixed_vector`, where
@@ -318,7 +320,7 @@ than owning it, which removes the ownership machinery and changes construction:
 
 - **It is non-owning.**  The object is `{std::byte* data_, capacity_, size_}`.  It has no
   aligned `new`/`delete`, no `unique_ptr`, and no overflow guard, and it has a trivial
-  destructor and all special members defaulted.  Copy/move are **shallow**: a copy aliases the
+  destructor and all special members defaulted.  Copy/move are **shallow**.  A copy aliases the
   same bytes, and move does **not** empty the source (the opposite of the heap types' move).
   The type is trivially copyable.  The caller keeps the borrowed storage alive.  A dangling
   source is UB the container cannot detect.
@@ -343,8 +345,8 @@ than owning it, which removes the ownership machinery and changes construction:
   concepts, not `bool` traits in the class.**  They sit above the class, after a forward
   declaration of it.  Concept conjunction short-circuits, which is what keeps `range_value_t`
   from being formed (and hard-erroring) for the non-range `T*` path.  A `constexpr bool`
-  variable template instantiates every operand.  Do not "simplify" `borrowable_range`'s clauses:
-  it excludes `borrowed_byte_buffer` itself (else a non-`const` buffer lvalue binds the range
+  variable template instantiates every operand.  Do not "simplify" `borrowable_range`'s clauses.
+  It excludes `borrowed_byte_buffer` itself (else a non-`const` buffer lvalue binds the range
   constructor over the copy constructor, as the less-cv-qualified reference, and reinterprets
   its own bytes), and it rejects rvalue owning containers (would dangle) and `const` elements
   (unwritable).
@@ -381,16 +383,16 @@ than owning it, which removes the ownership machinery and changes construction:
   declares one, else a volatile-write fallback).  The libc functions are detected by
   *unqualified* name lookup, because there is no feature-test macro.
 
-  Because that lookup is unqualified it needs the names in the global namespace, which is why
+  Because that lookup is unqualified, it needs the names in the global namespace, which is why
   every container header includes **`<string.h>`** (`byte_compare.hpp` zeroizes nothing and
   includes neither).  The byte buffers also include `<cstring>` for their `std::memcpy` /
-  `std::memset` calls, and there the two are not redundant: **collapsing them to the C++
+  `std::memset` calls, and there the two are not redundant.  **Collapsing them to the C++
   spelling is not a modernization**.  Collapsing them drops zeroization to the volatile
   fallback with no build error and no test failure, since all three branches zero correctly.
   (DESIGN.md has the why, next to the matching rule that the call must stay unqualified.)
 
   `clear()` + `zeroize_reserved_unused()` scrubs everything up to `capacity()`.  In
-  `fixed_vector` it also works in constant evaluation (value-assigns the tail), and covering
+  `fixed_vector`, it also works in constant evaluation (value-assigns the tail), and covering
   the whole container after a `reserve()` shrink additionally needs `zeroize_unreserved()`.
 - Nearly the entire interface is `constexpr`.  `operator==` / `operator<=>` are gated on
   `std::equality_comparable` / `std::three_way_comparable` in the two generic containers, and
