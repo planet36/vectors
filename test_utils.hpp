@@ -8,8 +8,8 @@
 * immediately, leaving the remaining checks unrun.
 *
 * Nothing here calls \c abort(), which is why \c assert is not used.  A failing test must not
-* dump core.  For the same reason \c run_tests catches everything, so an exception that escapes
-* a test cannot reach \c terminate().
+* dump core.  For the same reason, \c run_tests catches everything, so an exception that
+* escapes a test cannot reach \c terminate().
 */
 
 #pragma once
@@ -55,9 +55,9 @@ test_fail(const std::string_view file,
 
 /// Fail unless evaluating the expression throws an exception of type \a Ex
 /**
-* Reports "no exception" and "wrong exception type" distinctly.  A throw of the wrong type is a
-* different defect from no throw at all, and catching it here (rather than letting it escape) is
-* what keeps the run from reaching \c terminate().
+* This reports "no exception" and "wrong exception type" distinctly.  A throw of the wrong type
+* is a different defect from no throw at all, and catching it here (rather than letting it
+* escape) is what keeps the run from reaching \c terminate().
 */
 #define CHECK_THROWS(Ex, ...)                                                    \
     do                                                                           \

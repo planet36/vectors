@@ -36,7 +36,7 @@ static_assert(std::is_trivially_destructible_v<borrowed_byte_buffer>);
 constexpr bool
 constexpr_empty_ok()
 {
-    borrowed_byte_buffer a; // default ctor: null, capacity 0
+    borrowed_byte_buffer a; // default ctor, so null and capacity 0
 
     if (!(a.is_empty() && a.size() == 0 && a.capacity() == 0 && a.reserved_unused() == 0))
         return false;
@@ -215,10 +215,10 @@ test_write_shows_through()
     v.append_range({1_b, 2_b, 3_b});
     CHECK(s[0] == 1_b);
     CHECK(s[2] == 3_b);
-    CHECK(s[3] == std::byte{}); // beyond size(): not written
+    CHECK(s[3] == std::byte{}); // beyond size(), so not written
 }
 
-// ---- Copy / move / swap (shallow: the view is copied, the bytes are shared) ----
+// ---- Copy / move / swap (shallow, so the view is copied and the bytes are shared) ----
 
 static void
 test_copy_ctor()
@@ -227,7 +227,7 @@ test_copy_ctor()
     borrowed_byte_buffer a{s};
     a.append_range({1_b, 2_b, 3_b});
     const borrowed_byte_buffer b = a;
-    CHECK(a.data() == b.data()); // SAME storage -- a shallow copy, unlike aligned_byte_buffer
+    CHECK(a.data() == b.data()); // SAME storage (a shallow copy, unlike aligned_byte_buffer)
     CHECK(b.capacity() == 8);
     CHECK(b.size() == 3);
     CHECK(to_ivec(a) == to_ivec(b));
@@ -308,7 +308,8 @@ test_swap()
 static void
 test_capacity_max_size()
 {
-    // Non-static and reporting the runtime capacity, deliberately not a SIZE_MAX-ish value.
+    // max_size() is non-static and reports the runtime capacity, deliberately not a
+    // SIZE_MAX-ish value.
     std::array<std::byte, 10> s{};
     const borrowed_byte_buffer v{s};
     CHECK(v.capacity() == 10);
@@ -508,7 +509,7 @@ test_try_append_range()
     CHECK(v.try_append_range({3_b, 4_b})); // initializer_list
     CHECK(!v.try_append_range({5_b, 6_b})); // would overflow -> false
     CHECK(!v.try_append_range(std::views::iota(0, 3) | std::views::transform(to_byte)));
-    CHECK(!v.try_append_range(more.begin(), more.end())); // sized sentinel: checked up front
+    CHECK(!v.try_append_range(more.begin(), more.end())); // sized sentinel is checked up front
     CHECK(!v.try_append_range(more.begin(), std::size_t{2})); // iterator + count
     CHECK(to_ivec(v) == std::vector({1, 2, 3, 4})); // nothing appended by the failures
 }

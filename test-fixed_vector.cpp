@@ -102,7 +102,7 @@ constexpr_capacity_ok()
     if (!(v.capacity() == 5 && v.unreserved() == 0 && v.reserved_unused() == 1))
         return false;
 
-    v.reserve(2); // below size(): truncates size(), destroys nothing
+    v.reserve(2); // below size(), which truncates size() and destroys nothing
     if (!(v.capacity() == 2 && v.size() == 2 && v.is_full() && v.unreserved() == 3))
         return false;
 
@@ -115,7 +115,7 @@ constexpr_capacity_ok()
         return false;
 
     v.reserve(5);
-    v.zeroize_unreserved(); // no-op: nothing is unreserved
+    v.zeroize_unreserved(); // no-op, since nothing is unreserved
     return v[0] == 1 && v[4] == 0;
 }
 // NOLINTEND(readability-simplify-boolean-expr)
@@ -143,7 +143,7 @@ test_ctor_default()
     CHECK(v.capacity() == 5);
     CHECK(v.is_empty());
     CHECK(!v.is_full());
-    CHECK(v.data() != nullptr); // in-place storage: never null, unlike the heap-backed siblings
+    CHECK(v.data() != nullptr); // in-place storage is never null, unlike the heap-backed types
 }
 
 static void
@@ -244,7 +244,7 @@ test_move_ctor()
     // NOLINTNEXTLINE(performance-move-const-arg)
     const fixed_vector<int, 5> b = std::move(a);
     CHECK(to_ivec(b) == std::vector({1, 2, 3}));
-    // Copy and move are member-wise (defaulted).  For a trivially copyable T a moved-from
+    // Copy and move are member-wise (defaulted).  For a trivially copyable T, a moved-from
     // fixed_vector is left unchanged, unlike the heap-backed siblings, where move construction
     // transfers the buffer and leaves the source empty.
     // NOLINTNEXTLINE(bugprone-use-after-move,clang-analyzer-cplusplus.Move)
@@ -612,8 +612,8 @@ test_try_append_range()
     CHECK(v.try_append_range(std::span<const int>{a})); // span
     CHECK(v.try_append_range({3, 4})); // initializer_list
     CHECK(!v.try_append_range({5, 6})); // would overflow -> false
-    CHECK(!v.try_append_range(std::views::iota(0, 3))); // sized range: checked up front
-    CHECK(!v.try_append_range(more.begin(), more.end())); // sized sentinel: checked up front
+    CHECK(!v.try_append_range(std::views::iota(0, 3))); // sized range is checked up front
+    CHECK(!v.try_append_range(more.begin(), more.end())); // sized sentinel is checked up front
     CHECK(!v.try_append_range(more.begin(), std::size_t{2})); // iterator + count
     CHECK(to_ivec(v) == std::vector({1, 2, 3, 4})); // nothing appended by the failures
 }
@@ -663,7 +663,7 @@ test_assign_range_unsized_partial()
     fixed_vector<int, 4> w{9, 9, 9, 9};
     CHECK_THROWS(std::bad_alloc, w.assign_range({1, 2, 3, 4, 5}));
     CHECK(w.is_empty());
-    CHECK(w[0] == 9); // nothing written: the old elements live on, just outside size()
+    CHECK(w[0] == 9); // nothing written, so the old elements live on, just outside size()
 }
 
 // ---- Element access ----
@@ -833,7 +833,7 @@ test_byte_storage_for_simd()
     const std::span<const std::byte> lane = buf.span();
     CHECK(lane.size() == 16);
     CHECK(is_aligned(lane.data(), 16));
-    // On a NEON target this span feeds a load directly, e.g.:
+    // On a NEON target, this span feeds a load directly, for example:
     //   const uint8x16_t v = vld1q_u8(reinterpret_cast<const uint8_t*>(lane.data()));
     CHECK(std::to_integer<unsigned>(lane[0]) == 0);
     CHECK(std::to_integer<unsigned>(lane[15]) == 15);

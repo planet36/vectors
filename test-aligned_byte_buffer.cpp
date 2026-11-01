@@ -256,7 +256,7 @@ test_data_null_iff_capacity_zero()
         aligned_byte_buffer<16> a(8);
         const aligned_byte_buffer<16> b = std::move(a);
         // NOLINTNEXTLINE(bugprone-use-after-move)
-        CHECK(data_null_iff_empty(a)); // moved-from: null unique_ptr, capacity 0
+        CHECK(data_null_iff_empty(a)); // moved-from, so a null unique_ptr and capacity 0
         CHECK(data_null_iff_empty(b));
     }
     {
@@ -492,7 +492,7 @@ test_try_append_range()
     CHECK(v.try_append_range({3_b, 4_b})); // initializer_list
     CHECK(!v.try_append_range({5_b, 6_b})); // would overflow -> false
     CHECK(!v.try_append_range(std::views::iota(0, 3) | std::views::transform(to_byte)));
-    CHECK(!v.try_append_range(more.begin(), more.end())); // sized sentinel: checked up front
+    CHECK(!v.try_append_range(more.begin(), more.end())); // sized sentinel is checked up front
     CHECK(!v.try_append_range(more.begin(), std::size_t{2})); // iterator + count
     CHECK(to_ivec(v) == std::vector({1, 2, 3, 4})); // nothing appended by the failures
 }
@@ -547,7 +547,7 @@ test_assign_range_unsized_partial()
     w.append_range({9_b, 9_b, 9_b, 9_b});
     CHECK_THROWS(std::bad_alloc, w.assign_range({1_b, 2_b, 3_b, 4_b, 5_b}));
     CHECK(w.is_empty());
-    CHECK(w[0] == 9_b); // nothing written: the byte is still there, just outside size()
+    CHECK(w[0] == 9_b); // nothing written, so the byte is still there, just outside size()
 }
 
 // ---- Element access ----
@@ -585,7 +585,7 @@ test_operator_index()
     v[1] = 99_b;
     CHECK(v[1] == 99_b);
     // Exercise (but do not check the value of) a read at an index >= size() within capacity.
-    // The reserved tail is left uninitialized, so for std::byte this is well-defined but
+    // The reserved tail is left uninitialized, so for std::byte, this is well-defined but
     // *unspecified*.  Unlike fixed_vector / dynamic_fixed_vector, no value may be asserted
     // here.
     const auto probe = std::to_integer<unsigned>(v[v.capacity() - 1]);
@@ -719,7 +719,7 @@ test_byte_storage_for_simd()
     const std::span<const std::byte> lane = buf.span();
     CHECK(lane.size() == 16);
     CHECK(is_aligned(lane.data(), 16));
-    // On a NEON target this span feeds a load directly, e.g.:
+    // On a NEON target, this span feeds a load directly, for example:
     //   const uint8x16_t v = vld1q_u8(reinterpret_cast<const uint8_t*>(lane.data()));
     CHECK(std::to_integer<unsigned>(lane[0]) == 0);
     CHECK(std::to_integer<unsigned>(lane[15]) == 15);

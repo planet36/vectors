@@ -66,8 +66,8 @@
 *
 * \invariant <code>size() <= capacity()</code>
 * \invariant \c data() is null \b exactly when \c capacity() is 0.  A capacity of 0 allocates
-* nothing, and the aligned <code>::operator new</code> never returns null (it throws), so no
-* other state holds a null block.
+* nothing, and the aligned <code>::operator new</code> throws rather than returning null, so
+* no other state holds a null block.
 *
 * Together those make the preconditions below sufficient on their own.  \c !is_full(),
 * \c !is_empty(), and <code>i < capacity()</code> each imply a non-null, \a Align-aligned block,
@@ -155,10 +155,10 @@ private:
 
     /// Zero \a n bytes at \a p with stores that the compiler must not elide
     /**
-    * Uses \c ::memset_explicit (C23) or \c ::explicit_bzero (glibc, BSDs) when the C library
-    * declares one, else writes through a \c volatile pointer.  Neither has a feature-test
-    * macro, so availability is probed by unqualified name lookup on the dependent parameter
-    * \a P.
+    * This uses \c ::memset_explicit (C23) or \c ::explicit_bzero (glibc, BSDs) when the C
+    * library declares one, else writes through a \c volatile pointer.  Neither has a
+    * feature-test macro, so availability is probed by unqualified name lookup on the dependent
+    * parameter \a P.
     */
     template <typename P>
     static void zero_explicit_(P const p, const std::size_t n) noexcept
@@ -502,7 +502,7 @@ public:
     }
 
     /**
-    * \pre <code>[first, last)</code> is a valid range.  For a \c std::sized_sentinel_for this
+    * \pre <code>[first, last)</code> is a valid range.  For a \c std::sized_sentinel_for, this
     * keeps <code>last - first</code> non-negative, so the size check's cast to \c std::size_t
     * is well-defined.
     * \note A \c std::sized_sentinel_for source is checked up front, so nothing is appended when
@@ -588,7 +588,7 @@ public:
     }
 
     /**
-    * \pre <code>[first, last)</code> is a valid range.  For a \c std::sized_sentinel_for this
+    * \pre <code>[first, last)</code> is a valid range.  For a \c std::sized_sentinel_for, this
     * keeps <code>last - first</code> non-negative, so the size check's cast to \c std::size_t
     * is well-defined.
     * \note A \c std::sized_sentinel_for source is checked up front, so nothing is appended on

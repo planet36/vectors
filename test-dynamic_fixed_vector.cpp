@@ -152,7 +152,7 @@ test_copy_ctor()
     dynamic_fixed_vector<int> a(4);
     a.append_range({1, 2, 3});
     const dynamic_fixed_vector<int> b = a;
-    CHECK(a.data() != b.data()); // deep copy: independent buffers
+    CHECK(a.data() != b.data()); // deep copy, so independent buffers
     CHECK(b.capacity() == 4);
     CHECK(to_ivec(a) == to_ivec(b));
     a[0] = 99;
@@ -273,7 +273,7 @@ test_data_null_iff_capacity_zero()
         dynamic_fixed_vector<int> a(3);
         const dynamic_fixed_vector<int> b = std::move(a);
         // NOLINTNEXTLINE(bugprone-use-after-move)
-        CHECK(data_null_iff_empty(a)); // moved-from: null unique_ptr, capacity 0
+        CHECK(data_null_iff_empty(a)); // moved-from, so a null unique_ptr and capacity 0
         CHECK(data_null_iff_empty(b));
     }
     {
@@ -532,8 +532,8 @@ test_try_append_range()
     CHECK(v.try_append_range(std::span<const int>{a})); // span
     CHECK(v.try_append_range({3, 4})); // initializer_list
     CHECK(!v.try_append_range({5, 6})); // would overflow -> false
-    CHECK(!v.try_append_range(std::views::iota(0, 3))); // sized range: checked up front
-    CHECK(!v.try_append_range(more.begin(), more.end())); // sized sentinel: checked up front
+    CHECK(!v.try_append_range(std::views::iota(0, 3))); // sized range is checked up front
+    CHECK(!v.try_append_range(more.begin(), more.end())); // sized sentinel is checked up front
     CHECK(!v.try_append_range(more.begin(), std::size_t{2})); // iterator + count
     CHECK(to_ivec(v) == std::vector({1, 2, 3, 4})); // nothing appended by the failures
 }
@@ -586,7 +586,7 @@ test_assign_range_unsized_partial()
     w.append_range({9, 9, 9, 9});
     CHECK_THROWS(std::bad_alloc, w.assign_range({1, 2, 3, 4, 5}));
     CHECK(w.is_empty());
-    CHECK(w[0] == 9); // nothing written: the old elements live on, just outside size()
+    CHECK(w[0] == 9); // nothing written, so the old elements live on, just outside size()
 }
 
 // ---- Element access ----
@@ -737,7 +737,7 @@ test_byte_storage_for_simd()
     const std::span<const std::byte> lane = buf.span();
     CHECK(lane.size() == 16);
     CHECK(is_aligned(lane.data(), 16));
-    // On a NEON target this span feeds a load directly, e.g.:
+    // On a NEON target, this span feeds a load directly, for example:
     //   const uint8x16_t v = vld1q_u8(reinterpret_cast<const uint8_t*>(lane.data()));
     CHECK(std::to_integer<unsigned>(lane[0]) == 0);
     CHECK(std::to_integer<unsigned>(lane[15]) == 15);
@@ -750,7 +750,7 @@ test_overflow_throws_bad_alloc()
 {
     static constexpr std::array too_many{1, 2, 3};
 
-    // X(n) reserves rather than creating elements, so unlike fixed_vector the constructors
+    // X(n) reserves rather than creating elements, so unlike fixed_vector, the constructors
     // cannot overflow.  Only the modifiers can.
     CHECK_THROWS(std::bad_alloc, dynamic_fixed_vector<int> v(2); v.push_back(1);
                  v.push_back(2); v.push_back(3));

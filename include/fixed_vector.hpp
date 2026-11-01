@@ -47,7 +47,7 @@
 *   - \c capacity() is a \b run-time value in [0, \a N], not the template parameter.  It starts
 *     at \a N and is moved by \c reserve(), which shrinks as well as grows.  \a N is reported by
 *     \c max_size().  Capacity bounds every space check, but the storage is always the whole
-*     \c std::array<T, N>, so no slot is ever (de)allocated, constructed, or destroyed.
+*     `std::array<T, N>`, so no slot is ever (de)allocated, constructed, or destroyed.
 *
 * Like \c std::inplace_vector, capacity overflow throws \c std::bad_alloc and the \c try_* /
 * \c unchecked_* families are provided.  The \c try_* members return \c bool here rather than
@@ -55,7 +55,7 @@
 *
 * \note <code>Align >= alignof(T)</code> is a diagnostic, not a correctness requirement, since
 * \c alignas cannot weaken a type's natural alignment.  A weakened \c alignas is ill-formed
-* ([dcl.align]/5) yet GCC accepts it silently, so without the constraint an under-alignment
+* ([dcl.align]/5) yet GCC accepts it silently, so without the constraint, an under-alignment
 * request would be quietly ignored.
 *
 * \note The default \a Align keeps the storage word-aligned even for a narrow \a T.
@@ -128,10 +128,10 @@ private:
 
     /// Zero \a n bytes at \a p with stores that the compiler must not elide
     /**
-    * Uses \c ::memset_explicit (C23) or \c ::explicit_bzero (glibc, BSDs) when the C library
-    * declares one, else writes through a \c volatile pointer.  Neither has a feature-test
-    * macro, so availability is probed by unqualified name lookup on the dependent parameter
-    * \a P.
+    * This uses \c ::memset_explicit (C23) or \c ::explicit_bzero (glibc, BSDs) when the C
+    * library declares one, else writes through a \c volatile pointer.  Neither has a
+    * feature-test macro, so availability is probed by unqualified name lookup on the dependent
+    * parameter \a P.
     */
     template <typename P>
     static void zero_explicit_(P const p, const std::size_t n) noexcept
