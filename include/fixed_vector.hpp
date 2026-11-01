@@ -1,11 +1,10 @@
 // SPDX-FileCopyrightText: Steven Ward
 // SPDX-License-Identifier: MPL-2.0
 
+/// Fixed-capacity vector with in-place storage
 /**
 * \file
 * \author Steven Ward
-*
-* Defines the class \c fixed_vector, a fixed-capacity vector with in-place storage.
 */
 
 #pragma once
