@@ -74,8 +74,8 @@ g++ -std=c++23 -Iinclude test-fixed_vector.cpp -o test-fixed_vector && ./test-fi
   and that exit status is the whole contract.  On the first failed check, the program prints one
   line to stderr (for example `file:line: function: CHECK failed: <expr>`) and exits
   `EXIT_FAILURE` immediately, leaving the remaining checks unrun.
-- `make test` is that contract applied to all four programs in both variants.  A passing run
-  prints nothing at all.  `set -e` stops at the first program that fails.  Make then reports
+- `make test` is that contract applied to all four programs in both variants.
+  `set -e` stops at the first program that fails.  Make then reports
   only the `test` target, and the failing program's own line names the source file but not the
   variant.  Every release binary runs before any debug one, and a sanitizer report can come
   only from a debug one.

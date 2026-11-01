@@ -270,7 +270,7 @@ make test   # build if needed, then run them
 make lint   # optional: clang-tidy over the suites and headers, per .clang-tidy
 ```
 
-`make test` applies that same contract to the suite.  It prints nothing and exits 0 when every
+`make test` applies that same contract to the suite.  It exits 0 when every
 program passes, and stops at the first one that doesn't.  It runs the tests twice, once per
 build variant (see below for why both).  Each program is self-contained, so building one by hand
 works too:
