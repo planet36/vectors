@@ -3,6 +3,8 @@
 
 /// Helpers shared by the test-*.cpp programs
 /**
+* \file
+*
 * The pass/fail contract is the exit status alone.  A passing program prints nothing and exits
 * EXIT_SUCCESS.  The first failed check prints one line to stderr and exits EXIT_FAILURE
 * immediately, leaving the remaining checks unrun.
