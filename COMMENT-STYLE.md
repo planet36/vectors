@@ -234,6 +234,10 @@ The Doxygen behavior described below was checked against version 1.18.0.
 detail.  Do not use `\brief` inside the block.  A declaration whose brief says
 everything needs no block at all.
 
+A block that documents a file needs `\file` inside the `/** ... */`.  Without it,
+Doxygen gives the block and its brief to the next declaration and reports
+nothing.
+
 A brief may be a noun phrase.  Keep it short.  Brevity is what this asks for,
 not a line count, so a brief that still runs past the column limit wraps onto a
 second line.  Rule 23b covers what a wrapped brief needs from the doc
