@@ -88,12 +88,13 @@ The invariants are these:
   happen even when nothing reads the tail afterward, whereas a plain fill before deallocation is
   a dead store the optimizer may elide.
 
-  The zeroing primitive is `memset_explicit` (C23) or `explicit_bzero` (glibc ≥ 2.25, BSDs)
-  when the C library declares one, else a volatile-write fallback.  Availability is detected
-  with a requires-expression on a dependent call, because neither function has a feature-test
-  macro.  A `__cplusplus` check is useless too, since the C library provides them, not the
-  language mode.  glibc declares both under `__USE_MISC`, which the `_GNU_SOURCE` that g++
-  defines at every `-std` turns on, so the selection does not move with the language standard.
+  The zeroing primitive is `memset_explicit` (C23, glibc ≥ 2.43) or `explicit_bzero`
+  (glibc ≥ 2.25, BSDs) when the C library declares one, else a volatile-write fallback.
+  Availability is detected with a requires-expression on a dependent call, because neither
+  function has a feature-test macro.  A `__cplusplus` check is useless too, since the C library
+  provides them, not the language mode.  glibc declares both under `__USE_MISC`, which the
+  `_GNU_SOURCE` that g++ defines at every `-std` turns on, so the selection does not move with
+  the language standard.
 
   **Why the call is unqualified, and why it must stay that way.**  It is `memset_explicit`
   (C23), not `std::memset_explicit` (C++26) and not `::memset_explicit`, and that is not a
@@ -108,8 +109,9 @@ The invariants are these:
   It fails the build, taking the `explicit_bzero` and volatile branches down with it.  An
   unqualified call with a dependent argument defers the failure to substitution, so it is the
   only spelling this detection idiom can probe.  Nothing is lost by it.
-  The project targets Linux/glibc, where C23 guarantees `memset_explicit`, and when libstdc++
-  eventually adds the `std::` name, it will be a using-declaration for this same function.
+  A C library without `memset_explicit`, such as glibc before 2.43, falls through to
+  `explicit_bzero`, and when libstdc++ eventually adds the `std::` name, it will be a
+  using-declaration for this same function.
 
   [sd6]: https://isocpp.org/std/standing-documents/sd-6-sg10-feature-test-recommendations
 
