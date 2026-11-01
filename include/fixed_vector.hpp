@@ -128,7 +128,7 @@ private:
 
     /// Zero \a n bytes at \a p with stores that the compiler must not elide
     /**
-    * This uses \c ::memset_explicit (C23) or \c ::explicit_bzero (glibc, BSDs) when the C
+    * This uses \c memset_explicit (C23) or \c explicit_bzero (glibc, BSDs) when the C
     * library declares one, else writes through a \c volatile pointer.  Neither has a
     * feature-test macro, so availability is probed by unqualified name lookup on the dependent
     * parameter \a P.
@@ -136,16 +136,16 @@ private:
     template <typename P>
     static void zero_explicit_(P const p, const std::size_t n) noexcept
     {
-        // Do not change these to std::memset_explicit.  A name qualified into a namespace
-        // that lacks the member is a hard error, not a substitution failure, so the probe
-        // could not reject it.
-        if constexpr (requires { ::memset_explicit(p, 0, n); })
+        // Keep these names unqualified, with neither std:: nor a leading ::.  A qualified
+        // name with no declaration is a hard error, not a substitution failure, so a missing
+        // function would break the build rather than select the next branch.
+        if constexpr (requires { memset_explicit(p, 0, n); })
         {
-            (void)::memset_explicit(p, 0, n);
+            (void)memset_explicit(p, 0, n);
         }
-        else if constexpr (requires { ::explicit_bzero(p, n); })
+        else if constexpr (requires { explicit_bzero(p, n); })
         {
-            ::explicit_bzero(p, n);
+            explicit_bzero(p, n);
         }
         else
         {

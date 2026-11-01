@@ -381,7 +381,7 @@ than owning it, which removes the ownership machinery and changes construction:
 - `zeroize_reserved_unused()` (all four, for trivially copyable element types only) zeroizes the
   reserved tail with non-elidable stores (`memset_explicit`/`explicit_bzero` when the libc
   declares one, else a volatile-write fallback).  The libc functions are detected by
-  *unqualified* name lookup, because there is no feature-test macro.
+  *unqualified* name lookup, with no leading `::`, because there is no feature-test macro.
 
   Because that lookup is unqualified, it needs the names in the global namespace, which is why
   every container header includes **`<string.h>`** (`byte_compare.hpp` zeroizes nothing and
