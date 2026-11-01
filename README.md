@@ -337,10 +337,10 @@ that bound is the *current* capacity, so an index the container's window no long
 it even though the slot is still alive.
 
 `make lint` is separate from all of this.  It runs clang-tidy with the checks in `.clang-tidy`
-and is advisory, since its recipe ignores the exit status.  It currently prints nothing.  The
-cases aimed at code that exists to be warned about (the `std::move` of a trivially copyable
-object, the deliberately un-forwarded forwarding reference, and the element-wise append loop)
-are silenced in place with `NOLINT` comments, so the comments are where that reasoning lives.
+and is advisory, since its recipe ignores the exit status.  The cases aimed at code that exists
+to be warned about (the `std::move` of a trivially copyable object, the deliberately
+un-forwarded forwarding reference, and the element-wise append loop) are silenced in place with
+`NOLINT` comments, so the comments are where that reasoning lives.
 Passing `make test` is the contract, and `make lint` is a reading aid.
 
 ## License

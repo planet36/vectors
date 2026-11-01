@@ -82,10 +82,8 @@ g++ -std=c++23 -Iinclude test-fixed_vector.cpp -o test-fixed_vector && ./test-fi
 - **`make lint` is advisory and is not part of `make test`.**  The recipe is prefixed with `-`,
   so a nonzero clang-tidy exit does not fail the build, and the checks are configured in
   `.clang-tidy` (`bugprone-*`, `cert-*`, `cppcoreguidelines-*`, `readability-*`, … minus a long
-  opt-out list).  **It currently prints nothing**, and that silence is the baseline.  A warning
-  under a change is that change's, not a pre-existing noise floor to read past.  It runs with
-  the release flags, so `DEBUG` is undefined and clang-tidy never sees the
-  `#if defined(DEBUG)` blocks.
+  opt-out list).  It runs with the release flags, so `DEBUG` is undefined and clang-tidy never
+  sees the `#if defined(DEBUG)` blocks.
 
   Every deliberate case is answered in place by a `// NOLINT*` comment, which makes those
   comments the record of what was decided.  **A silenced warning can still be one whose flagged
