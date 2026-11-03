@@ -1,12 +1,10 @@
 // SPDX-FileCopyrightText: Steven Ward
 // SPDX-License-Identifier: MPL-2.0
 
+/// Run-time-capacity, over-aligned buffer of \c std::byte
 /**
 * \file
 * \author Steven Ward
-*
-* Defines the class \c aligned_byte_buffer, a run-time-capacity, over-aligned buffer of
-* \c std::byte.
 */
 
 #pragma once

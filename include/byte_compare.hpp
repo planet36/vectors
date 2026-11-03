@@ -1,13 +1,13 @@
 // SPDX-FileCopyrightText: Steven Ward
 // SPDX-License-Identifier: MPL-2.0
 
+/// \c equal_constant_time, an equality comparison of two \c std::byte spans with no early exit
+/// on the first difference
 /**
 * \file
 * \author Steven Ward
 *
-* Defines \c equal_constant_time, an equality comparison of two \c std::byte spans with no
-* early exit on the first difference.
-* Both \c aligned_byte_buffer.hpp and \c borrowed_byte_buffer.hpp include it.
+* Both \c aligned_byte_buffer.hpp and \c borrowed_byte_buffer.hpp include this header.
 */
 
 #pragma once

@@ -1,12 +1,10 @@
 // SPDX-FileCopyrightText: Steven Ward
 // SPDX-License-Identifier: MPL-2.0
 
+/// Run-time-capacity, non-owning buffer of \c std::byte overlaying storage it does not own
 /**
 * \file
 * \author Steven Ward
-*
-* Defines the class \c borrowed_byte_buffer, a run-time-capacity, non-owning buffer of
-* \c std::byte overlaying storage it does not own.
 */
 
 #pragma once
